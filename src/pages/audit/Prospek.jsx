@@ -22,6 +22,7 @@ import Typography from '@mui/material/Typography';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
 import TrackChangesRoundedIcon from '@mui/icons-material/TrackChangesRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import StatCard from '../../components/ui/StatCard';
 import PageHeader from '../../components/ui/PageHeader';
@@ -113,24 +114,58 @@ export default function Prospek() {
         )}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<TrackChangesRoundedIcon />} value={prospects.length} label="Total prospek" />
         <StatCard icon={<TrackChangesRoundedIcon />} value={countCat('Hot Lead')} label="Hot Lead" color="error" />
         <StatCard icon={<TrackChangesRoundedIcon />} value={countCat('Warm Lead')} label="Warm Lead" color="warning" />
         <StatCard icon={<TrackChangesRoundedIcon />} value={countCat('Cold Lead')} label="Cold Lead" color="info" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField select label="Kategori" value={catFilter} onChange={(e) => setCatFilter(e.target.value)} sx={{ minWidth: 150 }}>
-          <MenuItem value="all">Semua Kategori</MenuItem>
-          {(db.prospectCategories || []).map((c) => <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>)}
-        </TextField>
-        <TextField select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 150 }}>
-          <MenuItem value="all">Semua Status</MenuItem>
-          {STATUS_LIST.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-        </TextField>
-        <TextField label="Cari prospek / alamat…" value={q} onChange={(e) => setQ(e.target.value)} sx={{ minWidth: 240 }} />
-      </Stack>
+      {/* ============ Toolbar Filter: Kategori + Status + Pencarian ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField
+      size="small"
+      select
+      label="Kategori"
+      value={catFilter}
+      onChange={(e) => setCatFilter(e.target.value)}
+      sx={{ width: 170 }}
+    >
+      <MenuItem value="all">Semua Kategori</MenuItem>
+      {(db.prospectCategories || []).map((c) => <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>)}
+    </TextField>
+
+    <TextField
+      size="small"
+      select
+      label="Status"
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      sx={{ width: 170 }}
+    >
+      <MenuItem value="all">Semua Status</MenuItem>
+      {STATUS_LIST.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+    </TextField>
+
+    <TextField
+      size="small"
+      label="Cari prospek / alamat…"
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
+      sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }}
+    />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      Menampilkan {filtered.length} dari {prospects.length} prospek
+    </Typography>
+  </Stack>
+</Paper>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Table size="small">

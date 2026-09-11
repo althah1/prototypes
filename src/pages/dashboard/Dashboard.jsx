@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -15,6 +16,9 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import PendingActionsRoundedIcon from '@mui/icons-material/PendingActionsRounded';
+import PercentRoundedIcon from '@mui/icons-material/PercentRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
 import StatCard from '../../components/ui/StatCard';
 import StatusChip from '../../components/ui/StatusChip';
@@ -25,6 +29,24 @@ import { useDb } from '../../store/DbContext';
 import { todayISO, formatRupiah } from '../../utils/helpers';
 
 const ORDER_ROW_STYLE = { py: 1, borderBottom: '1px dashed', borderColor: 'divider', cursor: 'pointer' };
+
+/* Ubin antrean pada kartu "Perlu Tindakan" — klik untuk menuju modul terkait */
+function ActionTile({ icon, color, title, count, preview, onClick }) {
+  return (
+    <Stack onClick={onClick} spacing={0.75} sx={{
+      p: 1.5, borderRadius: 2, cursor: 'pointer',
+      border: '1px solid', borderColor: 'divider',
+      '&:hover': { bgcolor: 'action.hover' },
+    }}>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Avatar sx={{ bgcolor: `${color}.main`, width: 28, height: 28 }}>{icon}</Avatar>
+        <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>{title}</Typography>
+        <Typography variant="h6" component="span" fontWeight={800}>{count}</Typography>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" noWrap title={preview}>{preview}</Typography>
+    </Stack>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -50,7 +72,7 @@ export default function Dashboard() {
           subtitle={`Ringkasan tagihan & pembayaran — ${today}`}
           action={<Button variant="contained" onClick={() => navigate('/dashboard/billing')} endIcon={<ArrowForwardRoundedIcon />}>Kelola Billing</Button>}
         />
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
           <StatCard icon={<ReceiptLongRoundedIcon />} value={invoices.length} label="Total invoice" />
           <StatCard icon={<ScheduleRoundedIcon />} value={formatRupiah(unpaid.reduce((s, o) => s + o.total, 0))} label="Belum dibayar" color="warning" />
           <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(paid.reduce((s, o) => s + o.total, 0))} label="Sudah lunas" color="success" />
@@ -79,19 +101,53 @@ export default function Dashboard() {
   /* ===== Tampilan Admin / Supervisor ===== */
   const recentOrders = [...db.orders].reverse().slice(0, 6);
   const activeSales = db.sales.filter((s) => s.status === 'active');
+  const pendingQuotes = (db.quotations || []).filter((qt) => qt.status === 'pending_approval');
+  const violationsToday = (db.violations || []).filter((v) => v.date === today);
 
   return (
     <Box>
       <PageHeader title="Dashboard" subtitle={`Ringkasan operasional penjualan lapangan — ${today}`} />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', lg: 'repeat(6, 1fr)' }, gap: 1.5, mb: 2 }}>
         <StatCard icon={<DirectionsRunRoundedIcon />} value={activeSales.length} label="Sales aktif" />
         <StatCard icon={<StorefrontRoundedIcon />} value={db.outlets.filter((o) => o.status === 'active').length} label="Outlet aktif" color="secondary" />
-        <StatCard icon={<TaskAltRoundedIcon />} value={`${doneToday}/${tasksToday.length}`} label="Tugas selesai hari ini" color="success" />
+        <StatCard icon={<TaskAltRoundedIcon />} value={`${doneToday}/${tasksToday.length}`} label="Tugas selesai" color="success" />
         <StatCard icon={<ReceiptLongRoundedIcon />} value={ordersToday.length} label="Order hari ini" color="warning" />
-        <StatCard icon={<ScheduleRoundedIcon />} value={pending.length} label="Menunggu approval" color="error" />
+        <StatCard icon={<ScheduleRoundedIcon />} value={pending.length} label="Menunggu" color="error" />
         <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(ordersToday.reduce((s, o) => s + o.total, 0))} label="Nilai order hari ini" />
       </Box>
+
+      {/* ===== Perlu Tindakan: antrean yang menunggu keputusan ===== */}
+      <Card sx={{ mb: 2 }}>
+        <CardHeader
+          avatar={<Avatar sx={{ bgcolor: 'warning.main', width: 32, height: 32 }}><PendingActionsRoundedIcon sx={{ fontSize: 18 }} /></Avatar>}
+          title="Perlu Tindakan"
+          titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}
+          subheader="Antrean pekerjaan yang menunggu keputusan Anda"
+        />
+        <CardContent>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
+            <ActionTile
+              icon={<PendingActionsRoundedIcon sx={{ fontSize: 16 }} />} color="warning"
+              title="Order menunggu approval" count={pending.length}
+              preview={pending.length ? `${pending[0].no} • ${outletOf(pending[0].outletId)}` : 'Tidak ada antrean'}
+              onClick={() => navigate('/dashboard/orders')}
+            />
+            <ActionTile
+              icon={<PercentRoundedIcon sx={{ fontSize: 16 }} />} color="warning"
+              title="Quotation approval" count={pendingQuotes.length}
+              preview={pendingQuotes.length ? `${pendingQuotes[0].no} • ${outletOf(pendingQuotes[0].outletId)}` : 'Tidak ada antrean'}
+              onClick={() => navigate('/dashboard/quotes')}
+            />
+            <ActionTile
+              icon={<WarningAmberRoundedIcon sx={{ fontSize: 16 }} />} color="error"
+              title="Pelanggaran GPS hari ini" count={violationsToday.length}
+              preview={violationsToday.length ? `${outletOf(violationsToday[0].outletId)} • ${violationsToday[0].type === 'area' ? 'luar wilayah' : 'luar radius'}` : 'Tidak ada pelanggaran'}
+              onClick={() => navigate('/dashboard/gps')}
+            />
+          </Box>
+        </CardContent>
+      </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { lg: '1.3fr 1fr' }, gap: 2 }}>
         <Card>

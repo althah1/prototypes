@@ -9,6 +9,7 @@ export function expireTasks(db, mutate) {
   );
   if (!stale.length) return 0;
   mutate((d) => {
+    if (!Array.isArray(d.tasks)) return; /* guard: data lama tanpa tabel tasks */
     d.tasks.forEach((t) => {
       if (t.date < today && (t.status === 'pending' || t.status === 'in_progress')) {
         t.status = 'failed';
@@ -28,7 +29,7 @@ export function completeTaskAuto(db, mutate, { outletId, type, salesId, date }) 
   );
   if (!task) return null;
   mutate((d) => {
-    const t = d.tasks.find((x) => x.id === task.id);
+    const t = (d.tasks || []).find((x) => x.id === task.id);
     if (t) { t.status = 'done'; t.completedAt = nowStamp(); }
   });
   return { ...task, status: 'done' };

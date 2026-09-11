@@ -21,6 +21,7 @@ import Typography from '@mui/material/Typography';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import StatCard from '../../components/ui/StatCard';
 import StatusChip from '../../components/ui/StatusChip';
@@ -50,6 +51,9 @@ export default function Billing() {
   const [method, setMethod] = useState('Transfer Bank');
   const [amount, setAmount] = useState('');
   const [err, setErr] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
+  const [q, setQ] = useState('');
 
   /* Invoice = order yang sudah lewat tahap Submitted (tidak ditolak/dibatalkan) */
   const invoices = (db.orders || []).filter((o) => !['submitted', 'rejected', 'cancelled'].includes(o.status));
@@ -70,6 +74,13 @@ export default function Billing() {
   }, [payId]);
 
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
+
+  const filtered = invoices.filter((o) =>
+    (statusFilter === 'all' || (statusFilter === 'paid' ? o.paid : !o.paid)) &&
+    (!dateFilter || o.date === dateFilter) &&
+    (!q.trim() || o.no.toLowerCase().includes(q.trim().toLowerCase()) ||
+      outletName(o.outletId).toLowerCase().includes(q.trim().toLowerCase()))
+  );
   const salesName = (id) => (db.sales || []).find((s) => s.id === id)?.name || '-';
 
   const submitPay = () => {
@@ -79,7 +90,7 @@ export default function Billing() {
     const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === payOrder.salesId);
     if (salesUser) notify(salesUser.id, 'Pembayaran Diterima', `${payOrder.no} tercatat lunas (${method}).`);
     if (amt !== payOrder.total) {
-      toast('⚠️ Nominal tidak cocok dengan total tagihan — mismatch tercatat & notifikasi dikirim (simulasi).', 'warning', 5500);
+      toast('Nominal tidak cocok dengan total tagihan — mismatch tercatat & notifikasi dikirim (simulasi).', 'warning', 5500);
     } else {
       toast('Pembayaran tercatat.', 'success');
     }
@@ -93,13 +104,39 @@ export default function Billing() {
         subtitle={`Tagihan dari order yang telah disetujui. ${isFinance ? 'Anda dapat mencatat pembayaran.' : 'View Only sesuai matriks RBAC (#5).'}`}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<ReceiptLongRoundedIcon />} value={invoices.length} label="Total invoice" />
         <StatCard icon={<ScheduleRoundedIcon />} value={formatRupiah(unpaid.reduce((s, o) => s + o.total, 0))} label="Belum dibayar" color="warning" />
         <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(paid.reduce((s, o) => s + o.total, 0))} label="Sudah lunas" color="success" />
       </Box>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+        {/* ============ Toolbar Filter: Tanggal + Status Bayar + Pencarian ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField size="small" type="date" label="Tanggal" value={dateFilter}
+      InputLabelProps={{ shrink: true }} onChange={(e) => setDateFilter(e.target.value)} sx={{ width: 170 }} />
+
+    <TextField size="small" select label="Status Bayar" value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)} sx={{ width: 170 }}>
+      <MenuItem value="all">Semua Status</MenuItem>
+      <MenuItem value="unpaid">Belum Dibayar</MenuItem>
+      <MenuItem value="paid">Sudah Lunas</MenuItem>
+    </TextField>
+
+    <TextField size="small" label="Cari no. invoice / outlet…" value={q}
+      onChange={(e) => setQ(e.target.value)} sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }} />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      Menampilkan {filtered.length} dari {invoices.length} invoice
+    </Typography>
+  </Stack>
+</Paper>  
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -109,7 +146,7 @@ export default function Billing() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {invoices.length ? invoices.slice().reverse().map((o) => (
+            {filtered.length ? filtered.slice().reverse().map((o) => (
               <TableRow key={o.id}>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{o.no}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{o.date}</TableCell>

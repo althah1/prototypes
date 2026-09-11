@@ -20,6 +20,7 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import StatCard from '../../components/ui/StatCard';
 import StatusChip from '../../components/ui/StatusChip';
@@ -60,28 +61,62 @@ export default function OrderDesktop() {
         subtitle={`Pemantauan transaksi & persetujuan order lapangan${canApprove ? '' : ' (View Only — matriks RBAC #5)'}.`}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<ReceiptLongRoundedIcon />} value={(db.orders || []).filter((o) => o.date === today).length} label="Order hari ini" />
         <StatCard icon={<ScheduleRoundedIcon />} value={(db.orders || []).filter((o) => o.status === 'submitted').length} label="Menunggu approval" color="warning" />
         <StatCard icon={<CheckCircleRoundedIcon />} value={(db.orders || []).filter((o) => o.status === 'approved').length} label="Disetujui" color="success" />
         <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah((db.orders || []).filter((o) => o.date === today).reduce((s, o) => s + o.total, 0))} label="Nilai order hari ini" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
-          <MenuItem value="all">Semua Status</MenuItem>
-          <MenuItem value="submitted">Diajukan</MenuItem>
-          <MenuItem value="approved">Disetujui</MenuItem>
-          <MenuItem value="processing">Diproses</MenuItem>
-          <MenuItem value="shipped">Dikirim</MenuItem>
-          <MenuItem value="completed">Selesai</MenuItem>
-          <MenuItem value="rejected">Ditolak</MenuItem>
-          <MenuItem value="cancelled">Dibatalkan</MenuItem>
-        </TextField>
-        <TextField type="date" label="Tanggal" value={dateFilter} InputLabelProps={{ shrink: true }}
-          onChange={(e) => setDateFilter(e.target.value)} sx={{ minWidth: 160 }} />
-        <TextField label="Cari no. order / outlet…" value={q} onChange={(e) => setQ(e.target.value)} sx={{ minWidth: 240 }} />
-      </Stack>
+      {/* ============ Toolbar Filter: Tanggal + Status + Pencarian ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField
+      size="small"
+      type="date"
+      label="Tanggal"
+      value={dateFilter}
+      InputLabelProps={{ shrink: true }}
+      onChange={(e) => setDateFilter(e.target.value)}
+      sx={{ width: 170 }}
+    />
+
+    <TextField
+      size="small"
+      select
+      label="Status"
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      sx={{ width: 170 }}
+    >
+      <MenuItem value="all">Semua Status</MenuItem>
+      <MenuItem value="submitted">Diajukan</MenuItem>
+      <MenuItem value="approved">Disetujui</MenuItem>
+      <MenuItem value="processing">Diproses</MenuItem>
+      <MenuItem value="shipped">Dikirim</MenuItem>
+      <MenuItem value="completed">Selesai</MenuItem>
+      <MenuItem value="rejected">Ditolak</MenuItem>
+      <MenuItem value="cancelled">Dibatalkan</MenuItem>
+    </TextField>
+
+    <TextField
+      size="small"
+      label="Cari no. order / outlet…"
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
+      sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }}
+    />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      Menampilkan {filtered.length} dari {orders.length} order
+    </Typography>
+  </Stack>
+</Paper>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Table size="small">

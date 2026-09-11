@@ -16,6 +16,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
@@ -76,30 +77,64 @@ export default function QuoteDesktop() {
         subtitle={`Monitoring riwayat penawaran${canApproveDiscount ? ' + approval diskon melebihi wewenang (#53)' : ' — akses View Only (matriks RBAC #5)'}.`}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<DescriptionRoundedIcon />} value={quotes.length} label="Total quotation" />
         <StatCard icon={<ScheduleRoundedIcon />} value={quotes.filter((x) => x.status === 'draft').length} label="Draft" />
-        <StatCard icon={<WarningAmberRoundedIcon />} value={quotes.filter((x) => x.status === 'pending_approval').length} label="Menunggu approval diskon" color="warning" />
+        <StatCard icon={<WarningAmberRoundedIcon />} value={quotes.filter((x) => x.status === 'pending_approval').length} label="Menunggu" color="warning" />
         <StatCard icon={<SendRoundedIcon />} value={quotes.filter((x) => x.status === 'sent').length} label="Terkirim" color="info" />
         <StatCard icon={<CheckCircleRoundedIcon />} value={quotes.filter((x) => x.status === 'approved').length} label="Disetujui" color="success" />
         <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(quotes.filter((x) => x.status === 'approved').reduce((s, x) => s + x.total, 0))} label="Nilai disetujui" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 170 }}>
-          <MenuItem value="all">Semua Status</MenuItem>
-          <MenuItem value="draft">Draft</MenuItem>
-          <MenuItem value="pending_approval">Menunggu Approval</MenuItem>
-          <MenuItem value="sent">Terkirim</MenuItem>
-          <MenuItem value="approved">Disetujui</MenuItem>
-          <MenuItem value="rejected">Ditolak</MenuItem>
-          <MenuItem value="expired">Kadaluarsa</MenuItem>
-          <MenuItem value="converted">Jadi Order</MenuItem>
-        </TextField>
-        <TextField type="date" label="Tanggal" value={dateFilter} InputLabelProps={{ shrink: true }}
-          onChange={(e) => setDateFilter(e.target.value)} sx={{ minWidth: 160 }} />
-        <TextField label="Cari no. quotation / outlet (#58)…" value={q} onChange={(e) => setQ(e.target.value)} sx={{ minWidth: 260 }} />
-      </Stack>
+      {/* ============ Toolbar Filter: Tanggal + Status + Pencarian ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField
+      size="small"
+      type="date"
+      label="Tanggal"
+      value={dateFilter}
+      InputLabelProps={{ shrink: true }}
+      onChange={(e) => setDateFilter(e.target.value)}
+      sx={{ width: 170 }}
+    />
+
+    <TextField
+      size="small"
+      select
+      label="Status"
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      sx={{ width: 190 }}
+    >
+      <MenuItem value="all">Semua Status</MenuItem>
+      <MenuItem value="draft">Draft</MenuItem>
+      <MenuItem value="pending_approval">Menunggu Approval</MenuItem>
+      <MenuItem value="sent">Terkirim</MenuItem>
+      <MenuItem value="approved">Disetujui</MenuItem>
+      <MenuItem value="rejected">Ditolak</MenuItem>
+      <MenuItem value="expired">Kadaluarsa</MenuItem>
+      <MenuItem value="converted">Jadi Order</MenuItem>
+    </TextField>
+
+    <TextField
+      size="small"
+      label="Cari no. quotation / outlet (#58)…"
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
+      sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }}
+    />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      Menampilkan {filtered.length} dari {quotes.length} quotation
+    </Typography>
+  </Stack>
+</Paper>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Table size="small">

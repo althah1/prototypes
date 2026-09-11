@@ -69,7 +69,7 @@ export function DataProvider({ children }) {
   const reset = () => persist(seed());
 
   return (
-    <DbContext.Provider value={{ db: data, insert, update, remove, reset, nextNo, dataRef }}>
+    <DbContext.Provider value={{ db: data, insert, update, remove, reset, nextNo, mutate, dataRef }}>
       {children}
     </DbContext.Provider>
   );

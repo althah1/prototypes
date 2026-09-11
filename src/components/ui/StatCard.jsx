@@ -13,7 +13,7 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h6" noWrap>{value}</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>{label}</Typography>
+          <Typography variant="caption" color="text.secondary">{label}</Typography>
         </Box>
       </CardContent>
     </Card>

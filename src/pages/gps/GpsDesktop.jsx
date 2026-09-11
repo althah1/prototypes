@@ -25,6 +25,7 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import StopCircleRoundedIcon from '@mui/icons-material/StopCircleRounded';
 import WhereToVoteRoundedIcon from '@mui/icons-material/WhereToVoteRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import LeafletMap from '../../components/map/LeafletMap';
 import StatCard from '../../components/ui/StatCard';
@@ -144,31 +145,58 @@ function GpsMonitor() {
         subtitle="Pemantauan tim sales: penyebaran outlet, batas area geofencing, rute & riwayat perjalanan, indikator status kunjungan (#73)."
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<TaskAltRoundedIcon />} value={`${doneTasks}/${tasksForDate.length}`} label={`Tugas selesai (${date})`} color="success" />
         <StatCard icon={<WhereToVoteRoundedIcon />} value={checkins.length} label="Check-in tercatat" color="info" />
         <StatCard icon={<WarningAmberRoundedIcon />} value={violations.length} label="Pelanggaran (wilayah/radius)" color="error" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField select label="Sales (#78)" value={String(salesId)} onChange={(e) => setSalesId(Number(e.target.value))} sx={{ minWidth: 190 }}>
-          {salesList.map((s) => (
-            <MenuItem key={s.id} value={String(s.id)}>{s.name} — {(db.areas || []).find((a) => a.id === s.areaId)?.name || ''}</MenuItem>
-          ))}
-        </TextField>
-        <TextField type="date" label="Tanggal" value={date} InputLabelProps={{ shrink: true }}
-          onChange={(e) => setDate(e.target.value || todayISO())} sx={{ minWidth: 160 }} />
-        <Box sx={{ flexGrow: 1 }} />
-        <Button
-          variant={liveOn ? 'outlined' : 'contained'}
-          color={liveOn ? 'error' : 'primary'}
-          startIcon={liveOn ? <StopCircleRoundedIcon /> : <PlayArrowRoundedIcon />}
-          onClick={() => { setLiveIdx(0); setLiveOn((v) => !v); }}
-          disabled={livePath.length < 2}
-        >
-          {liveOn ? 'Hentikan Simulasi' : 'Mulai Simulasi Live (#77)'}
-        </Button>
-      </Stack>
+      {/* ============ Toolbar: Sales + Tanggal + Simulasi Live ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField
+      size="small"
+      select
+      label="Sales (#78)"
+      value={String(salesId)}
+      onChange={(e) => setSalesId(Number(e.target.value))}
+      sx={{ width: 210 }}
+    >
+      {salesList.map((s) => (
+        <MenuItem key={s.id} value={String(s.id)}>{s.name} — {(db.areas || []).find((a) => a.id === s.areaId)?.name || ''}</MenuItem>
+      ))}
+    </TextField>
+
+    <TextField
+      size="small"
+      type="date"
+      label="Tanggal"
+      value={date}
+      InputLabelProps={{ shrink: true }}
+      onChange={(e) => setDate(e.target.value || todayISO())}
+      sx={{ width: 170 }}
+    />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      {stopOutlets.length} outlet terjadwal • {checkins.length} check-in
+    </Typography>
+
+    <Button
+      variant={liveOn ? 'outlined' : 'contained'}
+      color={liveOn ? 'error' : 'primary'}
+      startIcon={liveOn ? <StopCircleRoundedIcon /> : <PlayArrowRoundedIcon />}
+      onClick={() => { setLiveIdx(0); setLiveOn((v) => !v); }}
+      disabled={livePath.length < 2}
+    >
+      {liveOn ? 'Hentikan Simulasi' : 'Mulai Simulasi Live (#77)'}
+    </Button>
+  </Stack>
+</Paper>
 
       <LeafletMap height={380} center={basePos} markers={markers} lines={lines} circles={circles} />
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
@@ -222,7 +250,8 @@ function GpsMonitor() {
 
         {/* Pelanggaran (#75) */}
         <Card>
-          <CardHeader title="⚠️ Pelanggaran Wilayah / Radius" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
+          <CardHeader
+          avatar={<Avatar sx={{ bgcolor: 'error.main', width: 32, height: 32 }}><WarningAmberRoundedIcon sx={{ fontSize: 18 }} /></Avatar>} title="Pelanggaran Wilayah / Radius" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}/>
           <CardContent sx={{ p: 0 }}>
             {violations.length ? (
               <TableContainer component={Paper} elevation={0}>
@@ -251,7 +280,7 @@ function GpsMonitor() {
                   </TableBody>
                 </Table>
               </TableContainer>
-            ) : <EmptyState message="Tidak ada pelanggaran tercatat. 👍" />}
+            ) : <EmptyState message="Tidak ada pelanggaran tercatat." />}
           </CardContent>
         </Card>
       </Box>

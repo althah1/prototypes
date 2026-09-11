@@ -17,6 +17,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded';
@@ -83,18 +84,44 @@ export default function AuditDesktop() {
         )}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 1.5, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
         <StatCard icon={<FactCheckRoundedIcon />} value={audits.filter((a) => a.date === today).length} label="Audit hari ini" />
         <StatCard icon={<GradeRoundedIcon />} value={`${avgScore}/100`} label="Skor rata-rata" color="success" />
         <StatCard icon={<TrackChangesRoundedIcon />} value={(db.prospects || []).length} label="Prospek terdata" color="secondary" />
         <StatCard icon={<Inventory2RoundedIcon />} value={`${totalDev} unit`} label="Total selisih stok" color="warning" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField type="date" label="Tanggal" value={dateFilter} InputLabelProps={{ shrink: true }}
-          onChange={(e) => setDateFilter(e.target.value)} sx={{ minWidth: 160 }} />
-        <TextField label="Cari no. audit / outlet…" value={q} onChange={(e) => setQ(e.target.value)} sx={{ minWidth: 260 }} />
-      </Stack>
+      {/* ============ Toolbar Filter: Tanggal + Pencarian ============ */}
+<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
+  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+      <FilterListRoundedIcon fontSize="small" />
+      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+    </Stack>
+
+    <TextField
+      size="small"
+      type="date"
+      label="Tanggal"
+      value={dateFilter}
+      InputLabelProps={{ shrink: true }}
+      onChange={(e) => setDateFilter(e.target.value)}
+      sx={{ width: 170 }}
+    />
+
+    <TextField
+      size="small"
+      label="Cari no. audit / outlet…"
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
+      sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }}
+    />
+
+    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+      Menampilkan {filtered.length} dari {audits.length} audit
+    </Typography>
+  </Stack>
+</Paper>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Table size="small">

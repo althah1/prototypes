@@ -6,10 +6,15 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
 import Checkbox from '@mui/material/Checkbox';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -20,7 +25,6 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
@@ -29,6 +33,7 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
 
 import StatCard from '../../components/ui/StatCard';
@@ -49,6 +54,10 @@ function CreateScheduleDialog({ open, onClose }) {
   const { db, insert } = useDb();
   const { notify } = useSync();
   const { toast } = useToast();
+
+  /* FIX: guard tabel areas — dialog TERTUTUP pun tetap mengeksekusi
+     render function ini, jadi semua akses db di sini wajib aman. */
+  const areas = db.areas || [];
 
   /* BR-TASK-001: Supervisor hanya menjadwalkan SALES BAWAHANNYA */
   const spv = (db.supervisors || []).find((s) => s.email === user.email);
@@ -113,7 +122,7 @@ function CreateScheduleDialog({ open, onClose }) {
             error={!!errors.salesId} helperText={errors.salesId || 'Difilter otomatis sesuai hierarki Supervisor (BR-TASK-001).'}>
             {teamSales.map((s) => (
               <MenuItem key={s.id} value={String(s.id)}>
-                {s.name} — {(db.areas.find((a) => a.id === s.areaId) || {}).name || ''}
+                {s.name} — {areas.find((a) => a.id === s.areaId)?.name || ''}
               </MenuItem>
             ))}
           </TextField>
@@ -208,12 +217,6 @@ function EditTaskDialog({ open, task, onClose }) {
   );
 }
 
-/* Import Dialog (dipakai komponen dialog di atas) */
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-
 /* ============ Halaman utama ============ */
 export default function TaskDesktop() {
   const { user } = useAuth();
@@ -257,26 +260,56 @@ export default function TaskDesktop() {
         )}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(158px, 1fr))', gap: 1.5, mb: 2 }}>
-        <StatCard icon={<AssignmentRoundedIcon />} value={allForDate.length} label={`Total tugas ${dateFilter}`} />
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
+        <StatCard icon={<AssignmentRoundedIcon />} value={allForDate.length} label="Total Tugas" />
         <StatCard icon={<ScheduleRoundedIcon />} value={cnt('pending')} label="Pending" color="warning" />
         <StatCard icon={<AutorenewRoundedIcon />} value={cnt('in_progress')} label="Berlangsung" color="info" />
         <StatCard icon={<CheckCircleRoundedIcon />} value={cnt('done')} label="Selesai" color="success" />
         <StatCard icon={<CancelRoundedIcon />} value={cnt('failed') + cnt('cancelled')} label="Gagal / Dibatalkan" color="error" />
       </Box>
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <TextField type="date" label="Tanggal" value={dateFilter} InputLabelProps={{ shrink: true }}
-          onChange={(e) => setDateFilter(e.target.value || todayISO())} sx={{ minWidth: 160 }} />
-        <TextField select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160 }}>
-          <MenuItem value="all">Semua Status</MenuItem>
-          <MenuItem value="pending">Belum Mulai</MenuItem>
-          <MenuItem value="in_progress">Berlangsung</MenuItem>
-          <MenuItem value="done">Selesai</MenuItem>
-          <MenuItem value="failed">Gagal</MenuItem>
-          <MenuItem value="cancelled">Dibatalkan</MenuItem>
-        </TextField>
-      </Stack>
+      {/* ============ Toolbar Filter: Tanggal + Status (simetris & menyatu dengan tabel) ============ */}
+      <Paper
+        elevation={0}
+        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
+            <FilterListRoundedIcon fontSize="small" />
+            <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
+          </Stack>
+
+          <TextField
+            size="small"
+            type="date"
+            label="Tanggal"
+            value={dateFilter}
+            InputLabelProps={{ shrink: true }}
+            onChange={(e) => setDateFilter(e.target.value || todayISO())}
+            sx={{ width: 170 }}
+          />
+
+          <TextField
+            size="small"
+            select
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{ width: 170 }}
+          >
+            <MenuItem value="all">Semua Status</MenuItem>
+            <MenuItem value="pending">Belum Mulai</MenuItem>
+            <MenuItem value="in_progress">Berlangsung</MenuItem>
+            <MenuItem value="done">Selesai</MenuItem>
+            <MenuItem value="failed">Gagal</MenuItem>
+            <MenuItem value="cancelled">Dibatalkan</MenuItem>
+          </TextField>
+
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            Menampilkan {rows.length} dari {allForDate.length} tugas
+          </Typography>
+        </Stack>
+      </Paper>
 
       <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Table size="small">
