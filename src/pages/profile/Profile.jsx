@@ -57,15 +57,17 @@ export default function Profile() {
 
   return (
     <Stack spacing={2} sx={{ maxWidth: isMobile ? 'none' : 560 }}>
-      <Card>
-        <CardContent>
+      <Typography variant="h6" fontWeight={800}>Profil Saya</Typography>
+
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 2 }}>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 64, height: 64, fontSize: 24, fontWeight: 800 }}>
               {initials(user.name)}
             </Avatar>
-            <Box>
-              <Typography variant="h6">{user.name}</Typography>
-              <Chip label={roleLabel} color="primary" size="small" variant="outlined" />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={800} noWrap>{user.name}</Typography>
+              <Chip label={roleLabel} color="primary" size="small" variant="outlined" sx={{ mt: 0.5 }} />
             </Box>
           </Stack>
 
@@ -89,6 +91,7 @@ export default function Profile() {
         variant="outlined" color="error" size="large"
         startIcon={<LogoutRoundedIcon />}
         onClick={() => logout('Anda telah keluar dari sistem.')}
+        sx={{ borderRadius: 2 }}
       >
         Keluar (Logout)
       </Button>

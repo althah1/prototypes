@@ -137,7 +137,7 @@ export default function Dashboard() {
               icon={<PercentRoundedIcon sx={{ fontSize: 16 }} />} color="warning"
               title="Quotation approval" count={pendingQuotes.length}
               preview={pendingQuotes.length ? `${pendingQuotes[0].no} • ${outletOf(pendingQuotes[0].outletId)}` : 'Tidak ada antrean'}
-              onClick={() => navigate('/dashboard/quotes')}
+              onClick={() => navigate('/dashboard/quotations')}
             />
             <ActionTile
               icon={<WarningAmberRoundedIcon sx={{ fontSize: 16 }} />} color="error"

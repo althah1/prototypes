@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
+import Avatar from '@mui/material/Avatar';
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
+import Drawer from '@mui/material/Drawer';
 import Fab from '@mui/material/Fab';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
@@ -16,6 +14,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
@@ -39,15 +38,23 @@ const NAV_ITEMS = [
 ];
 
 const CREATE_ACTIONS = [
-  { path: '/app/order',  label: 'Entry Order',    desc: 'Pesanan produk di outlet',  icon: ShoppingCartRoundedIcon },
-  { path: '/app/quotes', label: 'Quotation',      desc: 'Penawaran harga (PDF)',     icon: DescriptionRoundedIcon },
-  { path: '/app/audit',  label: 'Audit & Survey', desc: 'Checklist + stok + foto',   icon: FactCheckRoundedIcon },
+  { path: '/app/order',  label: 'Entry Order',    desc: 'Pesanan produk di outlet', icon: ShoppingCartRoundedIcon, color: 'primary' },
+  { path: '/app/quotes', label: 'Quotation',      desc: 'Penawaran harga (PDF)',    icon: DescriptionRoundedIcon,  color: 'info' },
+  { path: '/app/audit',  label: 'Audit & Survey', desc: 'Checklist + stok + foto',  icon: FactCheckRoundedIcon,    color: 'success' },
 ];
 
+/* Tombol navigasi bawah — pil aktif terisi, ala aplikasi native */
 function NavBtn({ item, active, onClick }) {
   return (
     <ButtonBase onClick={onClick} sx={{ flexDirection: 'column', gap: 0.25, py: 1, width: '100%' }}>
-      <item.icon color={active ? 'primary' : 'action'} fontSize="small" />
+      <Box sx={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: 44, height: 26, borderRadius: 99,
+        bgcolor: active ? 'primary.main' : 'transparent',
+        transition: 'background-color .2s',
+      }}>
+        <item.icon sx={{ color: active ? 'common.white' : 'text.secondary' }} fontSize="small" />
+      </Box>
       <Typography variant="caption" fontWeight={700} color={active ? 'primary.main' : 'text.secondary'}>
         {item.label}
       </Typography>
@@ -127,42 +134,61 @@ export default function MobileLayout() {
         }}
       >
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', alignItems: 'end', pb: 'env(safe-area-inset-bottom)' }}>
-          {NAV_ITEMS.slice(0, 3).map((item) => (
+          {/* 2 item kiri */}
+          {NAV_ITEMS.slice(0, 2).map((item) => (
             <NavBtn key={item.path} item={item} active={isActive(item.path)} onClick={() => navigate(item.path)} />
           ))}
+
+          {/* FAB — kolom ke-3, tepat di tengah */}
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Fab color="primary" onClick={() => setSheetOpen(true)} sx={{ mt: -2.5 }} aria-label="Buat baru">
               <AddRoundedIcon />
             </Fab>
           </Box>
-          <NavBtn item={NAV_ITEMS[3]} active={isActive(NAV_ITEMS[3].path)} onClick={() => navigate('/app/profile')} />
+
+          {/* 2 item kanan */}
+          {NAV_ITEMS.slice(2).map((item) => (
+            <NavBtn key={item.path} item={item} active={isActive(item.path)} onClick={() => navigate(item.path)} />
+          ))}
         </Box>
       </Paper>
 
-      {/* ===== Action Sheet (FAB) ===== */}
-      <Dialog open={sheetOpen} onClose={() => setSheetOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Buat Baru</DialogTitle>
-        <DialogContent>
-          <Stack spacing={1.25}>
-            {CREATE_ACTIONS.map((a) => (
-              <Button
-                key={a.path}
-                fullWidth
-                variant="outlined"
-                size="large"
-                startIcon={<a.icon />}
-                onClick={() => { setSheetOpen(false); navigate(a.path); }}
-                sx={{ justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-              >
-                <Box>
-                  <Typography fontWeight={700}>{a.label}</Typography>
+      {/* ===== Action Sheet — bottom sheet ala aplikasi native ===== */}
+      <Drawer
+        anchor="bottom"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        PaperProps={{
+          sx: {
+            maxWidth: 430, mx: 'auto',
+            borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            px: 2, pt: 1, pb: 3,
+          },
+        }}
+      >
+        <Box sx={{ width: 36, height: 4, borderRadius: 99, bgcolor: 'divider', mx: 'auto', mb: 1.5 }} />
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Buat Baru</Typography>
+        <Stack spacing={1.25}>
+          {CREATE_ACTIONS.map((a) => (
+            <ButtonBase
+              key={a.path}
+              onClick={() => { setSheetOpen(false); navigate(a.path); }}
+              sx={{ width: '100%', textAlign: 'left', p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%' }}>
+                <Avatar variant="rounded" sx={{ bgcolor: `${a.color}.main`, borderRadius: 2, width: 42, height: 42 }}>
+                  <a.icon sx={{ color: 'common.white' }} />
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography fontWeight={700} fontSize={14}>{a.label}</Typography>
                   <Typography variant="caption" color="text.secondary">{a.desc}</Typography>
                 </Box>
-              </Button>
-            ))}
-          </Stack>
-        </DialogContent>
-      </Dialog>
+                <ArrowForwardRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+              </Stack>
+            </ButtonBase>
+          ))}
+        </Stack>
+      </Drawer>
     </Box>
   );
 }

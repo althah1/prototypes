@@ -24,6 +24,7 @@ import Typography from '@mui/material/Typography';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
@@ -55,6 +56,52 @@ const KV = ({ label, value }) => (
   </Stack>
 );
 
+/* ===== Header langkah: tombol kembali + judul + indikator progres ===== */
+function StepHeader({ title, onBack, step }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <IconButton onClick={onBack} aria-label="Kembali" sx={{ bgcolor: 'action.hover' }}>
+        <ArrowBackRoundedIcon />
+      </IconButton>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="h6" fontWeight={800} noWrap>{title}</Typography>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+          {[0, 1, 2].map((i) => (
+            <Box key={i} sx={{ width: 18, height: 4, borderRadius: 99, bgcolor: i <= step ? 'primary.main' : 'divider' }} />
+          ))}
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+            Langkah {step + 1} dari 3
+          </Typography>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+/* ===== Bar aksi bawah (sticky) — jumlah item + total + CTA ===== */
+function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }) {
+  return (
+    <Box onClick={disabled || loading ? undefined : onClick} sx={{
+      position: 'fixed', bottom: 84, left: '50%', transform: 'translateX(-50%)',
+      width: 'calc(100% - 32px)', maxWidth: 398,
+      bgcolor: disabled ? 'action.disabledBackground' : 'primary.main',
+      color: disabled ? 'text.disabled' : '#fff',
+      borderRadius: 2.5, px: 2, py: 1.25,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      cursor: disabled || loading ? 'default' : 'pointer', zIndex: 1150, boxShadow: 4,
+    }}>
+      <Box>
+        <Typography fontWeight={800} fontSize={14}>{itemCount} item</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9 }}>{formatRupiah(total)}</Typography>
+      </Box>
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <Typography fontWeight={700} fontSize={14}>{loading ? 'Menyimpan…' : actionLabel}</Typography>
+        {!loading && <ArrowForwardRoundedIcon fontSize="small" />}
+      </Stack>
+    </Box>
+  );
+}
+
 export default function OrderMobile() {
   const { user } = useAuth();
   const { db, insert, mutate } = useDb();
@@ -79,7 +126,11 @@ export default function OrderMobile() {
 
   /* ===== Derived data ===== */
   const outlet = (db.outlets || []).find((o) => o.id === draft?.outletId);
-  const step = draft ? (draft.step === 'items' && !outlet ? 'outlet' : draft.step) : null;
+  /* FIX: guard diperluas — jika outlet dihapus dari Master saat sales sedang
+     di langkah items ATAU review, kembalikan ke pemilihan outlet (bukan crash). */
+  const step = draft
+    ? (((draft.step === 'items' || draft.step === 'review') && !outlet) ? 'outlet' : draft.step)
+    : null;
 
   const products = (db.products || []).filter((p) => p.status === 'active');
   const prodFiltered = products.filter((p) => {
@@ -117,7 +168,7 @@ export default function OrderMobile() {
     });
   };
 
-  /* Nomor unik otomatis (#42) — ikut memhitung antrean offline agar tidak duplikat (#48) */
+  /* Nomor unik otomatis (#42) — ikut menghitung antrean offline agar tidak duplikat (#48) */
   const genOrderNo = () => {
     const t = todayISO();
     const count = (db.orders || []).filter((o) => o.date === t).length
@@ -181,7 +232,7 @@ export default function OrderMobile() {
     return (
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Entry Order</Typography>
+          <Typography variant="h6" fontWeight={800}>Entry Order</Typography>
           <Button variant="contained" size="small" startIcon={<AddRoundedIcon />}
             onClick={() => setDraft({ step: 'outlet', items: [] })}>
             Pesanan Baru
@@ -198,7 +249,8 @@ export default function OrderMobile() {
         </Stack>
 
         {orderList.length ? orderList.map((o) => (
-          <Card key={o.id} onClick={() => setDetailId(o.id)} sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}>
+          <Card key={o.id} elevation={0} onClick={() => setDetailId(o.id)}
+            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{o.no}</Typography>
@@ -218,11 +270,14 @@ export default function OrderMobile() {
         <OrderDetailDialog open={!!detailId} orderId={detailId} onClose={() => setDetailId(null)} />
 
         {/* Dialog sukses (#49: teruskan draft ke Quotation) */}
-        <Dialog open={!!successOrder} onClose={() => setSuccessOrder(null)} maxWidth="xs" fullWidth>
+        <Dialog open={!!successOrder} onClose={() => setSuccessOrder(null)} maxWidth="xs" fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}>
           <DialogTitle>Pesanan Tersimpan</DialogTitle>
           <DialogContent dividers>
             <Stack alignItems="center" spacing={1} sx={{ py: 1 }}>
-              <CheckCircleRoundedIcon color="success" sx={{ fontSize: 46 }} />
+              <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
+                <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
+              </Avatar>
               <Typography fontFamily="monospace" fontWeight={800} fontSize={20}>{successOrder?.no}</Typography>
               <StatusChip kind="order" status="submitted" />
               <Typography variant="body2">Total: <b>{formatRupiah(successOrder?.total || 0)}</b></Typography>
@@ -247,29 +302,20 @@ export default function OrderMobile() {
     );
   }
 
-  /* ===================== VIEW: PILIH OUTLET ===================== */
+  /* ===================== VIEW LANGKAH 1: PILIH OUTLET ===================== */
   if (step === 'outlet') {
     return (
       <Stack spacing={1.5}>
-        <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={() => setDraft(null)} sx={{ alignSelf: 'flex-start' }}>
-          Batal
-        </Button>
-        <Card>
-          <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-            <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark' }}><StorefrontRoundedIcon /></Avatar>
-            <Box>
-              <Typography fontWeight={700} fontSize={15}>Pilih Outlet Kunjungan</Typography>
-              <Typography variant="caption" color="text.secondary">Data outlet ditarik real-time dari Master Data.</Typography>
-            </Box>
-          </CardContent>
-        </Card>
+        <StepHeader title="Pilih Outlet" onBack={() => setDraft(null)} step={0} />
+
         <TextField label="Cari outlet…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
-        {outlets.map((o) => (
-          <Card key={o.id} onClick={() => setDraft({ step: 'items', outletId: o.id, items: [] })}
-            sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}>
+
+        {outlets.length ? outlets.map((o) => (
+          <Card key={o.id} elevation={0} onClick={() => setDraft({ step: 'items', outletId: o.id, items: [] })}
+            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40 }}>
+              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
                 <StorefrontRoundedIcon fontSize="small" />
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
@@ -278,23 +324,28 @@ export default function OrderMobile() {
               </Box>
             </CardContent>
           </Card>
-        ))}
+        )) : <EmptyState message="Outlet tidak ditemukan." />}
       </Stack>
     );
   }
 
-  /* ===================== VIEW: KATALOG PRODUK ===================== */
+  /* ===================== VIEW LANGKAH 2: KATALOG PRODUK ===================== */
   if (step === 'items') {
     return (
-      <Stack spacing={1.5} sx={{ pb: 5 }}>
-        <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={() => setDraft({ step: 'outlet', items: [] })} sx={{ alignSelf: 'flex-start' }}>
-          Ganti Outlet
-        </Button>
+      <Stack spacing={1.5} sx={{ pb: 7 }}>
+        <StepHeader title="Pilih Produk" onBack={() => setDraft({ step: 'outlet', items: [] })} step={1} />
 
-        <Card>
+        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-            <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
-            <Typography variant="caption" color="text.secondary" display="block">{outlet.address}</Typography>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2, flexShrink: 0 }}>
+                <StorefrontRoundedIcon fontSize="small" />
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography fontWeight={700} fontSize={15} noWrap>{outlet.name}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block">{outlet.address}</Typography>
+              </Box>
+            </Stack>
             <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={<LockRoundedIcon fontSize="small" />}>
               Harga satuan <b>terkunci</b> — ditarik otomatis dari Master Data, tidak dapat diubah Sales (#39).
             </Alert>
@@ -304,12 +355,13 @@ export default function OrderMobile() {
         <TextField label="Cari produk / SKU…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
 
-        {prodFiltered.map((p) => {
+        {prodFiltered.length ? prodFiltered.map((p) => {
           const qty = qtyOf(p.id);
           const baseQty = qty * (p.pcsPerUnit || 1);
           const short = qty > 0 && baseQty > p.stock; /* soft warning #41 */
           return (
-            <Card key={p.id}>
+            <Card key={p.id} elevation={0}
+              sx={{ borderRadius: 3, border: '1px solid', borderColor: qty > 0 ? 'primary.main' : 'divider' }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -322,11 +374,17 @@ export default function OrderMobile() {
                       Stok gudang: {p.stock} pcs{p.pcsPerUnit > 1 ? ` (1 ${p.unit} = ${p.pcsPerUnit} pcs)` : ''}
                     </Typography>
                   </Box>
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <IconButton size="small" onClick={() => setQty(p.id, qty - 1)}><RemoveRoundedIcon fontSize="small" /></IconButton>
-                    <TextField type="number" value={qty} onChange={(e) => setQty(p.id, e.target.value)} sx={{ width: 72 }}
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0, pt: 0.5 }}>
+                    <IconButton size="small" disabled={qty === 0} onClick={() => setQty(p.id, qty - 1)}
+                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+                      <RemoveRoundedIcon fontSize="small" />
+                    </IconButton>
+                    <TextField size="small" type="number" value={qty} onChange={(e) => setQty(p.id, e.target.value)} sx={{ width: 64 }}
                       inputProps={{ min: 0, style: { textAlign: 'center' } }} />
-                    <IconButton size="small" onClick={() => setQty(p.id, qty + 1)}><AddRoundedIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" onClick={() => setQty(p.id, qty + 1)}
+                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+                      <AddRoundedIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
                 </Stack>
                 {short && (
@@ -337,39 +395,30 @@ export default function OrderMobile() {
               </CardContent>
             </Card>
           );
-        })}
+        }) : <EmptyState message="Produk tidak ditemukan." />}
 
         {itemCount > 0 && (
-          <Box onClick={() => setDraft((d) => ({ ...d, step: 'review' }))} sx={{
-            position: 'fixed', bottom: 84, left: '50%', transform: 'translateX(-50%)',
-            width: 'calc(100% - 32px)', maxWidth: 398, bgcolor: 'primary.main', color: '#fff',
-            borderRadius: 2, px: 2, py: 1.25, display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', cursor: 'pointer', zIndex: 1150, boxShadow: 4,
-          }}>
-            <Box>
-              <Typography fontWeight={800} fontSize={14}>{itemCount} item</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.9 }}>{formatRupiah(draftTotals.total)}</Typography>
-            </Box>
-            <Typography fontWeight={700} fontSize={14}>Lanjut ke Review →</Typography>
-          </Box>
+          <BottomBar
+            itemCount={itemCount}
+            total={draftTotals.total}
+            actionLabel="Lanjut ke Review"
+            onClick={() => setDraft((d) => ({ ...d, step: 'review' }))}
+          />
         )}
       </Stack>
     );
   }
 
-  /* ===================== VIEW: REVIEW & SUBMIT ===================== */
+  /* ===================== VIEW LANGKAH 3: REVIEW & SUBMIT ===================== */
   return (
-    <Stack spacing={1.5}>
-      <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />}
-        onClick={() => setDraft((d) => ({ ...d, step: 'items' }))} sx={{ alignSelf: 'flex-start' }}>
-        Kembali
-      </Button>
+    <Stack spacing={1.5} sx={{ pb: 7 }}>
+      <StepHeader title="Review Pesanan" onBack={() => setDraft((d) => ({ ...d, step: 'items' }))} step={2} />
 
-      <Card>
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Typography fontWeight={700} fontSize={15}>Review Pesanan</Typography>
+          <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            {outlet.name} • {outlet.address}
+            {outlet.address}
           </Typography>
           <Table size="small">
             <TableHead>
@@ -406,19 +455,25 @@ export default function OrderMobile() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <TextField label="Catatan (opsional, maks 255)" multiline minRows={2} value={note}
             onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }} />
         </CardContent>
       </Card>
 
-      <Button variant="contained" size="large" disabled={submitting || !itemCount} onClick={submitOrder}>
-        {submitting ? 'Menyimpan…' : 'Simpan & Ajukan Pesanan'}
-      </Button>
       <Typography variant="caption" color="text.secondary" align="center">
         Nomor order unik digenerate otomatis oleh sistem (#42). Tombol terkunci saat penyimpanan — mencegah order ganda (#48).
       </Typography>
+
+      <BottomBar
+        itemCount={itemCount}
+        total={draftTotals.total}
+        actionLabel="Simpan & Ajukan"
+        onClick={submitOrder}
+        disabled={!itemCount}
+        loading={submitting}
+      />
     </Stack>
   );
 }

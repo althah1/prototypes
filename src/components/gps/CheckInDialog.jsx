@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -121,7 +123,8 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
+      PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <LocationOnRoundedIcon color="primary" /> Check-In — {outlet.name}
       </DialogTitle>
@@ -135,13 +138,39 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
         {!result ? (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Pilih sumber koordinat GPS perangkat:
+              Ambil posisi GPS Anda untuk memulai check-in:
             </Typography>
-            <Stack spacing={1}>
-              <Button variant="outlined" startIcon={<NearMeRoundedIcon />} onClick={() => pickSim('near')}>Simulasi Dekat Outlet (±30 m)</Button>
-              <Button variant="outlined" startIcon={<DirectionsWalkRoundedIcon />} onClick={() => pickSim('far')}>Simulasi Jauh (±250 m)</Button>
-              <Button variant="outlined" startIcon={<WrongLocationRoundedIcon />} onClick={() => pickSim('ooc')}>Simulasi Luar Wilayah Kerja (±2 km)</Button>
-              <Button variant="outlined" startIcon={<MyLocationRoundedIcon />} onClick={() => pickSim('real')}>GPS Nyata (Perangkat)</Button>
+
+            {/* Jalur utama: GPS perangkat */}
+            <Button
+              fullWidth size="large" variant="contained"
+              startIcon={<MyLocationRoundedIcon />}
+              onClick={() => pickSim('real')}
+              sx={{ borderRadius: 2, mb: 2 }}
+            >
+              Gunakan GPS Perangkat
+            </Button>
+
+            {/* Jalur demo prototype: simulasi */}
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Mode simulasi (untuk demo prototype):
+            </Typography>
+            <Stack spacing={0.75}>
+              <Button size="small" variant="outlined" startIcon={<NearMeRoundedIcon />}
+                onClick={() => pickSim('near')}
+                sx={{ justifyContent: 'flex-start', borderRadius: 2 }}>
+                Simulasi Dekat Outlet (± 30 m)
+              </Button>
+              <Button size="small" variant="outlined" startIcon={<DirectionsWalkRoundedIcon />}
+                onClick={() => pickSim('far')}
+                sx={{ justifyContent: 'flex-start', borderRadius: 2 }}>
+                Simulasi Jauh (± 250 m)
+              </Button>
+              <Button size="small" variant="outlined" startIcon={<WrongLocationRoundedIcon />}
+                onClick={() => pickSim('ooc')}
+                sx={{ justifyContent: 'flex-start', borderRadius: 2 }}>
+                Simulasi Luar Wilayah Kerja (± 2 km)
+              </Button>
             </Stack>
           </>
         ) : (
@@ -160,9 +189,22 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
             )}
 
             {result.dist <= GEOFENCE_RADIUS_M ? (
-              <Alert severity="success" icon={<CheckCircleRoundedIcon />}>
-                Check-In berhasil — jarak {formatDistance(result.dist)} (≤ {GEOFENCE_RADIUS_M} m). Status tugas: <b>Berlangsung</b>.
-              </Alert>
+              /* Sukses — momen kunci driver: visual besar + progres penutupan otomatis */
+              <Stack alignItems="center" spacing={0.5} sx={{ py: 1.5 }}>
+                <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
+                  <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
+                </Avatar>
+                <Typography variant="h6" fontWeight={800}>Check-In Berhasil</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  Jarak {formatDistance(result.dist)} — dalam radius {GEOFENCE_RADIUS_M} m
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Status tugas: Berlangsung — menyimpan &amp; menutup otomatis…
+                </Typography>
+                <Box sx={{ width: '100%', mt: 1.5 }}>
+                  <LinearProgress />
+                </Box>
+              </Stack>
             ) : (
               <>
                 <Alert severity="warning" sx={{ mb: 1.5 }}>
@@ -178,10 +220,13 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
                   inputProps={{ maxLength: 255 }}
                 />
                 <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                  <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => { setResult(null); setReason(''); setReasonErr(''); }}>
+                  <Button variant="outlined" startIcon={<RefreshRoundedIcon />}
+                    onClick={() => { setResult(null); setReason(''); setReasonErr(''); }}
+                    sx={{ borderRadius: 2 }}>
                     Sesuaikan Posisi
                   </Button>
-                  <Button variant="contained" color="error" onClick={commitWithReason} disabled={busy}>
+                  <Button variant="contained" color="error" onClick={commitWithReason} disabled={busy}
+                    sx={{ borderRadius: 2 }}>
                     Catat Check-In + Alasan
                   </Button>
                 </Stack>

@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import Alert from '@mui/material/Alert';
+import { useMemo, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
@@ -35,17 +35,26 @@ export default function GpsMobile() {
   const sales = (db.sales || []).find((s) => s.id === user.salesId);
   const area = (db.areas || []).find((a) => a.id === sales?.areaId);
 
-  const tasksToday = (db.tasks || []).filter(
-    (t) => t.salesId === user.salesId && t.date === today && t.status !== 'failed'
+  /* Keringanan: filter berat hanya dihitung ulang saat tabel terkait berubah */
+  const tasksToday = useMemo(
+    () => (db.tasks || []).filter(
+      (t) => t.salesId === user.salesId && t.date === today && t.status !== 'failed'
+    ),
+    [db.tasks, user.salesId, today]
   );
+  const checkins = useMemo(
+    () => (db.checkins || []).filter((c) => c.salesId === user.salesId && c.date === today),
+    [db.checkins, user.salesId, today]
+  );
+
   const stopOutlets = [...new Set(tasksToday.map((t) => t.outletId))]
     .map((id) => (db.outlets || []).find((o) => o.id === id))
     .filter(Boolean);
 
-  const checkins = (db.checkins || []).filter((c) => c.salesId === user.salesId && c.date === today);
   const checkedInIds = new Set(checkins.map((c) => c.outletId));
   const openStops = stopOutlets.filter((o) => !checkedInIds.has(o.id));
   const doneStops = stopOutlets.filter((o) => checkedInIds.has(o.id));
+  const pct = stopOutlets.length ? Math.round((doneStops.length / stopOutlets.length) * 100) : 0;
 
   /* #72: urutan rute = jarak terdekat (nearest-neighbor + Haversine) — instan (#79) */
   const route = openStops.length ? optimizeRoute(pos, openStops) : [];
@@ -76,23 +85,39 @@ export default function GpsMobile() {
       tooltip: `${o.name} — sudah check-in`,
     })),
   ];
-  const lines = [{
-    coords: [[pos.lat, pos.lng], ...route.map((r) => [r.stop.lat, r.stop.lng])],
-    color: '#2563eb', weight: 3, dashArray: '7 7', tooltip: 'Rute kunjungan',
-  }];
+  const lines = route.length
+    ? [{
+        coords: [[pos.lat, pos.lng], ...route.map((r) => [r.stop.lat, r.stop.lng])],
+        color: '#2563eb', weight: 3, dashArray: '7 7', tooltip: 'Rute kunjungan',
+      }]
+    : [];
   const circles = area
     ? [{ lat: area.lat, lng: area.lng, radius: (area.radiusKm || 5) * 1000, color: '#2563eb', label: `Batas area: ${area.name}` }]
     : [];
 
   return (
     <Stack spacing={2}>
+      {/* Header */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6">Rute Kunjungan Hari Ini</Typography>
+        <Typography variant="h6" fontWeight={800}>Rute Kunjungan Hari Ini</Typography>
         <Typography variant="caption" color="text.secondary">{dateID(today)}</Typography>
       </Stack>
 
+      {/* Progres kunjungan */}
+      {stopOutlets.length > 0 && (
+        <Box>
+          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              {doneStops.length} dari {stopOutlets.length} kunjungan selesai
+            </Typography>
+            <Typography variant="body2" fontWeight={700} color="success.main">{pct}%</Typography>
+          </Stack>
+          <LinearProgress color="success" variant="determinate" value={pct} sx={{ height: 8, borderRadius: 99 }} />
+        </Box>
+      )}
+
       {/* Posisi */}
-      <Card>
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
             <Box sx={{ minWidth: 0 }}>
@@ -120,7 +145,7 @@ export default function GpsMobile() {
         Check-In wajib dalam radius <b>{GEOFENCE_RADIUS_M} m</b> dari outlet sebelum membuka Entry Order / Quotation / Audit (#74).
       </Typography>
 
-      {/* Ringkasan */}
+      {/* Ringkasan rute */}
       {openStops.length > 0 && (
         <>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -129,25 +154,50 @@ export default function GpsMobile() {
             <Chip size="small" variant="outlined" label={`Estimasi ± ${etaMin} menit`} />
           </Stack>
 
+          {/* Kartu rute — tujuan pertama menonjol, sisanya ringkas */}
           {route.map((r, i) => {
             const task = tasksToday.find((t) => t.outletId === r.stop.id && t.status !== 'done');
+            const isNext = i === 0;
             return (
-              <Card key={r.stop.id}>
-                <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                  <Avatar variant="rounded" sx={{ bgcolor: 'primary.main', color: '#fff', fontWeight: 800, width: 34, height: 34, flexShrink: 0 }}>
-                    {i + 1}
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography fontWeight={700} fontSize={14} noWrap>{r.stop.name}</Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap display="block">{r.stop.address}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Jarak dari titik sebelumnya: {formatDistance(r.dist)}
-                    </Typography>
-                  </Box>
-                  <Button size="small" variant="contained" startIcon={<StorefrontRoundedIcon />}
-                    onClick={() => setCheckIn({ outlet: r.stop, task })}>
-                    Check-In
-                  </Button>
+              <Card key={r.stop.id} elevation={0}
+                sx={{
+                  borderRadius: 3,
+                  border: isNext ? '2px solid' : '1px solid',
+                  borderColor: isNext ? 'primary.main' : 'divider',
+                }}>
+                <CardContent sx={{ p: isNext ? 2 : 1.75, '&:last-child': { pb: isNext ? 2 : 1.75 } }}>
+                  <Stack direction="row" spacing={1.25} alignItems="center">
+                    <Avatar variant="rounded" sx={{
+                      bgcolor: isNext ? 'primary.main' : 'action.selected',
+                      color: isNext ? 'common.white' : 'text.primary',
+                      fontWeight: 800, width: 40, height: 40, borderRadius: 2, flexShrink: 0,
+                    }}>
+                      {i + 1}
+                    </Avatar>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      {isNext && (
+                        <Chip label="TUJUAN BERIKUTNYA" size="small" color="primary"
+                          sx={{ mb: 0.5, height: 20, '& .MuiChip-label': { fontSize: 10, fontWeight: 800, px: 0.75 } }} />
+                      )}
+                      <Typography fontWeight={700} fontSize={isNext ? 15 : 14} noWrap>{r.stop.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap display="block">{r.stop.address}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {isNext ? `± ${formatDistance(r.dist)} dari posisi Anda` : `${formatDistance(r.dist)} dari titik sebelumnya`}
+                      </Typography>
+                    </Box>
+                    {!isNext && (
+                      <Button size="small" variant="outlined" startIcon={<StorefrontRoundedIcon />}
+                        onClick={() => setCheckIn({ outlet: r.stop, task })}>
+                        Check-In
+                      </Button>
+                    )}
+                  </Stack>
+                  {isNext && (
+                    <Button fullWidth size="large" variant="contained" startIcon={<StorefrontRoundedIcon />}
+                      onClick={() => setCheckIn({ outlet: r.stop, task })} sx={{ mt: 1.5, borderRadius: 2 }}>
+                      Check-In di Sini
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -158,13 +208,17 @@ export default function GpsMobile() {
       {/* Sudah check-in */}
       {doneStops.length > 0 && (
         <>
-          <Typography variant="subtitle1" fontWeight={700}>✓ Sudah Check-In ({doneStops.length})</Typography>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+            <CheckCircleRoundedIcon color="success" fontSize="small" />
+            <Typography variant="subtitle1" fontWeight={700}>Sudah Check-In</Typography>
+            <Chip size="small" label={doneStops.length} color="success" variant="outlined" />
+          </Stack>
           {doneStops.map((o) => {
             const ck = [...checkins].reverse().find((c) => c.outletId === o.id);
             return (
-              <Card key={o.id}>
+              <Card key={o.id} elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', opacity: 0.85 }}>
                 <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                  <Avatar variant="rounded" sx={{ bgcolor: 'success.main', color: '#fff', width: 34, height: 34, flexShrink: 0 }}>
+                  <Avatar variant="rounded" sx={{ bgcolor: 'success.main', color: 'common.white', width: 34, height: 34, borderRadius: 2, flexShrink: 0 }}>
                     <CheckCircleRoundedIcon fontSize="small" />
                   </Avatar>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -183,7 +237,7 @@ export default function GpsMobile() {
 
       {!stopOutlets.length && <EmptyState message="Tidak ada kunjungan tersisa hari ini." />}
 
-      {/* Dialog Check-In — validasi Haversine + wilayah + radius (dipakai ulang dari Prompt 5) */}
+      {/* Dialog Check-In — validasi Haversine + wilayah + radius */}
       <CheckInDialog
         open={!!checkIn}
         onClose={() => setCheckIn(null)}

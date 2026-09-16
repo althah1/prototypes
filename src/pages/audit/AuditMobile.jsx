@@ -17,12 +17,14 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
+import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
 import AuditDetailDialog from '../../components/audit/AuditDetailDialog';
 import EmptyState from '../../components/ui/EmptyState';
@@ -37,6 +39,43 @@ import { addWatermark } from '../../utils/watermark';
 import { completeTaskAuto } from '../../utils/taskUtils';
 
 const scoreColor = (s) => (s >= 75 ? 'success' : s >= 50 ? 'warning' : 'error');
+
+/* ===== Header halaman: tombol kembali + judul + elemen kanan ===== */
+function PageHeaderBack({ title, caption, onBack, right }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <IconButton onClick={onBack} aria-label="Kembali" sx={{ bgcolor: 'action.hover' }}>
+        <ArrowBackRoundedIcon />
+      </IconButton>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="h6" fontWeight={800} noWrap>{title}</Typography>
+        {caption && <Typography variant="caption" color="text.secondary" noWrap display="block">{caption}</Typography>}
+      </Box>
+      {right}
+    </Stack>
+  );
+}
+
+/* ===== Bar kirim sticky: status kelengkapan + CTA ===== */
+function SubmitBar({ ready, actionLabel, statusText, onClick, loading }) {
+  return (
+    <Box onClick={ready && !loading ? onClick : undefined} sx={{
+      position: 'fixed', bottom: 84, left: '50%', transform: 'translateX(-50%)',
+      width: 'calc(100% - 32px)', maxWidth: 398,
+      bgcolor: ready ? 'primary.main' : 'action.disabledBackground',
+      color: ready ? '#fff' : 'text.disabled',
+      borderRadius: 2.5, px: 2, py: 1.25,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      cursor: ready && !loading ? 'pointer' : 'default', zIndex: 1150, boxShadow: 4,
+    }}>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={800} fontSize={14} noWrap>{loading ? 'Mengirim…' : actionLabel}</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9 }} noWrap>{statusText}</Typography>
+      </Box>
+      {!loading && <ArrowForwardRoundedIcon fontSize="small" />}
+    </Box>
+  );
+}
 
 export default function AuditMobile() {
   const { user } = useAuth();
@@ -145,13 +184,13 @@ export default function AuditMobile() {
     return (
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Audit &amp; Survey</Typography>
+          <Typography variant="h6" fontWeight={800}>Audit &amp; Survey</Typography>
           <Button variant="contained" size="small" startIcon={<FactCheckRoundedIcon />}
             onClick={() => setDraft({ step: 'outlet', scores: {}, stocks: {}, photos: [], note: '' })}>
             Mulai Audit
           </Button>
         </Stack>
-        <Card>
+        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Typography variant="body2" color="text.secondary">
               Formulir digital: checklist kondisi toko, stock-take aktual, dan foto bukti (kamera langsung).
@@ -160,7 +199,8 @@ export default function AuditMobile() {
           </CardContent>
         </Card>
         {myAudits.length ? myAudits.map((a) => (
-          <Card key={a.id} onClick={() => setDetailId(a.id)} sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}>
+          <Card key={a.id} elevation={0} onClick={() => setDetailId(a.id)}
+            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography fontWeight={700} fontSize={14}>{outletName(a.outletId)}</Typography>
@@ -182,28 +222,24 @@ export default function AuditMobile() {
   if (step === 'outlet') {
     return (
       <Stack spacing={1.5}>
-        <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={() => setDraft(null)} sx={{ alignSelf: 'flex-start' }}>
-          Batal
-        </Button>
-        <Card>
-          <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-            <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark' }}><FactCheckRoundedIcon /></Avatar>
-            <Box>
-              <Typography fontWeight={700} fontSize={15}>Pilih Outlet untuk Audit</Typography>
-              <Typography variant="caption" color="text.secondary">Nama outlet ditarik dari Master Data (#62).</Typography>
-            </Box>
-          </CardContent>
-        </Card>
+        <PageHeaderBack
+          title="Pilih Outlet Audit"
+          caption="Data outlet ditarik dari Master Data (#62)"
+          onBack={() => setDraft(null)}
+        />
         <TextField label="Cari outlet…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
-        {outlets.map((o) => {
+        {outlets.length ? outlets.map((o) => {
           const done = findSubmittedAudit(db, o.id); /* #66 */
           return (
-            <Card key={o.id}
+            <Card key={o.id} elevation={0}
               onClick={() => (done ? setDetailId(done.id) : setDraft({ step: 'form', outletId: o.id, scores: {}, stocks: {}, photos: [], note: '' }))}
-              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}>
+              sx={{
+                cursor: 'pointer', borderRadius: 3,
+                border: '1px solid', borderColor: 'divider', opacity: done ? 0.75 : 1,
+              }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40 }}>
+                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
                   <StorefrontRoundedIcon fontSize="small" />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -214,7 +250,7 @@ export default function AuditMobile() {
               </CardContent>
             </Card>
           );
-        })}
+        }) : <EmptyState message="Outlet tidak ditemukan." />}
       </Stack>
     );
   }
@@ -225,9 +261,7 @@ export default function AuditMobile() {
   if (locked) {
     return (
       <Stack spacing={2}>
-        <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={() => setDraft(null)} sx={{ alignSelf: 'flex-start' }}>
-          Kembali
-        </Button>
+        <PageHeaderBack title="Audit Terkunci" caption={outlet.name} onBack={() => setDraft(null)} />
         <Alert severity="warning" icon={<LockRoundedIcon fontSize="small" />}
           action={<Button size="small" onClick={() => setDetailId(locked.id)}>Lihat Hasil</Button>}>
           Outlet <b>{outlet.name}</b> sudah diaudit hari ini — form <b>terkunci</b> untuk mencegah data ganda (#66).
@@ -238,37 +272,36 @@ export default function AuditMobile() {
   }
 
   return (
-    <Stack spacing={1.5}>
-      <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={() => setDraft(null)} sx={{ alignSelf: 'flex-start' }}>
-        Batal Audit
-      </Button>
+    <Stack spacing={1.5} sx={{ pb: 7 }}>
+      <PageHeaderBack
+        title="Audit — Form Kunjungan"
+        caption={`${outlet.name} • ${outlet.address}`}
+        onBack={() => setDraft(null)}
+        right={<Chip size="small" color={scoreColor(liveScore)} variant="outlined" label={`Skor ${liveScore}/100`} />}
+      />
 
-      <Card>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography fontWeight={700} fontSize={15}>Audit — {outlet.name}</Typography>
-              <Typography variant="caption" color="text.secondary">{outlet.address}</Typography>
-            </Box>
-            <Chip size="small" color={scoreColor(liveScore)} variant="outlined" label={`Skor ${liveScore}/100`} />
-          </Stack>
-        </CardContent>
-      </Card>
+      {/* Status offline — jelas sebelum user mengisi panjang (#68) */}
+      {!online && (
+        <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />}>
+          Anda sedang <b>offline</b> — data &amp; foto akan disimpan lokal di perangkat dan tersinkron otomatis saat koneksi pulih (#68).
+        </Alert>
+      )}
 
       {/* 1 — Checklist */}
-      <Card>
-        <CardHeader title="1 · Checklist Kondisi & Kebersihan (#62)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title={`1 · Checklist Kondisi & Kebersihan — ${answeredCount}/${CHECKLIST_ITEMS.length} (#62)`}
+          titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           {CHECKLIST_ITEMS.map((item, i) => (
             <Box key={item} sx={{ mb: 1.5 }}>
               <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>{item}</Typography>
               <ToggleButtonGroup
-                exclusive size="small"
+                exclusive fullWidth size="small"
                 value={draft.scores[i] ?? null}
                 onChange={(e, v) => v != null && setDraft((d) => ({ ...d, scores: { ...d.scores, [i]: v } }))}
               >
                 {CHECK_OPTIONS.map((o) => (
-                  <ToggleButton key={o.v} value={o.v} sx={{ py: 0.25, px: 2.5 }}>{o.l}</ToggleButton>
+                  <ToggleButton key={o.v} value={o.v} sx={{ py: 0.5 }}>{o.l}</ToggleButton>
                 ))}
               </ToggleButtonGroup>
             </Box>
@@ -277,15 +310,16 @@ export default function AuditMobile() {
       </Card>
 
       {/* 2 — Stock take */}
-      <Card>
-        <CardHeader title="2 · Stock-Take (Stok Aktual di Toko — #63)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title={`2 · Stock-Take (Stok Aktual di Toko — #63)`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Bandingkan dengan data gudang/master. Wajib isi minimal 1 produk (#65).
+            Bandingkan dengan data gudang/master. Wajib isi minimal 1 produk (#65). Terisi: {stockCount} produk.
           </Typography>
-          <TextField label="Cari produk…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
-            sx={{ mb: 1 }} />
-          {products.map((p) => {
+          <TextField label="Cari produk / SKU…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
+            sx={{ mb: 1 }}
+            InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
+          {products.length ? products.map((p) => {
             const actual = draft.stocks[p.id] ?? '';
             const diff = actual === '' ? null : Number(actual) - p.stock;
             return (
@@ -309,13 +343,18 @@ export default function AuditMobile() {
                   : <Chip size="small" color="error" label={`${diff > 0 ? '+' : ''}${diff}`} />)}
               </Box>
             );
-          })}
+          }) : (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 1 }}>
+              Produk tidak ditemukan.
+            </Typography>
+          )}
         </CardContent>
       </Card>
 
       {/* 3 — Foto bukti */}
-      <Card>
-        <CardHeader title="3 · Foto Bukti Kunjungan (maks 3 × 2MB)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3 (#64)`}
+          titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <input hidden id="audit-cam" type="file" accept="image/*" capture="environment" onChange={handlePhoto} />
           <label htmlFor="audit-cam">
@@ -324,7 +363,7 @@ export default function AuditMobile() {
             </Button>
           </label>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 1 }}>
-            Wajib kamera langsung — galeri/Camera Roll ditolak (#64). Watermark waktu + GPS otomatis diterapkan.
+            Wajib kamera langsung — galeri/Camera Roll ditolak (#64). Watermark waktu + GPS otomatis diterapkan. Maks 3 × 2MB.
           </Typography>
           {cameraErr && <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>{cameraErr}</Typography>}
           {draft.photos.length > 0 && (
@@ -344,7 +383,7 @@ export default function AuditMobile() {
       </Card>
 
       {/* 4 — Catatan */}
-      <Card>
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader title="4 · Catatan Kendala (maks 500)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <TextField label="mis. toko tutup sementara / POSM usai" multiline minRows={2}
@@ -353,13 +392,16 @@ export default function AuditMobile() {
         </CardContent>
       </Card>
 
-      <Button variant="contained" size="large" disabled={!canSubmit} onClick={submitAudit}>
-        {submitting ? 'Mengirim…' : 'Kirim Hasil Audit'}
-      </Button>
-      <Typography variant="caption" color="text.secondary" align="center">
-        Tombol kirim baru aktif setelah seluruh isian wajib terisi: 5 checklist + minimal 1 stok aktual (#65).
-        {online ? '' : ' Saat offline, data tersimpan lokal & tersinkron otomatis (#68).'}
-      </Typography>
+      {/* Bar kirim sticky — menunjukkan kelengkapan secara live (#65) */}
+      <SubmitBar
+        ready={canSubmit}
+        loading={submitting}
+        actionLabel="Kirim Hasil Audit"
+        statusText={canSubmit
+          ? `Skor ${liveScore}/100 • 1× per outlet per hari (#66)`
+          : `Checklist ${answeredCount}/${CHECKLIST_ITEMS.length} • stok: ${stockCount} produk (#65)`}
+        onClick={submitAudit}
+      />
 
       <AuditDetailDialog open={!!detailId} auditId={detailId} onClose={() => setDetailId(null)} />
     </Stack>
