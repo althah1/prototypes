@@ -51,7 +51,8 @@ export function openQuotePdf(quote, db) {
       ${comp.logo ? `<img src="${comp.logo}" style="max-height:56px;display:block;margin-bottom:6px"/>` : ''}
       <div style="font-size:17px;font-weight:800">${esc(comp.name)}</div>
       <small>${esc(comp.address)}</small><br/>
-      <small>${esc(comp.phone)} • ${esc(comp.email)}</small>
+      <small>${esc(comp.phone)} • ${esc(comp.email)}</small><br/>
+      <small>NPWP: ${esc(comp.npwp || '-')}</small>
     </div>
     <div class="title">
       <h1>QUOTATION</h1>
@@ -89,8 +90,9 @@ export function openQuotePdf(quote, db) {
       <li>Harga sudah termasuk PPN ${Math.round((quote.taxRate || 0.11) * 100)}%.</li>
       <li>Harga bersifat mengikat (<i>price freeze</i>) selama masa berlaku dokumen ini.</li>
       <li>Pengiriman 2–3 hari kerja setelah konfirmasi PO.</li>
-      <li>Pembayaran: DP 50%, pelunasan sebelum pengiriman.</li>
+      <li>Pembayaran: DP 50%, pelunasan sebelum pengiriman${comp.bankAccount ? ` — transfer ke <b>${esc(comp.bankName)} ${esc(comp.bankAccount)}</b> a.n. <b>${esc(comp.bankHolder)}</b>` : ''}.</li>
     </ol>
+    ${quote.catatanSyarat ? `<p style="margin-bottom:4px"><b>Syarat &amp; ketentuan khusus penawaran ini:</b></p><p style="white-space:pre-line;margin-top:2px">${esc(quote.catatanSyarat)}</p>` : ''}
     ${quote.note ? `<p>Catatan: ${esc(quote.note)}</p>` : ''}
   </div>
 

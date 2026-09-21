@@ -153,7 +153,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
             <Typography variant="caption" color="text.secondary">Tidak ada foto bukti pada audit ini.</Typography>
           )}
 
-          {audit.note && <Alert severity="info" sx={{ mt: 2 }}>📝 {audit.note}</Alert>}
+          {audit.note && <Alert severity="info" sx={{ mt: 2 }}>{audit.note}</Alert>}
 
           {canClassify && (
             <Card variant="outlined" sx={{ mt: 2.5 }}>

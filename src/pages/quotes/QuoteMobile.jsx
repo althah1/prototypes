@@ -139,6 +139,7 @@ export default function QuoteMobile() {
   const [productSearch, setProductSearch] = useState('');
   const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14)); /* #57: default 14 hari */
   const [note, setNote] = useState('');
+  const [syarat, setSyarat] = useState(''); /* catatan_syarat — eksternal, tercetak di PDF */
   const [submitting, setSubmitting] = useState(false);
   const [successQuote, setSuccessQuote] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -208,13 +209,14 @@ export default function QuoteMobile() {
   };
 
   const resetDraft = () => {
-    setDraft(null); setNote(''); setValidUntil(addDays(todayISO(), 14));
+    setDraft(null); setNote(''); setSyarat(''); setValidUntil(addDays(todayISO(), 14));
   };
 
   const genQuoteNo = () => {
     const t = todayISO();
     const count = (db.quotations || []).filter((q) => q.date === t).length;
-    return `QT-${t.replace(/-/g, '')}-${String(count + 1).padStart(3, '0')}`;
+const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
+return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
   const genVerCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
@@ -242,7 +244,7 @@ export default function QuoteMobile() {
       const rec = insert('quotations', {
         no: genQuoteNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
         items, subtotal, discTotal, totalAfterDisc: after, taxRate: TAX_RATE, tax,
-        total: after + tax, status, validUntil, verCode: genVerCode(), note: note.trim(),
+        total: after + tax, status, validUntil, verCode: genVerCode(), note: note.trim(), catatanSyarat: syarat.trim(),
       });
 
       /* #53: diskon melebihi wewenang → notifikasi Supervisor */

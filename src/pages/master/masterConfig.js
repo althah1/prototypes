@@ -5,16 +5,36 @@
    7. Outlet          8. Kategori Prospek
    9. Tugas (jenis)  10. Produk
    Dipakai oleh EntityPage.jsx (halaman CRUD generik).
+
+   KONVENSI BARU (untuk CRUD penuh):
+   - refs      : relasi/transaksi yang MEMAKAI entitas ini —
+                 dipakai dialog Detail (statistik) dan tombol Hapus
+                 (memutuskan hard delete vs soft delete, FSD 3.3).
+                 matchSelf: true = bandingkan x[field] dengan rec[field]
+                 (referensi berbasis nilai, bukan id).
+   - refsItems : referensi tersimpan dalam array item/stocks (Produk).
+   - cascade   : data bawahan yang ikut nonaktif/aktif mengikuti induk.
+                 HANYA tabel ber-status siklus hidup (active/inactive) —
+                 tabel ber-status alur kerja (tasks, prospects) TIDAK
+                 boleh di-cascade karena statusnya punya makna sendiri.
+   - detailPage: path halaman detail khusus (tombol mata navigasi,
+                 bukan dialog) — dipakai Gudang.
+   - fmt:'rupiah' pada field uang agar tampil rupiah di dialog detail.
+   - Lookup orang (PIC/Penanggung Jawab): field picId type 'select'
+     optionsFrom supervisors → menyimpan ID, nama ditarik lewat
+     render (pola sama seperti sales.supervisorId).
 ===================================================== */
+import { removeGudangPermanent } from '../../utils/gudangUtils';
 
 const ALNUM = /^[A-Za-z0-9-]+$/;
 const PHONE = /^[0-9]{10,15}$/;
 
 const areaName = (r, db) => (db.areas.find((a) => a.id === r.areaId) || {}).name || '-';
 const spvName = (r, db) => (db.supervisors.find((s) => s.id === r.supervisorId) || {}).name || '-';
+const spvPic = (r, db) => (db.supervisors.find((s) => s.id === r.picId) || {}).name || '-';
 
 export const MASTER_CONFIG = {
-  /* 1 — PERUSAHAAN (profil tunggal) */
+  /* 1 — PERUSAHAAN (profil tunggal: Read/Update via halaman profil, tanpa hapus) */
   perusahaan: {
     title: 'Master Data — Perusahaan',
     sub: 'Identitas legal perusahaan untuk kop dokumen Quotation & Invoice (satu profil).',
@@ -33,32 +53,43 @@ export const MASTER_CONFIG = {
       { k: 'address', l: 'Alamat', type: 'textarea', required: true, max: 200 },
       { k: 'phone', l: 'Nomor Kontak', type: 'text', max: 20 },
       { k: 'email', l: 'Email Resmi', type: 'text', required: true, email: true, max: 100 },
+      { k: 'bankName', l: 'Nama Bank', type: 'text', max: 50, hint: 'Untuk instruksi pembayaran Invoice (BR-008).' },
+      { k: 'bankAccount', l: 'No. Rekening', type: 'text', max: 25 },
+      { k: 'bankHolder', l: 'Atas Nama Rekening', type: 'text', max: 100 },
       { k: 'logo', l: 'Logo (.JPG/.PNG maks 2 MB)', type: 'file' },
     ],
     search: ['name', 'npwp'],
   },
 
-  /* 2 — GUDANG */
+  /* 2 — GUDANG (detail khusus: halaman stok per produk) */
   gudang: {
     title: 'Master Data — Gudang',
     sub: 'Lokasi penyimpanan barang & penanggung jawab stok.',
     table: 'warehouses',
     addLabel: 'Gudang',
     uniques: ['code'],
+    detailPage: '/dashboard/master/gudang',
+    refs: [
+      { table: 'gudangDetails', field: 'gudangId', label: 'penempatan produk' },
+    ], /* gudang berisi produk → hapus = peringatan keras (FSD 3.3) */
+    /* Pengecualian FSD 3.3 (hasil diskusi tim 5.1): gudang boleh dihapus
+       permanen walau berisi produk. Konsekuensinya dijelaskan di dialog. */
+    hardDelete: (rec, { mutate }) => removeGudangPermanent(mutate, rec.id),
+    hardDeleteNote: 'Gudang dihapus permanen BESERTA seluruh penempatan stoknya — stok produk yang tersimpan di gudang ini ikut terhapus dari total stok produk (dihitung ulang otomatis) dan riwayatnya tidak tersisa. Gunakan hanya bila gudang benar-benar sudah tidak beroperasi atau salah input data.',
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Gudang' },
       { k: 'address', l: 'Alamat' },
-      { k: 'pic', l: 'Penanggung Jawab' },
+      { k: 'picId', l: 'Penanggung Jawab', render: spvPic },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
       { k: 'code', l: 'Kode Gudang', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
       { k: 'name', l: 'Nama Gudang', type: 'text', required: true, max: 100 },
       { k: 'address', l: 'Alamat', type: 'text', max: 200 },
-      { k: 'pic', l: 'Penanggung Jawab', type: 'text', max: 100 },
+      { k: 'picId', l: 'Penanggung Jawab (Supervisor)', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
     ],
-    search: ['code', 'name', 'pic'],
+    search: ['code', 'name'],
   },
 
   /* 3 — SUPPLIER */
@@ -68,10 +99,11 @@ export const MASTER_CONFIG = {
     table: 'suppliers',
     addLabel: 'Supplier',
     uniques: ['code'],
+    refs: [], /* prototype: produk belum ber-FK ke supplier → aman hapus permanen */
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Supplier' },
-      { k: 'pic', l: 'PIC' },
+      { k: 'picId', l: 'PIC', render: spvPic },
       { k: 'phone', l: 'Telepon' },
       { k: 'products', l: 'Produk Dipasok' },
       { k: 'status', l: 'Status', fmt: 'status' },
@@ -79,21 +111,32 @@ export const MASTER_CONFIG = {
     fields: [
       { k: 'code', l: 'Kode Supplier', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
       { k: 'name', l: 'Nama Supplier', type: 'text', required: true, max: 100 },
-      { k: 'pic', l: 'Nama PIC', type: 'text', max: 100 },
+      { k: 'picId', l: 'Nama PIC (Supervisor)', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
       { k: 'phone', l: 'No. Telepon', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
       { k: 'address', l: 'Alamat', type: 'textarea', max: 200 },
       { k: 'products', l: 'Produk Dipasok (SKU)', type: 'text', max: 200 },
     ],
-    search: ['code', 'name', 'pic'],
+    search: ['code', 'name'],
   },
 
-  /* 4 — AREA KERJA */
+  /* 4 — AREA KERJA (induk dari outlet/sales/supervisor → cascade) */
   'area-kerja': {
     title: 'Master Data — Area Kerja',
     sub: 'Zona geografis batas wilayah kerja sales (acuan geofencing & GPS Route Planning).',
     table: 'areas',
     addLabel: 'Area',
     uniques: ['code'],
+    refs: [
+      { table: 'outlets', field: 'areaId', label: 'outlet' },
+      { table: 'sales', field: 'areaId', label: 'sales' },
+      { table: 'supervisors', field: 'areaId', label: 'supervisor' },
+      { table: 'prospects', field: 'areaId', label: 'prospek' },
+    ],
+    cascade: [
+      { table: 'outlets', field: 'areaId' },
+      { table: 'sales', field: 'areaId' },
+      { table: 'supervisors', field: 'areaId' },
+    ],
     columns: [
       { k: 'code', l: 'Kode Area' },
       { k: 'name', l: 'Nama Area' },
@@ -119,6 +162,19 @@ export const MASTER_CONFIG = {
     table: 'sales',
     addLabel: 'Sales',
     uniques: ['nik', 'email'],
+    refs: [
+      { table: 'users', field: 'salesId', label: 'akun login' },
+      { table: 'tasks', field: 'salesId', label: 'tugas terjadwal' },
+      { table: 'orders', field: 'salesId', label: 'order' },
+      { table: 'quotations', field: 'salesId', label: 'quotation' },
+      { table: 'audits', field: 'salesId', label: 'audit' },
+      { table: 'checkins', field: 'salesId', label: 'check-in GPS' },
+      { table: 'violations', field: 'salesId', label: 'catatan pelanggaran' },
+      { table: 'prospects', field: 'salesId', label: 'prospek' },
+    ],
+    cascade: [
+      { table: 'users', field: 'salesId' }, /* akun login ikut dibekukan sementara */
+    ],
     columns: [
       { k: 'nik', l: 'NIK' },
       { k: 'name', l: 'Nama Lengkap' },
@@ -134,18 +190,27 @@ export const MASTER_CONFIG = {
       { k: 'phone', l: 'No. HP', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
       { k: 'supervisorId', l: 'Supervisor', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
       { k: 'areaId', l: 'Area Kerja', type: 'select', required: true, optionsFrom: { table: 'areas', onlyActive: true } },
-      { k: 'target', l: 'Target Penjualan (Rp)', type: 'number', min: 0, hint: 'Target bulanan (opsional).' },
+      { k: 'target', l: 'Target Penjualan (Rp)', type: 'number', min: 0, fmt: 'rupiah', hint: 'Target bulanan (opsional).' },
     ],
     search: ['nik', 'name', 'email'],
   },
 
-  /* 6 — SUPERVISOR */
+  /* 6 — SUPERVISOR (induk dari sales → cascade) */
   supervisor: {
     title: 'Master Data — Supervisor',
     sub: 'Struktur atasan & hierarki pengawasan tim sales.',
     table: 'supervisors',
     addLabel: 'Supervisor',
     uniques: ['nik', 'email'],
+    refs: [
+      { table: 'sales', field: 'supervisorId', label: 'sales bawahan' },
+      { table: 'users', field: 'email', label: 'akun login', matchSelf: true },
+      { table: 'suppliers', field: 'picId', label: 'PIC supplier' },
+      { table: 'warehouses', field: 'picId', label: 'penanggung jawab gudang' },
+    ],
+    cascade: [
+      { table: 'sales', field: 'supervisorId' },
+    ],
     columns: [
       { k: 'nik', l: 'NIK' },
       { k: 'name', l: 'Nama Supervisor' },
@@ -171,6 +236,15 @@ export const MASTER_CONFIG = {
     table: 'outlets',
     addLabel: 'Outlet',
     uniques: ['code'],
+    refs: [
+      { table: 'tasks', field: 'outletId', label: 'tugas terjadwal' },
+      { table: 'orders', field: 'outletId', label: 'order' },
+      { table: 'quotations', field: 'outletId', label: 'quotation' },
+      { table: 'audits', field: 'outletId', label: 'audit' },
+      { table: 'checkins', field: 'outletId', label: 'check-in GPS' },
+      { table: 'violations', field: 'outletId', label: 'catatan pelanggaran' },
+      { table: 'prospects', field: 'outletId', label: 'prospek' },
+    ],
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Outlet' },
@@ -208,6 +282,10 @@ export const MASTER_CONFIG = {
     table: 'prospectCategories',
     addLabel: 'Kategori',
     uniques: ['name'],
+    refs: [
+      { table: 'prospects', field: 'categoryId', label: 'prospek' },
+      { table: 'audits', field: 'categoryId', label: 'hasil audit' },
+    ],
     columns: [
       { k: 'name', l: 'Nama Kategori' },
       { k: 'desc', l: 'Deskripsi' },
@@ -224,13 +302,16 @@ export const MASTER_CONFIG = {
     search: ['name'],
   },
 
-  /* 9 — TUGAS (JENIS) */
+  /* 9 — TUGAS (JENIS) — referensi berbasis nilai (tasks.type) */
   tugas: {
     title: 'Master — Jenis Tugas',
     sub: 'Standarisasi aktivitas lapangan — menentukan formulir dinamis di Web Mobile.',
     table: 'taskTypes',
     addLabel: 'Jenis Tugas',
     uniques: ['name'],
+    refs: [
+      { table: 'tasks', field: 'type', label: 'tugas terjadwal', matchSelf: true },
+    ],
     columns: [
       { k: 'name', l: 'Nama Tugas' },
       { k: 'type', l: 'Tipe Aktivitas', fmt: 'tasktype' },
@@ -250,13 +331,18 @@ export const MASTER_CONFIG = {
     search: ['name', 'type'],
   },
 
-  /* 10 — PRODUK */
+  /* 10 — PRODUK — referensi tersimpan dalam array item (snapshot) */
   produk: {
     title: 'Master Data — Produk',
     sub: 'Katalog induk produk — sumber acuan harga terkunci untuk Entry Order & Quotation.',
     table: 'products',
     addLabel: 'Produk',
     uniques: ['sku'],
+    refsItems: [
+      { table: 'orders', field: 'items', label: 'order' },
+      { table: 'quotations', field: 'items', label: 'quotation' },
+      { table: 'audits', field: 'stocks', label: 'audit (stock-take)' },
+    ],
     columns: [
       { k: 'sku', l: 'SKU' },
       { k: 'name', l: 'Nama Produk' },
@@ -273,8 +359,9 @@ export const MASTER_CONFIG = {
       { k: 'unit', l: 'Satuan', type: 'select', required: true, options: [
         { v: 'pcs', l: 'Pcs' }, { v: 'box', l: 'Box' },
       ] },
-      { k: 'price', l: 'Harga Dasar (Rp)', type: 'number', required: true, min: 1, hint: 'Integer — ditampilkan format Rupiah.' },
-      { k: 'stock', l: 'Stok', type: 'number', required: true, min: 0 },
+      { k: 'price', l: 'Harga Dasar (Rp)', type: 'number', required: true, min: 1, fmt: 'rupiah', hint: 'Integer — ditampilkan format Rupiah.' },
+      { k: 'stock', l: 'Penempatan Stok per Gudang', type: 'gudangAlloc',
+        hint: 'Stok total produk = penjumlahan penempatan semua gudang (pcs). Gudang baru otomatis tampil di sini dan mulai dari 0.' },
       { k: 'pcsPerUnit', l: 'Konversi ke Pcs', type: 'number', required: true, min: 1, default: 1, hint: 'Satuan dasar per satuan jual (mis. 1 box = 12 pcs) — kriteria #47.' },
       { k: 'desc', l: 'Deskripsi', type: 'textarea', max: 200 },
     ],

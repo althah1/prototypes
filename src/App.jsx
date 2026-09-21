@@ -18,6 +18,7 @@ import Home from './pages/mobile/Home';
 import Notifications from './pages/mobile/Notifications';
 import Profile from './pages/profile/Profile';
 import EntityPage from './pages/master/EntityPage';
+import GudangDetail from './pages/master/GudangDetail';
 
 import TaskDesktop from './pages/tasks/TaskDesktop';
 import TaskMobile from './pages/tasks/TaskMobile';
@@ -61,6 +62,7 @@ export default function App() {
                   {/* Master Data — CRUD generik, URUTAN BARU */}
                   <Route path="master/perusahaan"       element={<EntityPage key="perusahaan"       slug="perusahaan" />} />
                   <Route path="master/gudang"           element={<EntityPage key="gudang"           slug="gudang" />} />
+                  <Route path="master/gudang/:id"       element={<GudangDetail />} />
                   <Route path="master/supplier"         element={<EntityPage key="supplier"         slug="supplier" />} />
                   <Route path="master/area-kerja"       element={<EntityPage key="area-kerja"       slug="area-kerja" />} />
                   <Route path="master/sales"            element={<EntityPage key="sales"            slug="sales" />} />

@@ -1,21 +1,34 @@
 import { createContext, useContext, useRef, useState } from 'react';
 import { seed } from '../data/seed';
 import { nowStamp, todayISO } from '../utils/helpers';
+import { buildGudangDetails } from '../utils/gudangUtils';
 
 const STORAGE_KEY = 'sfa_react_db_v1'; // beda dari prototype vanilla agar tidak bentrok
 const DbContext = createContext(null);
 
+/* Pastikan tabel gudangDetails ada (murni — tanpa mutate) */
+function hydrateGudang(db) {
+  if (!Array.isArray(db.gudangDetails)) db.gudangDetails = buildGudangDetails(db);
+  return db;
+}
+
 function loadInitial() {
+  let db = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.users) return parsed;
+      if (parsed && parsed.users) db = parsed;
     }
   } catch { /* data rusak → seed ulang */ }
-  const fresh = seed();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-  return fresh;
+  if (!db) db = seed();
+
+  /* Migrasi gudangDetails SEKALI saat app start — SEBELUM interaksi user
+     apa pun. Menutup celah timing lama: gudang yang ditambah sebelum
+     migrasi jalan ikut kebagian stok. Hasil migrasi dipersist. */
+  hydrateGudang(db);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  return db;
 }
 
 export function DataProvider({ children }) {
@@ -66,7 +79,7 @@ export function DataProvider({ children }) {
     return `${prefix}-${t.replace(/-/g, '')}-${String(count).padStart(3, '0')}`;
   };
 
-  const reset = () => persist(seed());
+  const reset = () => persist(hydrateGudang(seed()));
 
   return (
     <DbContext.Provider value={{ db: data, insert, update, remove, reset, nextNo, mutate, dataRef }}>

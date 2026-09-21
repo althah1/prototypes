@@ -31,16 +31,17 @@ export function seed() {
     companies: [
       { id: 1, name: 'PT Distribusi Nusantara', npwp: '01.234.567.8-901.000',
         address: 'Jl. Malioboro No. 52, Yogyakarta 55271', phone: '0274-555123',
-        email: 'info@distribusinusantara.co.id', logo: '', status: 'active' },
+        email: 'info@distribusinusantara.co.id', logo: '', status: 'active',
+        bankName: 'Bank BRI', bankAccount: '012345678901234', bankHolder: 'PT Distribusi Nusantara' },
     ],
     warehouses: [
-      { id: 1, code: 'GDG-YK1', name: 'Gudang Yogyakarta Pusat', address: 'Jl. Kaliurang KM 5, Sleman', pic: 'Joko Susilo', status: 'active' },
-      { id: 2, code: 'GDG-SLM', name: 'Gudang Sleman Cabang',    address: 'Jl. Magelang KM 8, Sleman', pic: 'Rina Agustina', status: 'active' },
+      { id: 1, code: 'GDG-YK1', name: 'Gudang Yogyakarta Pusat', address: 'Jl. Kaliurang KM 5, Sleman', picId: 1, status: 'active' },
+      { id: 2, code: 'GDG-SLM', name: 'Gudang Sleman Cabang',    address: 'Jl. Magelang KM 8, Sleman', picId: 2, status: 'active' },
     ],
     suppliers: [
-      { id: 1, code: 'SUP-001', name: 'CV Sumber Pangan',   pic: 'Pak Hendra',  phone: '081234500001', address: 'Jl. Solo KM 10, Yogyakarta',  products: 'PRD-001, PRD-002, PRD-004', status: 'active' },
-      { id: 2, code: 'SUP-002', name: 'PT Sembako Jaya',    pic: 'Bu Lestari',  phone: '081234500002', address: 'Jl. Ring Road Utara, Sleman', products: 'PRD-007, PRD-008, PRD-009', status: 'active' },
-      { id: 3, code: 'SUP-003', name: 'PT Perawatan Sehat', pic: 'Pak Dedi',    phone: '081234500003', address: 'Kawasan Industri Bantul',     products: 'PRD-010, PRD-011, PRD-012', status: 'inactive' },
+      { id: 1, code: 'SUP-001', name: 'CV Sumber Pangan',   picId: 1, phone: '081234500001', address: 'Jl. Solo KM 10, Yogyakarta',  products: 'PRD-001, PRD-002, PRD-004', status: 'active' },
+      { id: 2, code: 'SUP-002', name: 'PT Sembako Jaya',    picId: 2, phone: '081234500002', address: 'Jl. Ring Road Utara, Sleman', products: 'PRD-007, PRD-008, PRD-009', status: 'active' },
+      { id: 3, code: 'SUP-003', name: 'PT Perawatan Sehat', picId: 2, phone: '081234500003', address: 'Kawasan Industri Bantul',     products: 'PRD-010, PRD-011, PRD-012', status: 'inactive' },
     ],
     supervisors: [
       { id: 1, nik: 'SPV-001', name: 'Budi Santoso',   email: 'supervisor@sfa.co.id', phone: '081200000002', areaId: 1, status: 'active' },

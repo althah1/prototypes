@@ -18,6 +18,7 @@ import Typography from '@mui/material/Typography';
 
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
@@ -72,6 +73,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   if (!quote) return null; /* early return SETELAH semua hooks — aman */
 
   const outlet = (db.outlets || []).find((o) => o.id === quote.outletId) || {};
+  const company = (db.companies || [])[0];
   const salesName = (db.sales || []).find((s) => s.id === quote.salesId)?.name || '-';
   const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === quote.salesId);
   const convertedOrder = quote.convertedOrderId
@@ -154,8 +156,9 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   };
 
   const submitSpvReject = () => {
-    const v = reason.trim();
-    if (!v) { setReasonErr('Alasan wajib diisi.'); return; }
+const v = reason.trim();
+if (!v) { setReasonErr('Catatan penolakan wajib diisi.'); return; }
+if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catatan_penolakan).'); return; }
     update('quotations', quote.id, { status: 'rejected', rejectReason: v, decidedBy: user.name, decidedAt: nowStamp() });
     if (salesUser) notify(salesUser.id, 'Quotation Ditolak Supervisor', `${quote.no} ditolak: ${v}`);
     toast('Quotation ditolak oleh Supervisor.', 'warning');
@@ -170,11 +173,12 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
           <Stack spacing={0.5} sx={{ mb: 2 }}>
             <KV label="Tanggal" value={quote.date} />
             <KV label="Sales" value={salesName} />
-            <KV label="Outlet" value={outlet.name || '-'} />
-            <KV label="Berlaku s.d" value={quote.validUntil} />
+<KV label="Outlet" value={outlet.name || '-'} />
+<KV label="Perusahaan" value={company?.name || '-'} />
+<KV label="Masa Berlaku" value={quote.validUntil} />
             <KV label="Diskon Maks" value={`${maxDisc}%${needsSpv ? ` (batas wewenang ${QUOTE_DISCOUNT_LIMIT}%)` : ''}`} />
             <KV label="Status" value={<StatusChip kind="quote" status={quote.status} />} />
-            <KV label="Kode Verifikasi" value={<Chip size="small" variant="outlined" color="primary" label={quote.verCode} />} />
+            <KV label="Kode Verifikasi" value={<Chip size="small" variant="outlined" color="primary" label={quote.verCode || '-'} />} />
             {quote.spvApprovedAt && <KV label="Approval Diskon" value={`${quote.spvApprovedBy || 'Supervisor'} • ${quote.spvApprovedAt}`} />}
             {quote.sentAt && <KV label="Dikirim" value={quote.sentAt} />}
             {quote.rejectReason && <KV label="Alasan Ditolak" value={quote.rejectReason} />}
@@ -223,10 +227,15 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
             <KV label="Subtotal" value={formatRupiah(quote.subtotal)} />
             <KV label="Diskon" value={`− ${formatRupiah(quote.discTotal)}`} />
             <KV label={`PPN ${Math.round((quote.taxRate || 0.11) * 100)}%`} value={formatRupiah(quote.tax)} />
-            <KV label="TOTAL" value={<Typography color="primary" fontWeight={800}>{formatRupiah(quote.total)}</Typography>} />
+            <KV label="Grand Total" value={<Typography color="primary" fontWeight={800}>{formatRupiah(quote.total)}</Typography>} />
           </Stack>
 
-          {quote.note && <Alert severity="info" sx={{ mt: 1.5 }}>📝 {quote.note}</Alert>}
+          {quote.note && <Alert severity="info" sx={{ mt: 1.5 }}>{quote.note}</Alert>}
+          {quote.catatanSyarat && (
+            <Alert severity="info" sx={{ mt: 1.5 }} icon={<DescriptionRoundedIcon fontSize="small" />}>
+              <b>Syarat &amp; Ketentuan (catatan_syarat — tercetak di PDF):</b> {quote.catatanSyarat}
+            </Alert>
+          )}
           <Alert severity="info" sx={{ mt: 1.5 }} icon={<LockRoundedIcon fontSize="small" />}>
             Harga merupakan <b>snapshot</b> saat dokumen dibuat (price freeze #55) — perubahan Master Data tidak mengubah dokumen (#61).
           </Alert>
