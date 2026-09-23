@@ -6,24 +6,26 @@
    9. Tugas (jenis)  10. Produk
    Dipakai oleh EntityPage.jsx (halaman CRUD generik).
 
-   KONVENSI BARU (untuk CRUD penuh):
+   KONVENSI (untuk CRUD penuh):
    - refs      : relasi/transaksi yang MEMAKAI entitas ini —
                  dipakai dialog Detail (statistik) dan tombol Hapus
                  (memutuskan hard delete vs soft delete, FSD 3.3).
                  matchSelf: true = bandingkan x[field] dengan rec[field]
                  (referensi berbasis nilai, bukan id).
    - refsItems : referensi tersimpan dalam array item/stocks (Produk).
+   - refsArrays: referensi berupa ARRAY ID POLOS di tabel lain
+                 (dipakai produk ← supplier.productIds).
+   - multiSelect: field pilih-banyak dari tabel lain (optionsFrom) —
+                 nilai disimpan sebagai array ID (Produk Dipasok Supplier).
+   - codeGen   : prefill saran kode PREFIX-YYYY-NNN di form Tambah
+                 (dipakai Outlet) — tetap editable oleh user.
    - cascade   : data bawahan yang ikut nonaktif/aktif mengikuti induk.
-                 HANYA tabel ber-status siklus hidup (active/inactive) —
-                 tabel ber-status alur kerja (tasks, prospects) TIDAK
-                 boleh di-cascade karena statusnya punya makna sendiri.
-   - detailPage: path halaman detail khusus (tombol mata navigasi,
-                 bukan dialog) — dipakai Gudang.
+   - detailPage: path halaman detail khusus (tombol mata navigasi).
    - fmt:'rupiah' pada field uang agar tampil rupiah di dialog detail.
-   - Lookup orang (PIC/Penanggung Jawab): field picId type 'select'
-     optionsFrom supervisors → menyimpan ID, nama ditarik lewat
-     render (pola sama seperti sales.supervisorId).
+   - Lookup orang (PIC/penanggung jawab): field picId type 'select'
+     optionsFrom supervisors → menyimpan ID, nama ditarik lewat render.
 ===================================================== */
+
 import { removeGudangPermanent } from '../../utils/gudangUtils';
 
 const ALNUM = /^[A-Za-z0-9-]+$/;
@@ -32,6 +34,15 @@ const PHONE = /^[0-9]{10,15}$/;
 const areaName = (r, db) => (db.areas.find((a) => a.id === r.areaId) || {}).name || '-';
 const spvName = (r, db) => (db.supervisors.find((s) => s.id === r.supervisorId) || {}).name || '-';
 const spvPic = (r, db) => (db.supervisors.find((s) => s.id === r.picId) || {}).name || '-';
+/* Tabel daftar supplier: hanya SKU (ringkas). Detail menampilkan SKU — Nama. */
+const supProducts = (r, db) => {
+  const ids = r.productIds || [];
+  if (!ids.length) return '-';
+  return ids.map((id) => {
+    const p = (db.products || []).find((x) => x.id === id);
+    return p ? p.sku : `#${id}`;
+  }).join(', ');
+};
 
 export const MASTER_CONFIG = {
   /* 1 — PERUSAHAAN (profil tunggal: Read/Update via halaman profil, tanpa hapus) */
@@ -99,13 +110,13 @@ export const MASTER_CONFIG = {
     table: 'suppliers',
     addLabel: 'Supplier',
     uniques: ['code'],
-    refs: [], /* prototype: produk belum ber-FK ke supplier → aman hapus permanen */
+    refs: [], /* prototype: tidak ada transaksi yang memakai supplier → aman hapus permanen */
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Supplier' },
       { k: 'picId', l: 'PIC', render: spvPic },
       { k: 'phone', l: 'Telepon' },
-      { k: 'products', l: 'Produk Dipasok' },
+      { k: 'productIds', l: 'Produk Dipasok', render: supProducts },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
@@ -114,7 +125,8 @@ export const MASTER_CONFIG = {
       { k: 'picId', l: 'Nama PIC (Supervisor)', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
       { k: 'phone', l: 'No. Telepon', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
       { k: 'address', l: 'Alamat', type: 'textarea', max: 200 },
-      { k: 'products', l: 'Produk Dipasok (SKU)', type: 'text', max: 200 },
+      { k: 'productIds', l: 'Produk Dipasok', type: 'multiSelect', optionsFrom: { table: 'products', onlyActive: true },
+        hint: 'Pilih dari katalog produk — boleh dikosongkan, bisa dilengkapi nanti lewat Ubah.' },
     ],
     search: ['code', 'name'],
   },
@@ -236,6 +248,8 @@ export const MASTER_CONFIG = {
     table: 'outlets',
     addLabel: 'Outlet',
     uniques: ['code'],
+    /* Prefill saran kode otomatis OUT-YYYY-NNN di form Tambah — editable. */
+    codeGen: { field: 'code', prefix: 'OUT' },
     refs: [
       { table: 'tasks', field: 'outletId', label: 'tugas terjadwal' },
       { table: 'orders', field: 'outletId', label: 'order' },
@@ -255,7 +269,8 @@ export const MASTER_CONFIG = {
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
-      { k: 'code', l: 'Kode Outlet', type: 'text', required: true, max: 30, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
+      { k: 'code', l: 'Kode Outlet', type: 'text', required: true, max: 30, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.',
+        hint: 'Otomatis terisi saran kode berikutnya — boleh dihapus dan diketik ulang.' },
       { k: 'name', l: 'Nama Outlet', type: 'text', required: true, max: 100 },
       { k: 'owner', l: 'Nama Pemilik', type: 'text', max: 100 },
       { k: 'address', l: 'Alamat', type: 'text', required: true, max: 200 },
@@ -342,6 +357,9 @@ export const MASTER_CONFIG = {
       { table: 'orders', field: 'items', label: 'order' },
       { table: 'quotations', field: 'items', label: 'quotation' },
       { table: 'audits', field: 'stocks', label: 'audit (stock-take)' },
+    ],
+    refsArrays: [
+      { table: 'suppliers', field: 'productIds', label: 'supplier yang memasok' },
     ],
     columns: [
       { k: 'sku', l: 'SKU' },

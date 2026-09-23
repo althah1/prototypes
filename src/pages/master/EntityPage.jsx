@@ -77,6 +77,23 @@ function resolveOptions(f, db) {
   return list.map((r) => ({ v: r.id, l: r[label] ?? r.name }));
 }
 
+/* Saran kode berikutnya dengan format PREFIX-YYYY-NNN (urut naik per tahun).
+   Dipakai openCreate untuk PREFILL field kode (cfg.codeGen) — nilainya tetap
+   bisa dihapus / diketik ulang oleh user (bukan auto-number yang terkunci). */
+function suggestCode(rows, prefix) {
+  const year = new Date().getFullYear();
+  const head = `${prefix}-${year}-`;
+  const max = (rows || []).reduce((m, r) => {
+    const c = String(r.code || '');
+    if (c.startsWith(head)) {
+      const n = parseInt(c.slice(head.length), 10);
+      return Number.isNaN(n) ? m : Math.max(m, n);
+    }
+    return m;
+  }, 0);
+  return `${head}${String(max + 1).padStart(3, '0')}`;
+}
+
 export default function EntityPage({ slug }) {
   const cfg = MASTER_CONFIG[slug];
   const { db, insert, update, mutate, remove } = useDb();
@@ -123,6 +140,9 @@ export default function EntityPage({ slug }) {
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc' ? {} : (f.default != null ? String(f.default) : '');
     });
+    /* Prefill saran kode otomatis (mis. OUT-2026-011) — editable:
+       boleh dihapus & diketik ulang oleh user. */
+    if (cfg.codeGen) init[cfg.codeGen.field] = suggestCode(rows, cfg.codeGen.prefix);
     setValues(init); setErrors({}); setEditing(null); setFormOpen(true);
   };
 
@@ -131,7 +151,9 @@ export default function EntityPage({ slug }) {
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc'
         ? allocMapOf(db, rec.id)
-        : (rec[f.k] == null ? '' : String(rec[f.k]));
+        : f.type === 'multiSelect'
+          ? [...(Array.isArray(rec[f.k]) ? rec[f.k] : [])]
+          : (rec[f.k] == null ? '' : String(rec[f.k]));
     });
     setValues(init); setErrors({}); setEditing(rec); setFormOpen(true);
   };
@@ -152,6 +174,11 @@ export default function EntityPage({ slug }) {
     });
     (cfg.refsItems || []).forEach(({ table, field, label }) => {
       const n = (db[table] || []).filter((r) => (r[field] || []).some((it) => it.productId === rec.id)).length;
+      if (n) list.push({ label, n });
+    });
+    /* Referensi berupa ARRAY ID POLOS di tabel lain (mis. supplier.productIds → produk) */
+    (cfg.refsArrays || []).forEach(({ table, field, label }) => {
+      const n = (db[table] || []).filter((x) => Array.isArray(x[field]) && x[field].includes(rec.id)).length;
       if (n) list.push({ label, n });
     });
     return { total: list.reduce((s, x) => s + x.n, 0), list };
@@ -182,6 +209,10 @@ export default function EntityPage({ slug }) {
   const validateAll = () => {
     const errs = {};
     cfg.fields.forEach((f) => {
+      if (f.type === 'multiSelect') {
+        if (f.required && !(values[f.k] || []).length) errs[f.k] = 'Pilih minimal satu item.';
+        return;
+      }
       if (f.type === 'gudangAlloc') {
         const bad = Object.entries(values[f.k] || {}).some(
           ([, v]) => v !== '' && (Number.isNaN(Number(v)) || Number(v) < 0)
@@ -236,6 +267,7 @@ export default function EntityPage({ slug }) {
       cfg.fields.forEach((f) => {
         let v = values[f.k];
         if (f.type === 'gudangAlloc') v = allocTotal(values[f.k]);
+        else if (f.type === 'multiSelect') v = values[f.k] || [];
         else if (f.type === 'number') v = v === '' ? (f.default ?? 0) : Number(v);
         else if (f.optionsFrom && f.optionsFrom.table !== 'categories') v = v === '' ? '' : Number(v);
         else v = String(v ?? '').trim();
@@ -335,6 +367,14 @@ export default function EntityPage({ slug }) {
         return `${w ? w.code : r.gudangId}: ${r.stokTercatat}`;
       }).join(' • ');
     }
+    if (f.type === 'multiSelect') {
+      const ids = rec?.[f.k] || [];
+      if (!ids.length) return 'Belum ada item terpilih';
+      return ids.map((id) => {
+        const r2 = (db[f.optionsFrom?.table] || []).find((x) => String(x.id) === String(id));
+        return r2 ? `${r2.sku ? `${r2.sku} — ` : ''}${r2.name}` : `#${id}`;
+      }).join(' • ');
+    }
     if (v == null || v === '') return '-';
     if (f.type === 'file') {
       return <Avatar src={v} variant="rounded" sx={{ width: 56, height: 56, borderRadius: 2, border: '1px solid', borderColor: 'divider' }} />;
@@ -363,7 +403,7 @@ export default function EntityPage({ slug }) {
 
   const renderField = (f) => {
     /* --- Khusus: penempatan stok per gudang (Produk) --- */
-     if (f.type === 'gudangAlloc') {
+    if (f.type === 'gudangAlloc') {
       const activeG = (db.warehouses || []).filter((w) => w.status === 'active');
       const map = values[f.k] || {};
       const inactivePlaced = (db.warehouses || []).filter(
@@ -408,6 +448,43 @@ export default function EntityPage({ slug }) {
           )}
           <Typography variant="caption" color="error" sx={{ display: 'block' }}>{errors[f.k]}</Typography>
         </Box>
+      );
+    }
+
+    /* --- Khusus: pilih banyak item dari tabel lain (Produk Dipasok di Supplier) --- */
+    if (f.type === 'multiSelect') {
+      const { table, onlyActive = false } = f.optionsFrom || {};
+      const all = db[table] || [];
+      const cur = values[f.k] || [];
+      const isOn = (id) => cur.some((x) => String(x) === String(id));
+      /* Item aktif dulu; item yang SUDAH DIPILIH tapi nonaktif tetap ditampilkan
+         (bertanda) supaya bisa dilepas — tidak hilang diam-diam. */
+      const list = onlyActive
+        ? [
+            ...all.filter((r) => !r.status || r.status === 'active'),
+            ...all.filter((r) => r.status === 'inactive' && isOn(r.id)),
+          ]
+        : all;
+      const optLabel = (r) => `${r.sku ? `${r.sku} — ` : ''}${r.name}${r.status === 'inactive' ? ' (Nonaktif)' : ''}`;
+      return (
+        <TextField key={f.k} select {...fieldProps(f)} value={values[f.k] || []}
+          SelectProps={{
+            multiple: true,
+            renderValue: (sel) => ((sel || []).length ? (
+              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                {(sel || []).map((id) => {
+                  const r2 = all.find((x) => String(x.id) === String(id));
+                  return <Chip key={String(id)} size="small" variant="outlined" label={r2 ? (r2.sku || r2.name) : `#${id}`} />;
+                })}
+              </Stack>
+            ) : (
+              <Typography variant="caption" color="text.secondary">Belum ada item dipilih</Typography>
+            )),
+          }}>
+          {list.map((r) => (
+            <MenuItem key={String(r.id)} value={r.id}>{optLabel(r)}</MenuItem>
+          ))}
+        </TextField>
       );
     }
 
@@ -491,7 +568,7 @@ export default function EntityPage({ slug }) {
       title={confirmToggle?.status === 'active' ? 'Nonaktifkan Data' : 'Aktifkan Kembali'}
       message={confirmToggle?.status === 'active'
         ? `Nonaktifkan "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan akan ikut nonaktif sementara.` : ''} Data tidak dihapus permanen (soft delete / FSD 3.3) dan dapat diaktifkan kembali.`
-        : `Aktifkan kembali "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan ikut diaktifkan.` : ''}`}
+        : `Aktifkan kembali "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan akan ikut diaktifkan.` : ''}`}
       confirmLabel={confirmToggle?.status === 'active' ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan'}
       confirmColor={confirmToggle?.status === 'active' ? 'warning' : 'primary'}
     />

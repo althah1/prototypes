@@ -4,6 +4,7 @@ export function seed() {
   const t = todayISO();
   const y = addDays(t, -1);
   const ymd = (d) => d.replace(/-/g, '');
+  const yr = new Date().getFullYear(); /* kode outlet OUT-YYYY-NNN */
 
   return {
     users: [
@@ -38,10 +39,11 @@ export function seed() {
       { id: 1, code: 'GDG-YK1', name: 'Gudang Yogyakarta Pusat', address: 'Jl. Kaliurang KM 5, Sleman', picId: 1, status: 'active' },
       { id: 2, code: 'GDG-SLM', name: 'Gudang Sleman Cabang',    address: 'Jl. Magelang KM 8, Sleman', picId: 2, status: 'active' },
     ],
+    /* productIds = relasi nyata ke tabel products (array ID) */
     suppliers: [
-      { id: 1, code: 'SUP-001', name: 'CV Sumber Pangan',   picId: 1, phone: '081234500001', address: 'Jl. Solo KM 10, Yogyakarta',  products: 'PRD-001, PRD-002, PRD-004', status: 'active' },
-      { id: 2, code: 'SUP-002', name: 'PT Sembako Jaya',    picId: 2, phone: '081234500002', address: 'Jl. Ring Road Utara, Sleman', products: 'PRD-007, PRD-008, PRD-009', status: 'active' },
-      { id: 3, code: 'SUP-003', name: 'PT Perawatan Sehat', picId: 2, phone: '081234500003', address: 'Kawasan Industri Bantul',     products: 'PRD-010, PRD-011, PRD-012', status: 'inactive' },
+      { id: 1, code: 'SUP-001', name: 'CV Sumber Pangan',   picId: 1, phone: '081234500001', address: 'Jl. Solo KM 10, Yogyakarta',  productIds: [1, 2, 4],  status: 'active' },
+      { id: 2, code: 'SUP-002', name: 'PT Sembako Jaya',    picId: 2, phone: '081234500002', address: 'Jl. Ring Road Utara, Sleman', productIds: [7, 8, 9],  status: 'active' },
+      { id: 3, code: 'SUP-003', name: 'PT Perawatan Sehat', picId: 2, phone: '081234500003', address: 'Kawasan Industri Bantul',     productIds: [10, 11, 12], status: 'inactive' },
     ],
     supervisors: [
       { id: 1, nik: 'SPV-001', name: 'Budi Santoso',   email: 'supervisor@sfa.co.id', phone: '081200000002', areaId: 1, status: 'active' },
@@ -53,16 +55,16 @@ export function seed() {
       { id: 3, code: 'AR-YK3', name: 'Area Bantul',      desc: 'Jalur Bantul & Imogiri',        lat: -7.8580, lng: 110.3280, radiusKm: 6, status: 'active' },
     ],
     outlets: [
-      { id: 1,  code: 'OUT-001', name: 'Toko Sinar Rejeki',    owner: 'Bu Tini',    address: 'Jl. Malioboro No. 10',      lat: -7.7955, lng: 110.3690, phone: '081310000001', areaId: 1, category: 'Retail',      status: 'active' },
-      { id: 2,  code: 'OUT-002', name: 'Warung Barokah',       owner: 'Pak Slamet', address: 'Jl. Sosrowijayan No. 8',   lat: -7.7900, lng: 110.3720, phone: '081310000002', areaId: 1, category: 'Warung',      status: 'active' },
-      { id: 3,  code: 'OUT-003', name: 'Toko Makmur Jaya',     owner: 'Ibu Yuli',   address: 'Jl. Prawirotaman No. 15',  lat: -7.8010, lng: 110.3640, phone: '081310000003', areaId: 1, category: 'Retail',      status: 'active' },
-      { id: 4,  code: 'OUT-004', name: 'Minimarket Sejahtera', owner: 'Bpk. Hadi',  address: 'Jl. Godean No. 45',        lat: -7.7880, lng: 110.3750, phone: '081310000004', areaId: 1, category: 'Minimarket',  status: 'active' },
-      { id: 5,  code: 'OUT-005', name: 'Toko Jaya Abadi',      owner: 'Pak Wawan',  address: 'Jl. Kaliurang KM 4',       lat: -7.7130, lng: 110.3730, phone: '081310000005', areaId: 2, category: 'Retail',      status: 'active' },
-      { id: 6,  code: 'OUT-006', name: 'Warung Dewi Sari',     owner: 'Bu Dewi',    address: 'Jl. Gejayan No. 22',       lat: -7.7180, lng: 110.3790, phone: '081310000006', areaId: 2, category: 'Warung',      status: 'active' },
-      { id: 7,  code: 'OUT-007', name: 'Toko Berkah Ilmu',     owner: 'Pak Rudi',   address: 'Jl. Seturan No. 5',        lat: -7.7470, lng: 110.3870, phone: '081310000007', areaId: 2, category: 'Retail',      status: 'active' },
-      { id: 8,  code: 'OUT-008', name: 'Toko Maju Makmur',     owner: 'Bu Sri',     address: 'Jl. Parangtritis No. 30',  lat: -7.8560, lng: 110.3300, phone: '081310000008', areaId: 3, category: 'Retail',      status: 'active' },
-      { id: 9,  code: 'OUT-009', name: 'Warung Sumber Rejeki', owner: 'Pak Darto',  address: 'Jl. Bantul No. 12',        lat: -7.8600, lng: 110.3260, phone: '081310000009', areaId: 3, category: 'Warung',      status: 'active' },
-      { id: 10, code: 'OUT-010', name: 'Toko Harum',           owner: 'Bu Narti',   address: 'Jl. Imogiri No. 7',        lat: -7.8530, lng: 110.3340, phone: '081310000010', areaId: 3, category: 'Warung',      status: 'active' },
+      { id: 1,  code: `OUT-${yr}-001`, name: 'Toko Sinar Rejeki',    owner: 'Bu Tini',    address: 'Jl. Malioboro No. 10',      lat: -7.7955, lng: 110.3690, phone: '081310000001', areaId: 1, category: 'Retail',      status: 'active' },
+      { id: 2,  code: `OUT-${yr}-002`, name: 'Warung Barokah',       owner: 'Pak Slamet', address: 'Jl. Sosrowijayan No. 8',   lat: -7.7900, lng: 110.3720, phone: '081310000002', areaId: 1, category: 'Warung',      status: 'active' },
+      { id: 3,  code: `OUT-${yr}-003`, name: 'Toko Makmur Jaya',     owner: 'Ibu Yuli',   address: 'Jl. Prawirotaman No. 15',  lat: -7.8010, lng: 110.3640, phone: '081310000003', areaId: 1, category: 'Retail',      status: 'active' },
+      { id: 4,  code: `OUT-${yr}-004`, name: 'Minimarket Sejahtera', owner: 'Bpk. Hadi',  address: 'Jl. Godean No. 45',        lat: -7.7880, lng: 110.3750, phone: '081310000004', areaId: 1, category: 'Minimarket',  status: 'active' },
+      { id: 5,  code: `OUT-${yr}-005`, name: 'Toko Jaya Abadi',      owner: 'Pak Wawan',  address: 'Jl. Kaliurang KM 4',       lat: -7.7130, lng: 110.3730, phone: '081310000005', areaId: 2, category: 'Retail',      status: 'active' },
+      { id: 6,  code: `OUT-${yr}-006`, name: 'Warung Dewi Sari',     owner: 'Bu Dewi',    address: 'Jl. Gejayan No. 22',       lat: -7.7180, lng: 110.3790, phone: '081310000006', areaId: 2, category: 'Warung',      status: 'active' },
+      { id: 7,  code: `OUT-${yr}-007`, name: 'Toko Berkah Ilmu',     owner: 'Pak Rudi',   address: 'Jl. Seturan No. 5',        lat: -7.7470, lng: 110.3870, phone: '081310000007', areaId: 2, category: 'Retail',      status: 'active' },
+      { id: 8,  code: `OUT-${yr}-008`, name: 'Toko Maju Makmur',     owner: 'Bu Sri',     address: 'Jl. Parangtritis No. 30',  lat: -7.8560, lng: 110.3300, phone: '081310000008', areaId: 3, category: 'Retail',      status: 'active' },
+      { id: 9,  code: `OUT-${yr}-009`, name: 'Warung Sumber Rejeki', owner: 'Pak Darto',  address: 'Jl. Bantul No. 12',        lat: -7.8600, lng: 110.3260, phone: '081310000009', areaId: 3, category: 'Warung',      status: 'active' },
+      { id: 10, code: `OUT-${yr}-010`, name: 'Toko Harum',           owner: 'Bu Narti',   address: 'Jl. Imogiri No. 7',        lat: -7.8530, lng: 110.3340, phone: '081310000010', areaId: 3, category: 'Warung',      status: 'active' },
     ],
     sales: [
       { id: 1, nik: 'SAL-001', name: 'Andi Wijaya',   email: 'sales@sfa.co.id', phone: '081200000003', supervisorId: 1, areaId: 1, target: 50000000, status: 'active' },
