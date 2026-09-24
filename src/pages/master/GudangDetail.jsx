@@ -37,10 +37,18 @@ import { ensureGudangDetails, reservedByRow } from '../../utils/gudangUtils';
 
 const STOK_COLOR = { Tersedia: 'success', Menipis: 'warning', Habis: 'error' };
 
+/* Detail: label di atas, nilai di bawah — membungkus (word-wrap) mengikuti lebar
+   kartu. Tidak pernah memaksa melebar halaman walau teks panjang tanpa spasi. */
 const KV = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
-    <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600} sx={{ textAlign: 'right' }}>{value}</Typography>
+  <Stack sx={{ py: 0.5 }}>
+    <Typography variant="caption" color="text.secondary"
+      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4 }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600}
+      sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.25, py: 0.85, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
+      {value ?? '-'}
+    </Typography>
   </Stack>
 );
 
@@ -121,7 +129,7 @@ export default function GudangDetail() {
           <ArrowBackRoundedIcon />
         </IconButton>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h5" fontWeight={800} noWrap>Detail Gudang — {warehouse.name}</Typography>
+          <Typography variant="h5" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>Detail Gudang — {warehouse.name}</Typography>
           <Typography variant="caption" color="text.secondary">
             Rincian ketersediaan stok per produk (gudang_details)
             {unplaced > 0 ? ` • ${unplaced} produk belum ditempatkan di gudang mana pun` : ''}
@@ -191,7 +199,7 @@ export default function GudangDetail() {
             {filtered.length ? filtered.map((r) => (
               <TableRow key={r.id}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight={600}>{r.name}</Typography>
+                  <Typography variant="body2" fontWeight={600} noWrap title={r.name} sx={{ maxWidth: 260 }}>{r.name}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{r.sku}</Typography>
                 </TableCell>
                 <TableCell align="right" sx={{ fontFamily: 'monospace', fontSize: 13 }}>{r.tercatat}</TableCell>

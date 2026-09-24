@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -60,10 +61,18 @@ import { allocMapOf, allocTotal, ensureGudangDetails, syncAllocation } from '../
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/* Detail: label di atas, nilai di bawah — membungkus (word-wrap) mengikuti lebar
+   dialog. Tidak pernah scroll kiri/kanan walau teks panjang tanpa spasi. */
 const KVRow = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
-    <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600} sx={{ textAlign: 'right' }}>{value}</Typography>
+  <Stack sx={{ py: 0.5 }}>
+    <Typography variant="caption" color="text.secondary"
+      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4 }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600}
+      sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.25, py: 0.85, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
+      {value}
+    </Typography>
   </Stack>
 );
 
@@ -140,8 +149,7 @@ export default function EntityPage({ slug }) {
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc' ? {} : (f.default != null ? String(f.default) : '');
     });
-    /* Prefill saran kode otomatis (mis. OUT-2026-011) — editable:
-       boleh dihapus & diketik ulang oleh user. */
+    /* Prefill saran kode otomatis (mis. OUT-2026-011) — editable. */
     if (cfg.codeGen) init[cfg.codeGen.field] = suggestCode(rows, cfg.codeGen.prefix);
     setValues(init); setErrors({}); setEditing(null); setFormOpen(true);
   };
@@ -451,13 +459,17 @@ export default function EntityPage({ slug }) {
       );
     }
 
-    /* --- Khusus: pilih banyak item dari tabel lain (Produk Dipasok di Supplier) --- */
+    /* --- Khusus: pilih banyak item dari tabel lain (multiSelect) — daftar
+         CHECKBOX + pencarian + dapat digulir. Dipakai Produk Dipasok Supplier.
+         Kata kunci pencarian disimpan di values[`${f.k}__q`] (internal,
+         tidak pernah tersimpan ke database — bukan bagian cfg.fields). --- */
     if (f.type === 'multiSelect') {
       const { table, onlyActive = false } = f.optionsFrom || {};
       const all = db[table] || [];
       const cur = values[f.k] || [];
+      const q = String(values[`${f.k}__q`] ?? '').trim().toLowerCase();
       const isOn = (id) => cur.some((x) => String(x) === String(id));
-      /* Item aktif dulu; item yang SUDAH DIPILIH tapi nonaktif tetap ditampilkan
+      /* Item aktif dulu; item yang SUDAH DIPILIH tapi nonaktif tetap tampil
          (bertanda) supaya bisa dilepas — tidak hilang diam-diam. */
       const list = onlyActive
         ? [
@@ -465,26 +477,44 @@ export default function EntityPage({ slug }) {
             ...all.filter((r) => r.status === 'inactive' && isOn(r.id)),
           ]
         : all;
-      const optLabel = (r) => `${r.sku ? `${r.sku} — ` : ''}${r.name}${r.status === 'inactive' ? ' (Nonaktif)' : ''}`;
+      const shown = q
+        ? list.filter((r) => `${r.sku || ''} ${r.name}`.toLowerCase().includes(q))
+        : list;
+      const toggle = (id) => setVal(f.k,
+        isOn(id) ? cur.filter((x) => String(x) !== String(id)) : [...cur, Number(id)]
+      );
       return (
-        <TextField key={f.k} select {...fieldProps(f)} value={values[f.k] || []}
-          SelectProps={{
-            multiple: true,
-            renderValue: (sel) => ((sel || []).length ? (
-              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                {(sel || []).map((id) => {
-                  const r2 = all.find((x) => String(x.id) === String(id));
-                  return <Chip key={String(id)} size="small" variant="outlined" label={r2 ? (r2.sku || r2.name) : `#${id}`} />;
-                })}
+        <Box key={f.k}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            {f.l}{f.required ? ' *' : ''} — {cur.length} item dipilih
+          </Typography>
+          <TextField size="small" fullWidth placeholder="Cari item (SKU / nama)…"
+            value={String(values[`${f.k}__q`] ?? '')}
+            onChange={(e) => setVal(`${f.k}__q`, e.target.value)}
+            InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }}
+            sx={{ mb: 1 }} />
+          <Stack spacing={0.25}
+            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 0.75, maxHeight: 240, overflowY: 'auto' }}>
+            {shown.length ? shown.map((r) => (
+              <Stack key={r.id} direction="row" alignItems="center" spacing={0.75}
+                onClick={() => toggle(r.id)}
+                sx={{ cursor: 'pointer', borderRadius: 1, py: 0.25, px: 0.5, '&:hover': { bgcolor: 'action.hover' } }}>
+                <Checkbox size="small" checked={isOn(r.id)} tabIndex={-1} disableRipple />
+                <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0, color: r.status === 'inactive' ? 'text.secondary' : undefined }}>
+                  {r.sku ? `${r.sku} — ` : ''}{r.name}{r.status === 'inactive' ? ' (Nonaktif)' : ''}
+                </Typography>
               </Stack>
-            ) : (
-              <Typography variant="caption" color="text.secondary">Belum ada item dipilih</Typography>
-            )),
-          }}>
-          {list.map((r) => (
-            <MenuItem key={String(r.id)} value={r.id}>{optLabel(r)}</MenuItem>
-          ))}
-        </TextField>
+            )) : (
+              <Typography variant="caption" color="text.secondary" sx={{ py: 1, textAlign: 'center' }}>
+                {q ? 'Tidak ada item yang cocok dengan pencarian.' : 'Belum ada data untuk dipilih.'}
+              </Typography>
+            )}
+          </Stack>
+          <Typography variant="caption" color="error" sx={{ display: 'block' }}>{errors[f.k]}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {f.hint || 'Centang untuk memilih — daftar dapat digulir dan dicari.'}
+          </Typography>
+        </Box>
       );
     }
 
@@ -580,8 +610,10 @@ export default function EntityPage({ slug }) {
   const detailDialog = (
     <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="sm" fullWidth
       PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{ fontWeight: 800 }}>Detail {cfg.addLabel} — {detailRow ? labelOf(detailRow) : ''}</DialogTitle>
-      <DialogContent dividers>
+      <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
+        Detail {cfg.addLabel} — {detailRow ? labelOf(detailRow) : ''}
+      </DialogTitle>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         {detailRow && (
           <>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
@@ -629,8 +661,10 @@ export default function EntityPage({ slug }) {
   const deleteDialog = (
     <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth
       PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{ fontWeight: 800 }}>Hapus {cfg.addLabel} — {confirmDelete ? labelOf(confirmDelete) : ''}</DialogTitle>
-      <DialogContent dividers>
+      <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
+        Hapus {cfg.addLabel} — {confirmDelete ? labelOf(confirmDelete) : ''}
+      </DialogTitle>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         {confirmDelete && (delStats.total > 0 ? (
           <>
             <Alert severity="error" sx={{ mb: 1.5 }}>
@@ -698,7 +732,7 @@ export default function EntityPage({ slug }) {
         {!rec ? (
           <EmptyState message="Profil perusahaan belum diisi." />
         ) : (
-          <Card sx={{ maxWidth: 640 }}>
+          <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent>
               <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
                 {rec.logo ? (
@@ -707,7 +741,7 @@ export default function EntityPage({ slug }) {
                   <Avatar variant="rounded" sx={{ width: 64, height: 64, borderRadius: 2, bgcolor: 'primary.main' }}><DomainRoundedIcon /></Avatar>
                 )}
                 <Box>
-                  <Typography variant="h6">{rec.name}</Typography>
+                  <Typography variant="h6" sx={{ overflowWrap: 'anywhere' }}>{rec.name}</Typography>
                   <Chip size="small" variant="outlined" color="primary" label="Identitas resmi dokumen" />
                 </Box>
               </Stack>
@@ -725,7 +759,7 @@ export default function EntityPage({ slug }) {
                     <ListItemText
                       primary={r.label} secondary={r.value}
                       primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
-                      secondaryTypographyProps={{ fontWeight: 600, fontSize: 14 }}
+                      secondaryTypographyProps={{ fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere' }}
                     />
                   </ListItem>
                 ))}
@@ -785,7 +819,14 @@ export default function EntityPage({ slug }) {
           <TableBody>
             {filtered.length ? filtered.map((r) => (
               <TableRow key={r.id} sx={{ opacity: r.status === 'inactive' ? 0.55 : 1 }}>
-                {cfg.columns.map((c) => <TableCell key={c.k}>{renderCell(r, c)}</TableCell>)}
+                {cfg.columns.map((c) => (
+                  <TableCell key={c.k}>
+                    <Box title={typeof r[c.k] === 'string' ? r[c.k] : undefined}
+                      sx={{ maxWidth: c.maxW || 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {renderCell(r, c)}
+                    </Box>
+                  </TableCell>
+                ))}
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title={cfg.detailPage ? 'Detail (halaman khusus)' : 'Detail data'}>

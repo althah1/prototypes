@@ -26,7 +26,7 @@
      optionsFrom supervisors → menyimpan ID, nama ditarik lewat render.
 ===================================================== */
 
-import { removeGudangPermanent } from '../../utils/gudangUtils';
+
 
 const ALNUM = /^[A-Za-z0-9-]+$/;
 const PHONE = /^[0-9]{10,15}$/;
@@ -85,8 +85,7 @@ export const MASTER_CONFIG = {
     ], /* gudang berisi produk → hapus = peringatan keras (FSD 3.3) */
     /* Pengecualian FSD 3.3 (hasil diskusi tim 5.1): gudang boleh dihapus
        permanen walau berisi produk. Konsekuensinya dijelaskan di dialog. */
-    hardDelete: (rec, { mutate }) => removeGudangPermanent(mutate, rec.id),
-    hardDeleteNote: 'Gudang dihapus permanen BESERTA seluruh penempatan stoknya — stok produk yang tersimpan di gudang ini ikut terhapus dari total stok produk (dihitung ulang otomatis) dan riwayatnya tidak tersisa. Gunakan hanya bila gudang benar-benar sudah tidak beroperasi atau salah input data.',
+
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Gudang' },

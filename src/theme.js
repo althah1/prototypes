@@ -22,7 +22,12 @@ const theme = createTheme({
     MuiTextField: { defaultProps: { size: 'small', fullWidth: true } },
     MuiCard: {
       defaultProps: { elevation: 0 },
-      styleOverrides: { root: { border: '1px solid', borderColor: 'divider' } },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          border: '1px solid',
+          borderColor: theme.palette.divider,
+        }),
+      },
     },
     MuiTableCell: {
       styleOverrides: {
