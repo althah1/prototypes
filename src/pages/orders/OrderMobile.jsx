@@ -42,6 +42,7 @@ import { useSync } from '../../store/SyncContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, formatRupiah, TAX_RATE } from '../../utils/helpers';
 import { completeTaskAuto } from '../../utils/taskUtils';
+import { reduceStockByOrder } from '../../utils/gudangUtils';
 
 const FILTERS = [
   { v: 'all', l: 'Semua' }, { v: 'submitted', l: 'Diajukan' }, { v: 'approved', l: 'Disetujui' },
@@ -147,7 +148,7 @@ export default function OrderMobile() {
   const draftTotals = (() => {
     const subtotal = (draft?.items || []).reduce((s, i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
-      return s + (p ? p.price * i.qty : 0);
+      return s + (p ? p.hargaJual * i.qty : 0);
     }, 0);
     const tax = Math.round(subtotal * TAX_RATE);
     return { subtotal, tax, total: subtotal + tax };
@@ -171,9 +172,10 @@ export default function OrderMobile() {
   /* Nomor unik otomatis (#42) — ikut menghitung antrean offline agar tidak duplikat (#48) */
   const genOrderNo = () => {
     const t = todayISO();
+    const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
     const count = (db.orders || []).filter((o) => o.date === t).length
       + (db.syncQueue || []).filter((x) => x.kind === 'order' && x.payload?.date === t).length;
-    return `ORD-${t.replace(/-/g, '')}-${String(count + 1).padStart(3, '0')}`;
+    return `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
 
   const submitOrder = () => {
@@ -184,7 +186,7 @@ export default function OrderMobile() {
       const p = (db.products || []).find((x) => x.id === i.productId);
       return {
         productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
-        price: p.price, disc: 0, line: p.price * i.qty, pcsPerUnit: p.pcsPerUnit || 1,
+        price: p.hargaJual, disc: 0, line: p.hargaJual * i.qty, pcsPerUnit: p.pcsPerUnit || 1,
       };
     });
     const order = {
@@ -204,13 +206,7 @@ export default function OrderMobile() {
     setTimeout(() => { /* simulasi latency API */
       const rec = insert('orders', order);
 
-      /* Pengurangan stok gudang — dikonversi ke satuan dasar pcs (#47), nilai order asli tetap */
-      mutate((d) => {
-        order.items.forEach((it) => {
-          const p = d.products.find((x) => x.id === it.productId);
-          if (p) p.stock = Math.max(0, p.stock - it.qty * (p.pcsPerUnit || 1));
-        });
-      });
+      reduceStockByOrder(mutate, order.items);
 
       /* Auto-complete tugas order terkait (BR-TASK-003) */
       completeTaskAuto(db, mutate, { outletId: draft.outletId, type: 'order', salesId: user.salesId });
@@ -368,7 +364,7 @@ export default function OrderMobile() {
                     <Typography fontWeight={700} fontSize={14} noWrap>{p.name}</Typography>
                     <Typography variant="caption" color="text.secondary" display="block" noWrap>{p.sku} • {p.category} • {p.unit}</Typography>
                     <Typography variant="body2" fontWeight={700}>
-                      {formatRupiah(p.price)} <span style={{ color: '#64748b', fontWeight: 400 }}>/ {p.unit}</span>
+                      {formatRupiah(p.hargaJual)} <span style={{ color: '#64748b', fontWeight: 400 }}>/ {p.unit}</span>
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Stok gudang: {p.stock} pcs{p.pcsPerUnit > 1 ? ` (1 ${p.unit} = ${p.pcsPerUnit} pcs)` : ''}
@@ -433,7 +429,7 @@ export default function OrderMobile() {
                   <TableRow key={i.productId}>
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>{p.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.price)} / {p.unit}</Typography>
+                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.hargaJual)} / {p.unit}</Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2">{i.qty} {p.unit}</Typography>
@@ -441,7 +437,7 @@ export default function OrderMobile() {
                         <Typography variant="caption" color="text.secondary" display="block">= {i.qty * p.pcsPerUnit} pcs</Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right"><Typography variant="body2" fontWeight={700}>{formatRupiah(p.price * i.qty)}</Typography></TableCell>
+                    <TableCell align="right"><Typography variant="body2" fontWeight={700}>{formatRupiah(p.hargaJual * i.qty)}</Typography></TableCell>
                   </TableRow>
                 );
               })}

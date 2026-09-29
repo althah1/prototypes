@@ -1,32 +1,21 @@
 /* =====================================================
-   Konfigurasi 10 entitas Master Data — URUTAN BARU:
-   1. Perusahaan      2. Gudang         3. Supplier
-   4. Area Kerja      5. Sales          6. Supervisor
-   7. Outlet          8. Kategori Prospek
-   9. Tugas (jenis)  10. Produk
-   Dipakai oleh EntityPage.jsx (halaman CRUD generik).
+   Konfigurasi entitas Master Data — dipakai EntityPage.jsx
+   (halaman CRUD generik): Perusahaan, Gudang, Supplier,
+   Area Kerja, Sales, Supervisor, Outlet, Kategori Prospek,
+   Jenis Tugas. PRODUK = halaman kustom (Produk.jsx) —
+   baris tabel = 1 produk × 1 gudang.
 
-   KONVENSI (untuk CRUD penuh):
-   - refs      : relasi/transaksi yang MEMAKAI entitas ini —
-                 dipakai dialog Detail (statistik) dan tombol Hapus
-                 (memutuskan hard delete vs soft delete, FSD 3.3).
-                 matchSelf: true = bandingkan x[field] dengan rec[field]
-                 (referensi berbasis nilai, bukan id).
-   - refsItems : referensi tersimpan dalam array item/stocks (Produk).
-   - refsArrays: referensi berupa ARRAY ID POLOS di tabel lain
-                 (dipakai produk ← supplier.productIds).
-   - multiSelect: field pilih-banyak dari tabel lain (optionsFrom) —
-                 nilai disimpan sebagai array ID (Produk Dipasok Supplier).
-   - codeGen   : prefill saran kode PREFIX-YYYY-NNN di form Tambah
-                 (dipakai Outlet) — tetap editable oleh user.
-   - cascade   : data bawahan yang ikut nonaktif/aktif mengikuti induk.
-   - detailPage: path halaman detail khusus (tombol mata navigasi).
-   - fmt:'rupiah' pada field uang agar tampil rupiah di dialog detail.
-   - Lookup orang (PIC/penanggung jawab): field picId type 'select'
-     optionsFrom supervisors → menyimpan ID, nama ditarik lewat render.
+   KONVENSI:
+   - refs       : relasi yang MEMAKAI entitas ini → dialog Detail
+                  (statistik) + tombol Hapus (soft vs hard, FSD 3.3).
+                  matchSelf: true = referensi berbasis nilai.
+   - refsItems  : referensi dalam array item (snapshot transaksi).
+   - multiSelect: field pilih-banyak (array ID) — Produk Dipasok Supplier.
+   - codeGen    : prefill saran kode PREFIX-YYYY-NNN (Outlet) — editable.
+   - cascade    : data bawahan ikut nonaktif/aktif (hanya tabel ber-status
+                  siklus hidup; tasks/prospects TIDAK boleh).
+   - fmt:'rupiah' agar tampil rupiah di dialog detail.
 ===================================================== */
-
-
 
 const ALNUM = /^[A-Za-z0-9-]+$/;
 const PHONE = /^[0-9]{10,15}$/;
@@ -45,7 +34,7 @@ const supProducts = (r, db) => {
 };
 
 export const MASTER_CONFIG = {
-  /* 1 — PERUSAHAAN (profil tunggal: Read/Update via halaman profil, tanpa hapus) */
+  /* 1 — PERUSAHAAN (profil tunggal) */
   perusahaan: {
     title: 'Master Data — Perusahaan',
     sub: 'Identitas legal perusahaan untuk kop dokumen Quotation & Invoice (satu profil).',
@@ -72,32 +61,26 @@ export const MASTER_CONFIG = {
     search: ['name', 'npwp'],
   },
 
-  /* 2 — GUDANG (detail khusus: halaman stok per produk) */
+  /* 2 — GUDANG (kode, nama, alamat — tanpa penanggung jawang, tahap awal) */
   gudang: {
     title: 'Master Data — Gudang',
-    sub: 'Lokasi penyimpanan barang & penanggung jawab stok.',
+    sub: 'Lokasi fisik penyimpanan barang.',
     table: 'warehouses',
     addLabel: 'Gudang',
     uniques: ['code'],
-    detailPage: '/dashboard/master/gudang',
     refs: [
       { table: 'gudangDetails', field: 'gudangId', label: 'penempatan produk' },
     ], /* gudang berisi produk → hapus = peringatan keras (FSD 3.3) */
-    /* Pengecualian FSD 3.3 (hasil diskusi tim 5.1): gudang boleh dihapus
-       permanen walau berisi produk. Konsekuensinya dijelaskan di dialog. */
-
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Gudang' },
       { k: 'address', l: 'Alamat' },
-      { k: 'picId', l: 'Penanggung Jawab', render: spvPic },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
       { k: 'code', l: 'Kode Gudang', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
       { k: 'name', l: 'Nama Gudang', type: 'text', required: true, max: 100 },
       { k: 'address', l: 'Alamat', type: 'text', max: 200 },
-      { k: 'picId', l: 'Penanggung Jawab (Supervisor)', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
     ],
     search: ['code', 'name'],
   },
@@ -109,7 +92,7 @@ export const MASTER_CONFIG = {
     table: 'suppliers',
     addLabel: 'Supplier',
     uniques: ['code'],
-    refs: [], /* prototype: tidak ada transaksi yang memakai supplier → aman hapus permanen */
+    refs: [],
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Supplier' },
@@ -130,7 +113,7 @@ export const MASTER_CONFIG = {
     search: ['code', 'name'],
   },
 
-  /* 4 — AREA KERJA (induk dari outlet/sales/supervisor → cascade) */
+  /* 4 — AREA KERJA */
   'area-kerja': {
     title: 'Master Data — Area Kerja',
     sub: 'Zona geografis batas wilayah kerja sales (acuan geofencing & GPS Route Planning).',
@@ -184,7 +167,7 @@ export const MASTER_CONFIG = {
       { table: 'prospects', field: 'salesId', label: 'prospek' },
     ],
     cascade: [
-      { table: 'users', field: 'salesId' }, /* akun login ikut dibekukan sementara */
+      { table: 'users', field: 'salesId' },
     ],
     columns: [
       { k: 'nik', l: 'NIK' },
@@ -206,7 +189,7 @@ export const MASTER_CONFIG = {
     search: ['nik', 'name', 'email'],
   },
 
-  /* 6 — SUPERVISOR (induk dari sales → cascade) */
+  /* 6 — SUPERVISOR */
   supervisor: {
     title: 'Master Data — Supervisor',
     sub: 'Struktur atasan & hierarki pengawasan tim sales.',
@@ -217,7 +200,6 @@ export const MASTER_CONFIG = {
       { table: 'sales', field: 'supervisorId', label: 'sales bawahan' },
       { table: 'users', field: 'email', label: 'akun login', matchSelf: true },
       { table: 'suppliers', field: 'picId', label: 'PIC supplier' },
-      { table: 'warehouses', field: 'picId', label: 'penanggung jawab gudang' },
     ],
     cascade: [
       { table: 'sales', field: 'supervisorId' },
@@ -247,7 +229,6 @@ export const MASTER_CONFIG = {
     table: 'outlets',
     addLabel: 'Outlet',
     uniques: ['code'],
-    /* Prefill saran kode otomatis OUT-YYYY-NNN di form Tambah — editable. */
     codeGen: { field: 'code', prefix: 'OUT' },
     refs: [
       { table: 'tasks', field: 'outletId', label: 'tugas terjadwal' },
@@ -316,7 +297,7 @@ export const MASTER_CONFIG = {
     search: ['name'],
   },
 
-  /* 9 — TUGAS (JENIS) — referensi berbasis nilai (tasks.type) */
+  /* 9 — TUGAS (JENIS) */
   tugas: {
     title: 'Master — Jenis Tugas',
     sub: 'Standarisasi aktivitas lapangan — menentukan formulir dinamis di Web Mobile.',
@@ -345,43 +326,5 @@ export const MASTER_CONFIG = {
     search: ['name', 'type'],
   },
 
-  /* 10 — PRODUK — referensi tersimpan dalam array item (snapshot) */
-  produk: {
-    title: 'Master Data — Produk',
-    sub: 'Katalog induk produk — sumber acuan harga terkunci untuk Entry Order & Quotation.',
-    table: 'products',
-    addLabel: 'Produk',
-    uniques: ['sku'],
-    refsItems: [
-      { table: 'orders', field: 'items', label: 'order' },
-      { table: 'quotations', field: 'items', label: 'quotation' },
-      { table: 'audits', field: 'stocks', label: 'audit (stock-take)' },
-    ],
-    refsArrays: [
-      { table: 'suppliers', field: 'productIds', label: 'supplier yang memasok' },
-    ],
-    columns: [
-      { k: 'sku', l: 'SKU' },
-      { k: 'name', l: 'Nama Produk' },
-      { k: 'category', l: 'Kategori' },
-      { k: 'unit', l: 'Satuan' },
-      { k: 'price', l: 'Harga Dasar', fmt: 'rupiah' },
-      { k: 'stock', l: 'Stok' },
-      { k: 'status', l: 'Status', fmt: 'status' },
-    ],
-    fields: [
-      { k: 'sku', l: 'Kode SKU', type: 'text', required: true, max: 30, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
-      { k: 'name', l: 'Nama Produk', type: 'text', required: true, max: 100 },
-      { k: 'category', l: 'Kategori', type: 'select', required: true, optionsFrom: { table: 'categories' } },
-      { k: 'unit', l: 'Satuan', type: 'select', required: true, options: [
-        { v: 'pcs', l: 'Pcs' }, { v: 'box', l: 'Box' },
-      ] },
-      { k: 'price', l: 'Harga Dasar (Rp)', type: 'number', required: true, min: 1, fmt: 'rupiah', hint: 'Integer — ditampilkan format Rupiah.' },
-      { k: 'stock', l: 'Penempatan Stok per Gudang', type: 'gudangAlloc',
-        hint: 'Stok total produk = penjumlahan penempatan semua gudang (pcs). Gudang baru otomatis tampil di sini dan mulai dari 0.' },
-      { k: 'pcsPerUnit', l: 'Konversi ke Pcs', type: 'number', required: true, min: 1, default: 1, hint: 'Satuan dasar per satuan jual (mis. 1 box = 12 pcs) — kriteria #47.' },
-      { k: 'desc', l: 'Deskripsi', type: 'textarea', max: 200 },
-    ],
-    search: ['sku', 'name', 'category'],
-  },
+  /* 10 — PRODUK: halaman KUSTOM (Produk.jsx) — baris = 1 produk × 1 gudang. */
 };

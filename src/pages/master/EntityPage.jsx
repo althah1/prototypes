@@ -26,6 +26,7 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -49,6 +50,7 @@ import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { MASTER_CONFIG } from './masterConfig';
+import ProdukPage from './Produk';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -61,8 +63,8 @@ import { allocMapOf, allocTotal, ensureGudangDetails, syncAllocation } from '../
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/* Detail: label di atas, nilai di bawah — membungkus (word-wrap) mengikuti lebar
-   dialog. Tidak pernah scroll kiri/kanan walau teks panjang tanpa spasi. */
+/* Detail: label kecil kapital di atas, nilai dalam wadah lembut — teks panjang
+   membungkus rapi di dalam wadah, tidak pernah scroll kiri/kanan. */
 const KVRow = ({ label, value }) => (
   <Stack sx={{ py: 0.5 }}>
     <Typography variant="caption" color="text.secondary"
@@ -86,9 +88,7 @@ function resolveOptions(f, db) {
   return list.map((r) => ({ v: r.id, l: r[label] ?? r.name }));
 }
 
-/* Saran kode berikutnya dengan format PREFIX-YYYY-NNN (urut naik per tahun).
-   Dipakai openCreate untuk PREFILL field kode (cfg.codeGen) — nilainya tetap
-   bisa dihapus / diketik ulang oleh user (bukan auto-number yang terkunci). */
+/* Saran kode PREFIX-YYYY-NNN — prefill editable (cfg.codeGen). */
 function suggestCode(rows, prefix) {
   const year = new Date().getFullYear();
   const head = `${prefix}-${year}-`;
@@ -103,7 +103,14 @@ function suggestCode(rows, prefix) {
   return `${head}${String(max + 1).padStart(3, '0')}`;
 }
 
+/* Produk = halaman kustom (baris = 1 produk × 1 gudang). Wrapper ini
+   memisahkan komponen supaya Rules of Hooks aman. */
 export default function EntityPage({ slug }) {
+  if (slug === 'produk') return <ProdukPage />;
+  return <EntityPageInner slug={slug} />;
+}
+
+function EntityPageInner({ slug }) {
   const cfg = MASTER_CONFIG[slug];
   const { db, insert, update, mutate, remove } = useDb();
   const { toast } = useToast();
@@ -112,6 +119,8 @@ export default function EntityPage({ slug }) {
   /* ===== Semua hooks di paling atas — Rules of Hooks ===== */
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [values, setValues] = useState({});
@@ -121,7 +130,7 @@ export default function EntityPage({ slug }) {
   const [detailRow, setDetailRow] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  /* Migrasi sekali untuk tabel alokasi stok (dipakai form Produk & GudangDetail) */
+  /* Migrasi sekali untuk tabel alokasi stok (jaring pengaman lama) */
   const allocRef = useRef(false);
   useEffect(() => {
     if (cfg.table !== 'products' || allocRef.current) return;
@@ -140,6 +149,10 @@ export default function EntityPage({ slug }) {
     return list;
   }, [rows, search, statusFilter, cfg.search]);
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const curPage = Math.min(page, pageCount - 1);
+  const paginated = filtered.slice(curPage * rowsPerPage, curPage * rowsPerPage + rowsPerPage);
+
   /* ---------- Helper ---------- */
   const labelOf = (r) => r?.name || r?.code || r?.nik || r?.sku || 'Data';
   const allocField = cfg.fields.find((f) => f.type === 'gudangAlloc');
@@ -149,7 +162,6 @@ export default function EntityPage({ slug }) {
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc' ? {} : (f.default != null ? String(f.default) : '');
     });
-    /* Prefill saran kode otomatis (mis. OUT-2026-011) — editable. */
     if (cfg.codeGen) init[cfg.codeGen.field] = suggestCode(rows, cfg.codeGen.prefix);
     setValues(init); setErrors({}); setEditing(null); setFormOpen(true);
   };
@@ -184,7 +196,6 @@ export default function EntityPage({ slug }) {
       const n = (db[table] || []).filter((r) => (r[field] || []).some((it) => it.productId === rec.id)).length;
       if (n) list.push({ label, n });
     });
-    /* Referensi berupa ARRAY ID POLOS di tabel lain (mis. supplier.productIds → produk) */
     (cfg.refsArrays || []).forEach(({ table, field, label }) => {
       const n = (db[table] || []).filter((x) => Array.isArray(x[field]) && x[field].includes(rec.id)).length;
       if (n) list.push({ label, n });
@@ -263,14 +274,14 @@ export default function EntityPage({ slug }) {
     return errs;
   };
 
-  /* ---------- Simpan (andAgain = mode "Tambah Lagi") ---------- */
+  /* ---------- Simpan ---------- */
   const handleSubmit = (andAgain = false) => {
     const errs = validateAll();
     setErrors(errs);
     if (Object.keys(errs).length) return toast('Periksa kembali isian formulir.', 'warning');
 
     setSaving(true);
-    setTimeout(() => { /* simulasi latency API */
+    setTimeout(() => {
       const payload = {};
       cfg.fields.forEach((f) => {
         let v = values[f.k];
@@ -309,7 +320,7 @@ export default function EntityPage({ slug }) {
     );
   };
 
-  /* ---------- Hapus (opsi C + FSD 3.3) ---------- */
+  /* ---------- Hapus ---------- */
   const delStats = confirmDelete ? refStats(confirmDelete) : { total: 0, list: [] };
   const delCascCount = confirmDelete
     ? cascadeIds(confirmDelete).reduce((s, c) => s + c.ids.length, 0)
@@ -388,7 +399,6 @@ export default function EntityPage({ slug }) {
       return <Avatar src={v} variant="rounded" sx={{ width: 56, height: 56, borderRadius: 2, border: '1px solid', borderColor: 'divider' }} />;
     }
     if (f.type === 'select') {
-      /* Lookup langsung (abaikan status) — nama tetap tampil walau referensi sudah nonaktif */
       if (f.optionsFrom && f.optionsFrom.table !== 'categories') {
         const ref = (db[f.optionsFrom.table] || []).find((x) => String(x.id) === String(v));
         if (ref) return ref[f.optionsFrom.label || 'name'] ?? ref.name ?? String(v);
@@ -410,7 +420,6 @@ export default function EntityPage({ slug }) {
   });
 
   const renderField = (f) => {
-    /* --- Khusus: penempatan stok per gudang (Produk) --- */
     if (f.type === 'gudangAlloc') {
       const activeG = (db.warehouses || []).filter((w) => w.status === 'active');
       const map = values[f.k] || {};
@@ -459,18 +468,12 @@ export default function EntityPage({ slug }) {
       );
     }
 
-    /* --- Khusus: pilih banyak item dari tabel lain (multiSelect) — daftar
-         CHECKBOX + pencarian + dapat digulir. Dipakai Produk Dipasok Supplier.
-         Kata kunci pencarian disimpan di values[`${f.k}__q`] (internal,
-         tidak pernah tersimpan ke database — bukan bagian cfg.fields). --- */
     if (f.type === 'multiSelect') {
       const { table, onlyActive = false } = f.optionsFrom || {};
       const all = db[table] || [];
       const cur = values[f.k] || [];
       const q = String(values[`${f.k}__q`] ?? '').trim().toLowerCase();
       const isOn = (id) => cur.some((x) => String(x) === String(id));
-      /* Item aktif dulu; item yang SUDAH DIPILIH tapi nonaktif tetap tampil
-         (bertanda) supaya bisa dilepas — tidak hilang diam-diam. */
       const list = onlyActive
         ? [
             ...all.filter((r) => !r.status || r.status === 'active'),
@@ -565,7 +568,7 @@ export default function EntityPage({ slug }) {
     return <TextField key={f.k} {...fieldProps(f)} inputProps={{ maxLength: f.max }} />;
   };
 
-  /* ---------- Dialog form (3 tombol saat mode tambah) ---------- */
+  /* ---------- Dialog form ---------- */
   const formDialog = (
     <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>
       <DialogTitle>{editing ? `Ubah — ${cfg.title}` : `Tambah — ${cfg.title}`}</DialogTitle>
@@ -794,10 +797,12 @@ export default function EntityPage({ slug }) {
             <FilterListRoundedIcon fontSize="small" />
             <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
           </Stack>
-          <TextField size="small" placeholder="Cari data…" value={search} onChange={(e) => setSearch(e.target.value)}
+          <TextField size="small" placeholder="Cari data…" value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             sx={{ flexGrow: 1, minWidth: 200, maxWidth: 340 }}
             InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
-          <TextField size="small" select label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ width: 150 }}>
+          <TextField size="small" select label="Status" value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }} sx={{ width: 150 }}>
             <MenuItem value="all">Semua Status</MenuItem>
             <MenuItem value="active">Aktif</MenuItem>
             <MenuItem value="inactive">Nonaktif</MenuItem>
@@ -817,7 +822,7 @@ export default function EntityPage({ slug }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.length ? filtered.map((r) => (
+            {paginated.length ? paginated.map((r) => (
               <TableRow key={r.id} sx={{ opacity: r.status === 'inactive' ? 0.55 : 1 }}>
                 {cfg.columns.map((c) => (
                   <TableCell key={c.k}>
@@ -829,9 +834,8 @@ export default function EntityPage({ slug }) {
                 ))}
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title={cfg.detailPage ? 'Detail (halaman khusus)' : 'Detail data'}>
-                      <IconButton size="small"
-                        onClick={() => (cfg.detailPage ? navigate(`${cfg.detailPage}/${r.id}`) : setDetailRow(r))}>
+                    <Tooltip title="Detail data">
+                      <IconButton size="small" onClick={() => setDetailRow(r)}>
                         <VisibilityRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -858,6 +862,14 @@ export default function EntityPage({ slug }) {
             )}
           </TableBody>
         </Table>
+        <TablePagination component="div" count={filtered.length} page={curPage}
+          onPageChange={(e, v) => setPage(v)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Baris per halaman"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} dari ${count}`}
+          sx={{ borderTop: '1px solid', borderColor: 'divider' }} />
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>

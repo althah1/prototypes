@@ -8,13 +8,6 @@ const MIN_POOL = [5, 10, 20, 25, 50];
    MIGRASI SEKALI: buat tabel gudangDetails dari stok produk lama.
    Setelah tabel ada, tambah gudang/produk TIDAK lagi menyentuh
    alokasi yang sudah tersimpan — gudang baru pasti kosong.
-
-   buildGudangDetails() = MURNI (hanya baca db, tanpa mutate) →
-   dipanggil DbContext.loadInitial() saat app start, supaya migrasi
-   terjadi SEBELUM interaksi user apa pun. Ini menutup celah timing
-   lama: migrasi dulu baru jalan saat halaman Produk/GudangDetail
-   dibuka, sehingga gudang yang ditambah sebelum itu ikut kebagian
-   stok.
    ============================================================ */
 export function buildGudangDetails(db) {
   const rows = [];
@@ -45,17 +38,16 @@ export function buildGudangDetails(db) {
   return rows;
 }
 
-/* Jaring pengaman (lazy) — idempotent. Dipertahankan untuk halaman
-   yang dibuka langsung tanpa lewat loadInitial (mis. data lama). */
+/* Jaring pengaman (lazy) — idempotent. */
 export function ensureGudangDetails(db, mutate) {
   if (Array.isArray(db.gudangDetails)) return false;
-  if (!(db.warehouses || []).some((w) => w.status === 'active')) return false; /* coba lagi setelah gudang tersedia */
+  if (!(db.warehouses || []).some((w) => w.status === 'active')) return false;
   const rows = buildGudangDetails(db);
   mutate((d) => { d.gudangDetails = rows; });
   return true;
 }
 
-/* Peta alokasi { gudangId: qty } milik satu produk (untuk form edit) */
+/* Peta alokasi { gudangId: qty } milik satu produk */
 export function allocMapOf(db, productId) {
   const map = {};
   (db.gudangDetails || []).forEach((r) => {
@@ -67,11 +59,7 @@ export function allocMapOf(db, productId) {
 export const allocTotal = (map) =>
   Object.values(map || {}).reduce((s, v) => s + (Number(v) || 0), 0);
 
-/* ============================================================
-   Sinkronisasi alokasi dari form Produk → tabel gudangDetails.
-   Baris dengan jumlah 0 dihapus (produk "belum ditempatkan" di
-   gudang itu). Total disimpan ke products.stock oleh EntityPage.
-   ============================================================ */
+/* Sinkronisasi alokasi dari form (legacy — form Produk kini kustom). */
 export function syncAllocation(mutate, productId, map) {
   mutate((d) => {
     if (!Array.isArray(d.gudangDetails)) d.gudangDetails = [];
@@ -81,8 +69,7 @@ export function syncAllocation(mutate, productId, map) {
       if (n > 0) {
         d.gudangDetails.push({
           gudangId: Number(gid), productId, stokTercatat: n,
-          stokMinimum: 10, /* ambang default — kelak bisa dibuat editable */
-          sumberStok: 'Manual SFA', statusSync: 'Tidak Digunakan',
+          stokMinimum: 10, sumberStok: 'Manual SFA', statusSync: 'Tidak Digunakan',
           createdAt: nowStamp(), updatedAt: nowStamp(),
         });
       }
@@ -91,23 +78,35 @@ export function syncAllocation(mutate, productId, map) {
 }
 
 /* ============================================================
-   Hapus gudang PERMANEN — pengecualian FSD 3.3 (keputusan tim):
-   gudang bisa benar-benar ditutup / salah input. Menghapus baris
-   gudang + seluruh alokasinya, lalu stok produk TERDAMPAK dihitung
-   ulang dari sisa alokasi (gudangDetails = sumber kebenaran;
-   selaras desain DB: gudang_details.gudang_id ON DELETE CASCADE).
+   Pengurangan stok akibat order (submit / konversi quotation):
+   distribusi OTOMATIS ke gudang — stok TERBANYAK menanggung
+   duluan (sales lapangan tidak memilih gudang; gudang dialokasikan
+   sistem seperti alur fulfillment nyata). Setelah dipotong,
+   products.stock disinkronkan = jumlah seluruh stokTercatat (#47).
    ============================================================ */
-export function removeGudangPermanent(mutate, gudangId) {
+export function reduceStockByOrder(mutate, items) {
   mutate((d) => {
-    const removed = (d.gudangDetails || []).filter((r) => r.gudangId === gudangId);
-    const affected = [...new Set(removed.map((r) => r.productId))];
-    d.gudangDetails = (d.gudangDetails || []).filter((r) => r.gudangId !== gudangId);
-    d.warehouses = (d.warehouses || []).filter((w) => w.id !== gudangId);
-    affected.forEach((pid) => {
-      const p = (d.products || []).find((x) => x.id === pid);
+    if (!Array.isArray(d.gudangDetails)) d.gudangDetails = [];
+    const need = {};
+    (items || []).forEach((it) => {
+      need[it.productId] = (need[it.productId] || 0) + it.qty * (it.pcsPerUnit || 1);
+    });
+    Object.entries(need).forEach(([pid, qty]) => {
+      let sisa = qty;
+      d.gudangDetails
+        .filter((r) => r.productId === Number(pid))
+        .sort((a, b) => b.stokTercatat - a.stokTercatat)
+        .forEach((r) => {
+          if (sisa <= 0) return;
+          const ambil = Math.min(r.stokTercatat, sisa);
+          r.stokTercatat -= ambil;
+          r.updatedAt = nowStamp();
+          sisa -= ambil;
+        });
+      const p = (d.products || []).find((x) => x.id === Number(pid));
       if (p) {
-        p.stock = (d.gudangDetails || [])
-          .filter((r) => r.productId === pid)
+        p.stock = d.gudangDetails
+          .filter((r) => r.productId === p.id)
           .reduce((s, r) => s + (Number(r.stokTercatat) || 0), 0);
       }
     });

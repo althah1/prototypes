@@ -182,7 +182,7 @@ export default function QuoteMobile() {
     (draft?.items || []).forEach((i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
       if (!p) return;
-      const g = p.price * i.qty;
+      const g = p.hargaJual * i.qty;
       gross += g;
       after += Math.round(g * (1 - (i.disc || 0) / 100));
     });
@@ -229,8 +229,8 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
         const p = (db.products || []).find((x) => x.id === i.productId);
         return {
           productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
-          price: p.price, disc: i.disc || 0,
-          line: Math.round(p.price * i.qty * (1 - (i.disc || 0) / 100)),
+          price: p.hargaJual, disc: i.disc || 0,
+          line: Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100)),
           pcsPerUnit: p.pcsPerUnit || 1,
         };
       });
@@ -408,11 +408,11 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
                     <Typography fontWeight={700} fontSize={14} noWrap>{p.name}</Typography>
                     <Typography variant="caption" color="text.secondary" display="block" noWrap>{p.sku} • {p.category} • {p.unit}</Typography>
                     <Typography variant="body2" fontWeight={700}>
-                      {formatRupiah(p.price)} <span style={{ color: '#64748b', fontWeight: 400 }}>/ {p.unit}</span>
+                      {formatRupiah(p.hargaJual)} <span style={{ color: '#64748b', fontWeight: 400 }}>/ {p.unit}</span>
                     </Typography>
                     {disc > 0 && (
                       <Typography variant="caption" color="success.main" fontWeight={700} display="block">
-                        Nego: {formatRupiah(Math.round(p.price * (1 - disc / 100)))} / {p.unit}
+                        Nego: {formatRupiah(Math.round(p.hargaJual * (1 - disc / 100)))} / {p.unit}
                       </Typography>
                     )}
                   </Box>
@@ -477,15 +477,15 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
             <TableBody>
               {draft.items.map((i) => {
                 const p = (db.products || []).find((x) => x.id === i.productId);
-                const line = Math.round(p.price * i.qty * (1 - (i.disc || 0) / 100));
+                const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
                 return (
                   <TableRow key={i.productId}>
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>{p.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.price)} / {p.unit}</Typography>
+                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.hargaJual)} / {p.unit}</Typography>
                     </TableCell>
                     <TableCell align="right">{i.qty} {p.unit}</TableCell>
-                    <TableCell align="right">{formatRupiah(p.price)}</TableCell>
+                    <TableCell align="right">{formatRupiah(p.hargaJual)}</TableCell>
                     <TableCell align="center">{i.disc || 0}%</TableCell>
                     <TableCell align="right"><b>{formatRupiah(line)}</b></TableCell>
                   </TableRow>

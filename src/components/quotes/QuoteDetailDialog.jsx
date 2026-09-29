@@ -35,6 +35,7 @@ import { todayISO, nowStamp, formatRupiah, QUOTE_DISCOUNT_LIMIT } from '../../ut
 import { openQuotePdf, shareQuoteWhatsApp } from '../../utils/quotePdf';
 import { maxDiscountOf } from '../../utils/quoteUtils';
 import { completeTaskAuto } from '../../utils/taskUtils';
+import { reduceStockByOrder } from '../../utils/gudangUtils';
 
 const KV = ({ label, value }) => (
   <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
@@ -118,7 +119,8 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   const convertToOrder = () => {
     if (quote.convertedOrderId) return; /* anti konversi ganda */
     const t = todayISO();
-    const no = `ORD-${t.replace(/-/g, '')}-${String((db.orders || []).filter((o) => o.date === t).length + 1).padStart(3, '0')}`;
+    const kodeSales = (db.sales || []).find((s) => s.id === quote.salesId)?.nik || 'SFA';
+    const no = `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String((db.orders || []).filter((o) => o.date === t).length + 1).padStart(3, '0')}`;
     const order = {
       no, date: t, salesId: quote.salesId, outletId: quote.outletId,
       items: quote.items.map(({ productId, sku, name, unit, qty, price, disc, line, pcsPerUnit }) => (
@@ -129,13 +131,8 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
     };
     const rec = insert('orders', order);
 
-    /* Kurangi stok (satuan dasar) + auto-complete tugas order bila ada */
-    mutate((d) => {
-      order.items.forEach((it) => {
-        const p = d.products.find((x) => x.id === it.productId);
-        if (p) p.stock = Math.max(0, p.stock - it.qty * (p.pcsPerUnit || 1));
-      });
-    });
+    /* Kurangi stok per gudang (otomatis, stok terbanyak duluan) + sinkron total */
+    reduceStockByOrder(mutate, order.items);
     completeTaskAuto(db, mutate, { outletId: quote.outletId, type: 'order', salesId: quote.salesId });
 
     const spvUser = supervisorOfSales();

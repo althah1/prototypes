@@ -57,8 +57,8 @@ const GROUPS = [
   ]},
   { label: 'Operasional', items: [
     { path: '/dashboard/tasks',       label: 'Otomatisasi Tugas',   icon: EventAvailableRoundedIcon,   roles: ['supervisor', 'finance'] },
-    { path: '/dashboard/orders',      label: 'Entry Order',         icon: ReceiptLongRoundedIcon,      roles: ['supervisor', 'admin', 'finance'] },
     { path: '/dashboard/quotations',  label: 'Quotation',           icon: DescriptionRoundedIcon,      roles: ['supervisor', 'admin'] },
+    { path: '/dashboard/orders',      label: 'Entry Order',         icon: ReceiptLongRoundedIcon,      roles: ['supervisor', 'admin', 'finance'] },
     { path: '/dashboard/audit',       label: 'Audit & Survey',      icon: FactCheckRoundedIcon,        roles: ['supervisor'] },
     { path: '/dashboard/prospek',     label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
     { path: '/dashboard/gps',         label: 'GPS Monitoring',      icon: LocationOnRoundedIcon,       roles: ['supervisor', 'admin'] },
