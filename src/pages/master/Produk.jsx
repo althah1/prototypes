@@ -403,8 +403,8 @@ export default function ProdukPage() {
           <TableHead>
             <TableRow>
               <TableCell>SKU</TableCell><TableCell>Nama Produk</TableCell><TableCell>Kategori</TableCell>
-              <TableCell>Satuan</TableCell><TableCell align="right">Harga Jual</TableCell>
-              <TableCell align="right">Harga Beli</TableCell><TableCell>Gudang</TableCell>
+              <TableCell>Satuan</TableCell><TableCell align="right">Harga Beli</TableCell>
+              <TableCell align="right">Harga Jual</TableCell><TableCell>Gudang</TableCell>
               <TableCell align="right">Stok</TableCell><TableCell>Status</TableCell><TableCell align="right">Aksi</TableCell>
             </TableRow>
           </TableHead>
