@@ -568,7 +568,7 @@ export default function ProdukPage() {
                 <KVRow label="Harga Jual" value={formatRupiah(detailRow.hargaJual)} />
                 <KVRow label="Harga Beli" value={formatRupiah(detailRow.hargaBeli)} />
                 <KVRow label="Penempatan (gudang)" value={detailPlacements || 'Belum ditempatkan'} />
-                <KVRow label="Total Stok" value={`${detailProd?.stock ?? 0} pcs (jumlah semua gudang)`} />
+                <KVRow label="Total Stok" value={`${detailProd?.stock ?? 0} pcs `} />
                 {detailRow.desc && <KVRow label="Deskripsi" value={detailRow.desc} />}
               </Stack>
               <Box sx={{ mt: 2 }}>
