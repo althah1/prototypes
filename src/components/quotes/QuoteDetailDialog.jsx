@@ -199,7 +199,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
                 : `${maxDisc}%`
             } />
             <KV label="Status" value={<StatusChip kind="quote" status={quote.status} />} />
-            <KV label="Kode Verifikasi" value={<Chip size="small" variant="outlined" color="primary" label={quote.verCode || '-'} />} />
+            
             {quote.spvApprovedAt && <KV label="Approval Diskon" value={`${quote.spvApprovedBy || 'Supervisor'} • ${quote.spvApprovedAt}`} />}
             {quote.sentAt && <KV label="Dikirim" value={quote.sentAt} />}
             {quote.rejectReason && <KV label="Alasan Ditolak" value={quote.rejectReason} />}
