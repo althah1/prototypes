@@ -565,8 +565,8 @@ export default function ProdukPage() {
                 {(detailRow.unit === 'box' || (detailRow.pcsPerUnit ?? 1) > 1) && (
                   <KVRow label="Konversi" value={`1 ${detailRow.unit} = ${detailRow.pcsPerUnit ?? 1} pcs`} />
                 )}
-                <KVRow label="Harga Jual" value={formatRupiah(detailRow.hargaJual)} />
                 <KVRow label="Harga Beli" value={formatRupiah(detailRow.hargaBeli)} />
+                <KVRow label="Harga Jual" value={formatRupiah(detailRow.hargaJual)} />
                 <KVRow label="Penempatan (gudang)" value={detailPlacements || 'Belum ditempatkan'} />
                 <KVRow label="Total Stok" value={`${detailProd?.stock ?? 0} pcs `} />
                 {detailRow.desc && <KVRow label="Deskripsi" value={detailRow.desc} />}
