@@ -58,7 +58,7 @@ export default function OrderDesktop() {
     <Box>
       <PageHeader
         title="Entry Order"
-        subtitle={`Pemantauan transaksi & persetujuan order lapangan${canApprove ? '' : ' (View Only — matriks RBAC #5)'}.`}
+        subtitle={`Pemantauan transaksi & persetujuan order lapangan${canApprove ? '' : ' (Anda hanya dapat melihat)'}.`}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
@@ -149,8 +149,8 @@ export default function OrderDesktop() {
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        Status order bergerak <b>linier maju</b>: Submitted → Approved → Processing → Shipped → Completed (#43).
-        Pembatalan hanya oleh Supervisor saat status masih <b>Submitted/Approved</b> (#45).
+        Status order bergerak <b>linier maju</b>: Submitted → Approved → Processing → Shipped → Completed.
+        Pembatalan hanya oleh Supervisor saat status masih <b>Submitted/Approved</b>.
       </Alert>
 
       <OrderDetailDialog open={!!detailId} orderId={detailId} onClose={() => setDetailId(null)} canApprove={canApprove} />

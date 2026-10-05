@@ -33,8 +33,13 @@ export function seed() {
     companies: [
       { id: 1, name: 'PT Distribusi Nusantara', npwp: '01.234.567.8-901.000',
         address: 'Jl. Malioboro No. 52, Yogyakarta 55271', phone: '0274-555123',
-        email: 'info@distribusinusantara.co.id', logo: '', status: 'active',
-        bankName: 'Bank BRI', bankAccount: '012345678901234', bankHolder: 'PT Distribusi Nusantara' },
+        email: 'info@distribusinusantara.co.id', logo: '', status: 'active' },
+    ],
+    /* Rekening bank perusahaan — dipakai pembayaran transfer (Gelombang 2) */
+    banks: [
+      { id: 1, kode: 'BCA-01', nama: 'Bank Central Asia (BCA)',    noRekening: '0123456789',    atasNama: 'PT Distribusi Nusantara', status: 'active' },
+      { id: 2, kode: 'BRI-01', nama: 'Bank Rakyat Indonesia (BRI)', noRekening: '0123456789012', atasNama: 'PT Distribusi Nusantara', status: 'active' },
+      { id: 3, kode: 'MDR-01', nama: 'Bank Mandiri',                noRekening: '0987654321',    atasNama: 'PT Distribusi Nusantara', status: 'active' },
     ],
     warehouses: [
       { id: 1, code: 'GDG-YK1', name: 'Gudang Yogyakarta Pusat', address: 'Jl. Kaliurang KM 5, Sleman', status: 'active' },
@@ -111,7 +116,8 @@ export function seed() {
       { id: 1, no: `QUO-${ymd(t)}-SAL-001-001`, date: t, salesId: 1, outletId: 3,
         items: [{ productId: 5, sku: 'PRD-005', name: 'Biskuit Coklat 120gr', unit: 'pcs', qty: 20, price: 9500, disc: 5, line: 180500 }],
         subtotal: 190000, discTotal: 9500, totalAfterDisc: 180500, taxRate: TAX_RATE, tax: 19855, total: 200355,
-        status: 'draft', validUntil: addDays(t, 14), note: 'Harga dapat dinegosiasi ringan.', createdAt: nowStamp() },
+        status: 'draft', validUntil: addDays(t, 14), note: 'Harga dapat dinegosiasi ringan.',
+        metodePembayaran: 'termin', terminHari: 14, createdAt: nowStamp() },
       { id: 2, no: `QUO-${ymd(y)}-SAL-001-001`, date: y, salesId: 1, outletId: 1,
         items: [{ productId: 2, sku: 'PRD-002', name: 'Kopi Susu Sachet 20gr', unit: 'pcs', qty: 100, price: 1500, disc: 0, line: 150000 }],
         subtotal: 150000, discTotal: 0, totalAfterDisc: 150000, taxRate: TAX_RATE, tax: 16500, total: 166500,

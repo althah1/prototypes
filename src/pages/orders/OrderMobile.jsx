@@ -169,7 +169,7 @@ export default function OrderMobile() {
     });
   };
 
-  /* Nomor unik otomatis (#42) — ikut menghitung antrean offline agar tidak duplikat (#48) */
+  /* Nomor unik otomatis — ikut menghitung antrean offline agar tidak duplikat */
   const genOrderNo = () => {
     const t = todayISO();
     const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
@@ -179,7 +179,7 @@ export default function OrderMobile() {
   };
 
   const submitOrder = () => {
-    if (submitting || !draft?.items.length) return; /* anti-duplikat klik ganda (#48) */
+    if (submitting || !draft?.items.length) return; /* anti-duplikat klik ganda */
     setSubmitting(true);
 
     const items = draft.items.map((i) => {
@@ -195,7 +195,7 @@ export default function OrderMobile() {
       total: draftTotals.total, status: 'submitted', note: note.trim(), paid: false,
     };
 
-    /* Mode luring (#48): simpan lokal → kirim ulang otomatis saat online, tanpa input ulang */
+    /* Mode luring: simpan lokal → kirim ulang otomatis saat online, tanpa input ulang */
     if (!online) {
       enqueue('order', order);
       toast('Anda sedang offline. Order disimpan sementara di perangkat dan akan dikirim otomatis saat koneksi pulih — tanpa input ulang.', 'warning', 5500);
@@ -279,7 +279,7 @@ export default function OrderMobile() {
               <Typography variant="body2">Total: <b>{formatRupiah(successOrder?.total || 0)}</b></Typography>
               <Typography variant="caption" color="text.secondary" align="center">
                 Status <b>Diajukan</b> — menunggu persetujuan Supervisor. Draft bukti pesanan dapat
-                diteruskan ke Modul Quotation (kriteria #49).
+                diteruskan ke Modul Quotation.
               </Typography>
             </Stack>
           </DialogContent>
@@ -343,7 +343,7 @@ export default function OrderMobile() {
               </Box>
             </Stack>
             <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={<LockRoundedIcon fontSize="small" />}>
-              Harga satuan <b>terkunci</b> — ditarik otomatis dari Master Data, tidak dapat diubah Sales (#39).
+              Harga satuan <b>terkunci</b> — ditarik otomatis dari Master Data, tidak dapat diubah Sales.
             </Alert>
           </CardContent>
         </Card>
@@ -385,7 +385,7 @@ export default function OrderMobile() {
                 </Stack>
                 {short && (
                   <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
-                    Estimasi stok gudang tidak mencukupi (tersedia {p.stock} pcs). Pesanan <b>tetap dapat diajukan</b> — peringatan lunak (#41).
+                    Estimasi stok gudang tidak mencukupi (tersedia {p.stock} pcs). Pesanan <b>tetap dapat diajukan</b> — peringatan lunak.
                   </Alert>
                 )}
               </CardContent>
@@ -459,7 +459,7 @@ export default function OrderMobile() {
       </Card>
 
       <Typography variant="caption" color="text.secondary" align="center">
-        Nomor order unik digenerate otomatis oleh sistem (#42). Tombol terkunci saat penyimpanan — mencegah order ganda (#48).
+        Nomor order unik digenerate otomatis oleh sistem. Tombol terkunci saat penyimpanan — mencegah order ganda.
       </Typography>
 
       <BottomBar

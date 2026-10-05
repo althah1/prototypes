@@ -44,7 +44,7 @@ export default function GpsDesktop() {
   if (!['supervisor', 'admin'].includes(user.role)) {
     return (
       <Alert severity="error">
-        Akses ditolak — modul <b>GPS Route Planning</b> hanya untuk <b>Supervisor &amp; Admin</b> (matriks RBAC #5).
+        Akses ditolak — modul <b>GPS Route Planning</b> hanya untuk <b>Supervisor &amp; Admin</b>.
       </Alert>
     );
   }
@@ -131,10 +131,10 @@ function GpsMonitor() {
   ];
   const lines = [
     ...(routeCoords.length > 1
-      ? [{ coords: routeCoords, color: '#2563eb', weight: 3, dashArray: '7 7', tooltip: 'Rute terencana (#72)' }]
+      ? [{ coords: routeCoords, color: '#2563eb', weight: 3, dashArray: '7 7', tooltip: 'Rute terencana' }]
       : []),
     ...(trailCoords.length > 1
-      ? [{ coords: trailCoords, color: '#64748b', weight: 2, tooltip: 'Riwayat perjalanan / check-in (#77)' }]
+      ? [{ coords: trailCoords, color: '#64748b', weight: 2, tooltip: 'Riwayat perjalanan / check-in' }]
       : []),
   ];
 
@@ -142,7 +142,7 @@ function GpsMonitor() {
     <Box>
       <PageHeader
         title="GPS Route Planning — Live Monitoring"
-        subtitle="Pemantauan tim sales: penyebaran outlet, batas area geofencing, rute & riwayat perjalanan, indikator status kunjungan (#73)."
+        subtitle="Pemantauan tim sales: penyebaran outlet, batas area geofencing, rute & riwayat perjalanan, indikator status kunjungan."
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
@@ -162,7 +162,7 @@ function GpsMonitor() {
     <TextField
       size="small"
       select
-      label="Sales (#78)"
+      label="Sales"
       value={String(salesId)}
       onChange={(e) => setSalesId(Number(e.target.value))}
       sx={{ width: 210 }}
@@ -193,7 +193,7 @@ function GpsMonitor() {
       onClick={() => { setLiveIdx(0); setLiveOn((v) => !v); }}
       disabled={livePath.length < 2}
     >
-      {liveOn ? 'Hentikan Simulasi' : 'Mulai Simulasi Live (#77)'}
+      {liveOn ? 'Hentikan Simulasi' : 'Mulai Simulasi Live'}
     </Button>
   </Stack>
 </Paper>
@@ -201,7 +201,7 @@ function GpsMonitor() {
       <LeafletMap height={380} center={basePos} markers={markers} lines={lines} circles={circles} />
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
         Posisi: <span style={{ fontFamily: 'monospace' }}>{livePos.lat.toFixed(5)}, {livePos.lng.toFixed(5)}</span> •
-        sumber: {liveOn ? 'simulasi live' : basePos.label}. Peta OpenStreetMap + Leaflet.js (#82).
+        sumber: {liveOn ? 'simulasi live' : basePos.label}. Peta OpenStreetMap + Leaflet.js.
       </Typography>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { lg: '1.3fr 1fr' }, gap: 2 }}>
@@ -248,7 +248,7 @@ function GpsMonitor() {
           </CardContent>
         </Card>
 
-        {/* Pelanggaran (#75) */}
+        {/* Pelanggaran */}
         <Card>
           <CardHeader
           avatar={<Avatar sx={{ bgcolor: 'error.main', width: 32, height: 32 }}><WarningAmberRoundedIcon sx={{ fontSize: 18 }} /></Avatar>} title="Pelanggaran Wilayah / Radius" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}/>
@@ -286,9 +286,9 @@ function GpsMonitor() {
       </Box>
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        Posisi sales dikirim berkala selama jam kerja untuk live tracking &amp; riwayat perjalanan (#77);
-        Supervisor dapat memilih tim &amp; tanggal untuk melihat plot historis (#78). Check-in di luar batas Area Kerja /
-        radius outlet otomatis dicatat sebagai <b>flag pelanggaran</b> ke database (#75). Deteksi Fake GPS (#76) pada
+        Posisi sales dikirim berkala selama jam kerja untuk live tracking &amp; riwayat perjalanan;
+        Supervisor dapat memilih tim &amp; tanggal untuk melihat plot historis. Check-in di luar batas Area Kerja /
+        radius outlet otomatis dicatat sebagai <b>flag pelanggaran</b> ke database. Deteksi Fake GPS pada
         browser web bersifat terbatas — validasi mock-location definitif dilakukan di sisi backend/OS.
       </Alert>
     </Box>

@@ -61,6 +61,7 @@ export default function App() {
 
                   {/* Master Data — CRUD generik, URUTAN BARU */}
                   <Route path="master/perusahaan"       element={<EntityPage key="perusahaan"       slug="perusahaan" />} />
+                  <Route path="master/bank"             element={<EntityPage key="bank"             slug="bank" />} />
                   <Route path="master/gudang"           element={<EntityPage key="gudang"           slug="gudang" />} />
                   <Route path="master/gudang/:id"       element={<GudangDetail />} />
                   <Route path="master/supplier"         element={<EntityPage key="supplier"         slug="supplier" />} />

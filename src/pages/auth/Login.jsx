@@ -140,7 +140,7 @@ export default function Login() {
         </Stack>
 
         <Alert severity="info" icon={<InfoRoundedIcon fontSize="small" />} sx={{ mt: 3 }}>
-          Sales diarahkan ke <b>Web Mobile</b>, peran lain ke <b>Web Dashboard</b> (BR-AUTH-007).
+          Sales diarahkan ke <b>Web Mobile</b>, peran lain ke <b>Web Dashboard</b>.
           Prototype — data tersimpan lokal di browser.
         </Alert>
       </Box>

@@ -101,7 +101,7 @@ export default function Billing() {
     <Box>
       <PageHeader
         title="Billing / Penagihan"
-        subtitle={`Tagihan dari order yang telah disetujui. ${isFinance ? 'Anda dapat mencatat pembayaran.' : 'View Only sesuai matriks RBAC (#5).'}`}
+        subtitle={`Tagihan dari order yang telah disetujui. ${isFinance ? 'Anda dapat mencatat pembayaran.' : 'Anda hanya dapat melihat.'}`}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>

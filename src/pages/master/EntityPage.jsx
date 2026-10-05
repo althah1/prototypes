@@ -32,7 +32,6 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
@@ -103,8 +102,8 @@ function suggestCode(rows, prefix) {
   return `${head}${String(max + 1).padStart(3, '0')}`;
 }
 
-/* Produk = halaman kustom (baris = 1 produk × 1 gudang). Wrapper ini
-   memisahkan komponen supaya Rules of Hooks aman. */
+/* Produk = halaman kustom (baris = 1 produk × 1 gudang). Wrapper memisahkan
+   komponen supaya Rules of Hooks aman. */
 export default function EntityPage({ slug }) {
   if (slug === 'produk') return <ProdukPage />;
   return <EntityPageInner slug={slug} />;
@@ -298,7 +297,7 @@ function EntityPageInner({ slug }) {
         if (allocField) syncAllocation(mutate, editing.id, values[allocField.k]);
         toast('Data berhasil diperbarui.', 'success');
       } else {
-        payload.status = 'active';
+        payload.status = payload.status || 'active'; /* default Aktif — bisa Nonaktif dari form (Gudang) */
         const rec = insert(cfg.table, payload);
         if (allocField) syncAllocation(mutate, rec.id, values[allocField.k]);
         toast('Data baru berhasil disimpan.', 'success');
@@ -308,14 +307,14 @@ function EntityPageInner({ slug }) {
     }, 400);
   };
 
-  /* ---------- Soft delete / aktifkan ---------- */
+  /* ---------- Nonaktifkan / aktifkan ---------- */
   const toggleStatus = (rec) => {
     const to = rec.status === 'active' ? 'inactive' : 'active';
     const n = setStatusCascade(rec, to);
     toast(
       to === 'active'
         ? `"${labelOf(rec)}" diaktifkan kembali${n ? ` (+ ${n} data bawahan)` : ''}.`
-        : `"${labelOf(rec)}" dinonaktifkan (soft delete)${n ? ` — ${n} data bawahan ikut nonaktif sementara` : ''} — riwayat transaksi tetap aman (FSD 3.3).`,
+        : `"${labelOf(rec)}" dinonaktifkan${n ? ` — ${n} data bawahan ikut nonaktif sementara` : ''}. Riwayat transaksi tetap tersimpan.`,
       to === 'active' ? 'success' : 'info'
     );
   };
@@ -326,19 +325,13 @@ function EntityPageInner({ slug }) {
     ? cascadeIds(confirmDelete).reduce((s, c) => s + c.ids.length, 0)
     : 0;
 
-  const executeDelete = (mode) => {
+  const executeDelete = () => {
     const rec = confirmDelete;
     if (!rec) return;
-    if (mode === 'hard' && cfg.hardDelete) {
-      cfg.hardDelete(rec, { mutate, db });
-      toast(`"${labelOf(rec)}" dihapus permanen beserta relasi & alokasi stoknya.`, 'success', 5500);
-      setConfirmDelete(null);
-      return;
-    }
     if (delStats.total > 0) {
       const n = setStatusCascade(rec, 'inactive');
       toast(
-        `"${labelOf(rec)}" dipakai ${delStats.total} transaksi/relasi — dinonaktifkan (soft delete), BUKAN dihapus permanen (FSD 3.3)${n ? `. ${n} data bawahan ikut nonaktif.` : ''}`,
+        `"${labelOf(rec)}" dipakai ${delStats.total} transaksi/relasi — dinonaktifkan, bukan dihapus${n ? `. ${n} data bawahan ikut nonaktif.` : ''}. Riwayat tetap tersimpan.`,
         'info', 5500
       );
     } else {
@@ -600,7 +593,7 @@ function EntityPageInner({ slug }) {
       onConfirm={() => { toggleStatus(confirmToggle); setConfirmToggle(null); }}
       title={confirmToggle?.status === 'active' ? 'Nonaktifkan Data' : 'Aktifkan Kembali'}
       message={confirmToggle?.status === 'active'
-        ? `Nonaktifkan "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan akan ikut nonaktif sementara.` : ''} Data tidak dihapus permanen (soft delete / FSD 3.3) dan dapat diaktifkan kembali.`
+        ? `Nonaktifkan "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan akan ikut nonaktif sementara.` : ''} Data tidak dihapus — hanya berhenti aktif, dan bisa diaktifkan kembali.`
         : `Aktifkan kembali "${labelOf(confirmToggle)}"?${toggleCascCount ? ` ${toggleCascCount} data bawahan akan ikut diaktifkan.` : ''}`}
       confirmLabel={confirmToggle?.status === 'active' ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan'}
       confirmColor={confirmToggle?.status === 'active' ? 'warning' : 'primary'}
@@ -672,12 +665,9 @@ function EntityPageInner({ slug }) {
           <>
             <Alert severity="error" sx={{ mb: 1.5 }}>
               <b>PERINGATAN:</b> data ini sudah dipakai oleh <b>{delStats.total}</b> transaksi/relasi.
-              {cfg.hardDelete ? (
-                <>Opsi teraman adalah <b>Nonaktifkan</b> — riwayat tetap tersimpan (FSD 3.3).</>
-              ) : (
-                <>Sesuai FSD 3.3 (Soft Deletes), data master yang pernah dipakai transaksi
-                <b> tidak boleh dihapus permanen</b> agar riwayat Order/Audit lama tidak rusak.</>
-              )}
+              Data yang sudah tercatat dalam transaksi <b>tidak bisa dihapus permanen</b> — supaya
+              riwayat transaksi lama tetap lengkap. Pilihan yang aman: <b>Nonaktifkan</b>
+              (data berhenti aktif, tetapi semua riwayatnya tetap tersimpan).
             </Alert>
             <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75, mb: delCascCount ? 1.5 : 0 }}>
               {delStats.list.map((s) => (
@@ -686,12 +676,7 @@ function EntityPageInner({ slug }) {
             </Stack>
             {delCascCount > 0 && (
               <Alert severity="warning">
-                Nonaktifkan juga <b>{delCascCount} data bawahan</b> yang mengikuti {cfg.addLabel} ini (cascade sementara).
-              </Alert>
-            )}
-            {cfg.hardDelete && (
-              <Alert severity="error" sx={{ mt: 1.5 }}>
-                <b>Opsi Hapus Permanen (pengecualian FSD 3.3):</b> {cfg.hardDeleteNote}
+                Nonaktifkan juga <b>{delCascCount} data bawahan</b> yang mengikuti {cfg.addLabel} ini.
               </Alert>
             )}
           </>
@@ -705,12 +690,7 @@ function EntityPageInner({ slug }) {
       <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
         <Button onClick={() => setConfirmDelete(null)}>Batal</Button>
         {delStats.total > 0 ? (
-          <>
-            <Button variant="contained" color="warning" onClick={() => executeDelete('soft')}>Nonaktifkan (Soft Delete)</Button>
-            {cfg.hardDelete && (
-              <Button variant="contained" color="error" onClick={() => executeDelete('hard')}>Hapus Permanen</Button>
-            )}
-          </>
+          <Button variant="contained" color="warning" onClick={() => executeDelete()}>Nonaktifkan Data</Button>
         ) : (
           <Button variant="contained" color="error" onClick={() => executeDelete()}>Hapus Permanen</Button>
         )}
@@ -754,8 +734,6 @@ function EntityPageInner({ slug }) {
                   { icon: <MapRoundedIcon fontSize="small" />, label: 'Alamat', value: rec.address || '-' },
                   { icon: <PhoneRoundedIcon fontSize="small" />, label: 'Kontak', value: rec.phone || '-' },
                   { icon: <MailRoundedIcon fontSize="small" />, label: 'Email', value: rec.email || '-' },
-                  { icon: <AccountBalanceRoundedIcon fontSize="small" />, label: 'Rekening (Invoice)',
-                    value: [rec.bankName, rec.bankAccount, rec.bankHolder].filter(Boolean).join(' — ') || '-' },
                 ].map((r) => (
                   <ListItem key={r.label} disableGutters sx={{ py: 0.9, borderBottom: '1px dashed', borderColor: 'divider' }}>
                     <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
@@ -769,6 +747,7 @@ function EntityPageInner({ slug }) {
               </List>
               <Alert severity="info" sx={{ mt: 2 }} icon={<InfoRoundedIcon fontSize="small" />}>
                 Identitas ini otomatis dipakai pada <b>kop dokumen Quotation &amp; Invoice</b>.
+                Rekening pembayaran perusahaan dikelola di <b>Master Data → Bank</b>.
               </Alert>
             </CardContent>
           </Card>
@@ -834,15 +813,16 @@ function EntityPageInner({ slug }) {
                 ))}
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title="Detail data">
-                      <IconButton size="small" onClick={() => setDetailRow(r)}>
+                    <Tooltip title={cfg.detailPage ? 'Detail (halaman khusus)' : 'Detail data'}>
+                      <IconButton size="small"
+                        onClick={() => (cfg.detailPage ? navigate(`${cfg.detailPage}/${r.id}`) : setDetailRow(r))}>
                         <VisibilityRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Ubah data">
                       <IconButton size="small" onClick={() => openEdit(r)}><EditRoundedIcon fontSize="small" /></IconButton>
                     </Tooltip>
-                    <Tooltip title={r.status === 'active' ? 'Nonaktifkan (soft delete)' : 'Aktifkan kembali'}>
+                    <Tooltip title={r.status === 'active' ? 'Nonaktifkan' : 'Aktifkan kembali'}>
                       <IconButton size="small" color={r.status === 'active' ? 'warning' : 'success'} onClick={() => setConfirmToggle(r)}>
                         {r.status === 'active' ? <LockRoundedIcon fontSize="small" /> : <LockOpenRoundedIcon fontSize="small" />}
                       </IconButton>
@@ -873,8 +853,8 @@ function EntityPageInner({ slug }) {
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
-        <b>Hapus</b>: data yang <b>belum dipakai</b> transaksi dihapus permanen; yang <b>sudah dipakai</b> otomatis
-        dibatasi ke <b>soft delete</b>/nonaktif (FSD 3.3). Data bawahan mengikuti status induknya (cascade sementara).
+        <b>Hapus</b>: data yang belum dipakai transaksi akan dihapus permanen; yang sudah dipakai
+        hanya bisa <b>dinonaktifkan</b> (riwayatnya tetap tersimpan). Data bawahan mengikuti status induknya.
       </Alert>
 
       {formDialog}

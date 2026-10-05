@@ -14,6 +14,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import DomainRoundedIcon from '@mui/icons-material/DomainRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
 import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
@@ -43,25 +44,30 @@ const GROUPS = [
   { label: 'Utama', items: [
     { path: '/dashboard', label: 'Dashboard', icon: DashboardRoundedIcon, roles: ALL },
   ]},
+  /* Master Data — alur setup: identitas → wilayah → struktur orang → tujuan →
+     barang (gudang → produk → supplier) → konfigurasi operasional */
   { label: 'Master Data', items: [
-    { path: '/dashboard/master/perusahaan',      label: 'Perusahaan',      icon: DomainRoundedIcon,           roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/gudang',          label: 'Gudang',          icon: WarehouseRoundedIcon,         roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/supplier',        label: 'Supplier',        icon: LocalShippingRoundedIcon,     roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/area-kerja',      label: 'Area Kerja',      icon: MapRoundedIcon,               roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/sales',           label: 'Sales',           icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/supervisor',      label: 'Supervisor',      icon: SupervisorAccountRoundedIcon, roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/outlet',          label: 'Outlet',          icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/kategori-prospek',label: 'Kategori Prospek',icon: TrackChangesRoundedIcon,      roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/tugas',           label: 'Jenis Tugas',     icon: AssignmentRoundedIcon,        roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/produk',          label: 'Produk',          icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/area-kerja',       label: 'Area Kerja',       icon: MapRoundedIcon,               roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/supervisor',       label: 'Supervisor',       icon: SupervisorAccountRoundedIcon, roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/gudang',           label: 'Gudang',           icon: WarehouseRoundedIcon,         roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/supplier',         label: 'Supplier',         icon: LocalShippingRoundedIcon,     roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/kategori-prospek', label: 'Kategori Prospek', icon: TrackChangesRoundedIcon,      roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/tugas',            label: 'Jenis Tugas',      icon: AssignmentRoundedIcon,        roles: ['admin', 'supervisor'] },
   ]},
+  /* Operasional — alur harian: jadwal → eksekusi (penawaran → pesanan → audit →
+     prospek) → pengawasan */
   { label: 'Operasional', items: [
-    { path: '/dashboard/tasks',       label: 'Otomatisasi Tugas',   icon: EventAvailableRoundedIcon,   roles: ['supervisor', 'finance'] },
-    { path: '/dashboard/quotations',  label: 'Quotation',           icon: DescriptionRoundedIcon,      roles: ['supervisor', 'admin'] },
-    { path: '/dashboard/orders',      label: 'Entry Order',         icon: ReceiptLongRoundedIcon,      roles: ['supervisor', 'admin', 'finance'] },
-    { path: '/dashboard/audit',       label: 'Audit & Survey',      icon: FactCheckRoundedIcon,        roles: ['supervisor'] },
-    { path: '/dashboard/prospek',     label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
-    { path: '/dashboard/gps',         label: 'GPS Monitoring',      icon: LocationOnRoundedIcon,       roles: ['supervisor', 'admin'] },
+    { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor', 'finance'] },
+    { path: '/dashboard/quotations', label: 'Quotation',             icon: DescriptionRoundedIcon,    roles: ['supervisor', 'admin'] },
+    { path: '/dashboard/orders',     label: 'Entry Order',           icon: ReceiptLongRoundedIcon,    roles: ['supervisor', 'admin', 'finance'] },
+    { path: '/dashboard/audit',      label: 'Audit & Survey',        icon: FactCheckRoundedIcon,      roles: ['supervisor'] },
+    { path: '/dashboard/prospek',    label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
+    { path: '/dashboard/gps',        label: 'GPS Monitoring',        icon: LocationOnRoundedIcon,     roles: ['supervisor', 'admin'] },
   ]},
   { label: 'Keuangan', items: [
     { path: '/dashboard/billing', label: 'Billing', icon: PaymentsRoundedIcon, roles: ALL },

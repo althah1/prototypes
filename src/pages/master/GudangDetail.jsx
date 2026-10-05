@@ -96,7 +96,7 @@ export default function GudangDetail() {
   if (!['admin', 'supervisor'].includes(user.role)) {
     return (
       <Alert severity="error">
-        Akses ditolak — modul <b>Gudang</b> hanya dapat diakses <b>Admin &amp; Supervisor</b> (matriks RBAC #5).
+        Akses ditolak — modul <b>Gudang</b> hanya dapat diakses <b>Admin &amp; Supervisor</b>.
       </Alert>
     );
   }

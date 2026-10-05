@@ -56,7 +56,7 @@ export default function GpsMobile() {
   const doneStops = stopOutlets.filter((o) => checkedInIds.has(o.id));
   const pct = stopOutlets.length ? Math.round((doneStops.length / stopOutlets.length) * 100) : 0;
 
-  /* #72: urutan rute = jarak terdekat (nearest-neighbor + Haversine) — instan (#79) */
+  /* #72: urutan rute = jarak terdekat (nearest-neighbor + Haversine) — instan */
   const route = openStops.length ? optimizeRoute(pos, openStops) : [];
   const totalDist = route.reduce((s, r) => s + r.dist, 0);
   const etaMin = Math.max(5, Math.round((totalDist / 1000) / SPEED_KMH * 60));
@@ -67,7 +67,7 @@ export default function GpsMobile() {
     navigator.geolocation.getCurrentPosition(
       (p) => {
         setPos({ lat: p.coords.latitude, lng: p.coords.longitude, areaName: 'Posisi GPS nyata' });
-        toast('Posisi diperbarui dari GPS perangkat — rute dihitung ulang (#72).', 'success');
+        toast('Posisi diperbarui dari GPS perangkat — rute dihitung ulang.', 'success');
       },
       () => toast('Gagal mengambil lokasi. Periksa izin GPS perangkat Anda.', 'error'),
       { enableHighAccuracy: true, timeout: 8000 }
@@ -141,8 +141,8 @@ export default function GpsMobile() {
       {/* Peta */}
       <LeafletMap height={250} center={pos} markers={markers} lines={lines} circles={circles} />
       <Typography variant="caption" color="text.secondary">
-        Peta: OpenStreetMap + Leaflet.js (#82). Urutan dihitung otomatis — jarak terdekat antar titik (#72/#79).
-        Check-In wajib dalam radius <b>{GEOFENCE_RADIUS_M} m</b> dari outlet sebelum membuka Entry Order / Quotation / Audit (#74).
+        Peta: OpenStreetMap + Leaflet.js. Urutan dihitung otomatis — jarak terdekat antar titik.
+        Check-In wajib dalam radius <b>{GEOFENCE_RADIUS_M} m</b> dari outlet sebelum membuka Entry Order / Quotation / Audit.
       </Typography>
 
       {/* Ringkasan rute */}

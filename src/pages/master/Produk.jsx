@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -62,13 +63,21 @@ const KVRow = ({ label, value }) => (
   </Stack>
 );
 
+/* Label seksi form — menegaskan alur input dari atas ke bawah */
+const SectionLabel = ({ children }) => (
+  <Typography variant="caption" color="text.secondary"
+    sx={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 10.5, display: 'block', pt: 0.5 }}>
+    {children}
+  </Typography>
+);
+
 /*
  * Master Data — Produk (halaman kustom).
- * Baris tabel = 1 produk × 1 gudang (sumber: gudangDetails + produk):
- * 1 produk muncul beberapa baris sesuai jumlah gudang penampungnya;
- * produk tanpa penempatan tampil satu baris "Belum ditempatkan".
- * Menambah produk dengan SKU yang sudah ada = memperbarui produk +
- * menambah/memperbarui penempatan (gudang sama → 1 baris, stok diperbarui).
+ * Baris tabel = 1 produk × 1 gudang. Form mengikuti alur input kerja nyata:
+ * identitas → klasifikasi & satuan (konversi hanya muncul jika satuan Box) →
+ * harga (beli → jual) → penempatan stok (gudang dengan pencarian + stok) →
+ * deskripsi. SKU yang sudah ada → produk diperbarui + penempatan upsert
+ * (gudang sama → 1 baris, stok diperbarui).
  */
 export default function ProdukPage() {
   const { db, insert, update, mutate, remove } = useDb();
@@ -80,7 +89,7 @@ export default function ProdukPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null); /* null | { productId } | { productId, gudangId } */
+  const [editing, setEditing] = useState(null);
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -176,6 +185,11 @@ export default function ProdukPage() {
     setErrors((p) => ({ ...p, [k]: '' }));
   };
 
+  const fieldProps = (k, l, hint) => ({
+    label: l, value: values[k] ?? '', onChange: (e) => setVal(k, e.target.value),
+    error: !!errors[k], helperText: errors[k] || hint || ' ',
+  });
+
   /* ===== Form ===== */
   const openCreate = () => {
     setValues({ sku: '', name: '', category: '', unit: 'pcs', hargaJual: '', hargaBeli: '', pcsPerUnit: '1', gudangId: '', stok: '', desc: '' });
@@ -222,15 +236,16 @@ export default function ProdukPage() {
     else if (v.name.trim().length > 100) errs.name = 'Maksimal 100 karakter.';
     if (!v.category) errs.category = 'Kolom ini wajib diisi.';
     if (!v.unit) errs.unit = 'Kolom ini wajib diisi.';
+    /* Konversi hanya divalidasi bila satuan Box */
+    if (v.unit === 'box') {
+      const ppu = v.pcsPerUnit === '' ? '' : Number(v.pcsPerUnit);
+      if (ppu === '' || Number.isNaN(ppu) || ppu < 1) errs.pcsPerUnit = 'Isi jumlah pcs per box (minimal 1).';
+    }
+    const hb = v.hargaBeli === '' ? 0 : Number(v.hargaBeli);
+    if (v.hargaBeli !== '' && (Number.isNaN(hb) || hb < 0)) errs.hargaBeli = 'Nilai minimal 0.';
     const hj = v.hargaJual === '' ? '' : Number(v.hargaJual);
     if (hj === '' || hj == null) errs.hargaJual = 'Kolom ini wajib diisi.';
     else if (Number.isNaN(hj) || hj < 1) errs.hargaJual = 'Nilai minimal 1 (integer).';
-    if (v.hargaBeli !== '' && v.hargaBeli != null) {
-      const hb = Number(v.hargaBeli);
-      if (Number.isNaN(hb) || hb < 0) errs.hargaBeli = 'Nilai minimal 0.';
-    }
-    const ppu = v.pcsPerUnit === '' ? '' : Number(v.pcsPerUnit);
-    if (ppu === '' || Number.isNaN(ppu) || ppu < 1) errs.pcsPerUnit = 'Nilai minimal 1.';
     if (v.gudangId !== '') {
       const st = v.stok === '' ? 0 : Number(v.stok);
       if (Number.isNaN(st) || st < 0) errs.stok = 'Penempatan stok harus berupa angka ≥ 0.';
@@ -250,7 +265,7 @@ export default function ProdukPage() {
         unit: values.unit,
         hargaJual: Number(values.hargaJual) || 0,
         hargaBeli: values.hargaBeli === '' ? 0 : (Number(values.hargaBeli) || 0),
-        pcsPerUnit: Number(values.pcsPerUnit) || 1,
+        pcsPerUnit: values.unit === 'box' ? (Number(values.pcsPerUnit) || 1) : 1,
         desc: (values.desc || '').trim(),
       };
       const gid = values.gudangId === '' ? null : Number(values.gudangId);
@@ -297,7 +312,7 @@ export default function ProdukPage() {
       toast(`Penempatan ${r.sku} di ${r.gudangCode} dihapus — ${r.stok} pcs dikeluarkan. Produk tetap tersimpan.`, 'success');
     } else if (delRefs.total > 0) {
       update('products', r.productId, { status: 'inactive' });
-      toast(`"${r.name}" dipakai ${delRefs.total} transaksi/relasi — dinonaktifkan (soft delete, FSD 3.3).`, 'info', 5500);
+      toast(`"${r.name}" dipakai ${delRefs.total} transaksi/relasi — dinonaktifkan, bukan dihapus. Riwayat tetap tersimpan.`, 'info', 5500);
     } else {
       remove('products', r.productId);
       toast(`"${r.name}" dihapus permanen — belum dipakai transaksi mana pun.`, 'success');
@@ -312,7 +327,7 @@ export default function ProdukPage() {
     update('products', r.productId, { status: to });
     toast(to === 'active'
       ? `Produk "${r.name}" diaktifkan kembali — berlaku untuk semua baris penempatannya.`
-      : `Produk "${r.name}" dinonaktifkan (soft delete, FSD 3.3) — berlaku untuk semua baris penempatannya.`,
+      : `Produk "${r.name}" dinonaktifkan — berlaku untuk semua baris penempatannya. Riwayat tetap tersimpan.`,
       to === 'active' ? 'success' : 'info');
     setConfirmToggle(null);
   };
@@ -328,10 +343,12 @@ export default function ProdukPage() {
       }).join(' • ')
     : '';
 
-  const fieldProps = (k, l, extra = {}) => ({
-    label: l, value: values[k] ?? '', onChange: (e) => setVal(k, e.target.value),
-    error: !!errors[k], helperText: errors[k] || ' ', ...extra,
-  });
+  /* Opsi gudang untuk form: aktif + gudang penempatan saat ini (walau nonaktif) */
+  const gudangOpts = gudangs.filter((w) => (w.status || 'active') === 'active'
+    || (editing?.gudangId != null && w.id === editing.gudangId));
+  const gudangValue = values.gudangId === '' || values.gudangId == null
+    ? null
+    : (gudangOpts.find((w) => String(w.id) === String(values.gudangId)) || null);
 
   return (
     <Box>
@@ -454,14 +471,14 @@ export default function ProdukPage() {
 
       <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
         <b>Baris = penempatan</b>: 1 produk dapat menempati beberapa gudang. <b>Hapus</b> pada baris ber-gudang
-        hanya mengeluarkan stok dari gudang itu (produk tetap tersimpan); produk tanpa penempatan dihapus
-        sesuai FSD 3.3 (dipakai transaksi → soft delete).
+        hanya mengeluarkan stok dari gudang itu (produk tetap tersimpan); produk tanpa penempatan bisa dihapus
+        permanen selama belum pernah dipakai transaksi.
       </Alert>
 
-      {/* ===== Dialog Form ===== */}
+      {/* ===== Dialog Form — alur input kerja nyata ===== */}
       <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing ? `Ubah — ${values.sku || 'Produk'}` : 'Tambah — Produk'}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           {skuExists && (
             <Alert severity="info" sx={{ mb: 2 }}>
               SKU <b>sudah terdaftar</b> — data produk akan <b>diperbarui</b>. Pilih gudang untuk
@@ -469,34 +486,48 @@ export default function ProdukPage() {
             </Alert>
           )}
           <Stack spacing={2}>
-            <TextField {...fieldProps('sku', 'Kode SKU *')} onChange={(e) => onSkuChange(e.target.value)}
-              inputProps={{ maxLength: 30 }} disabled={!!editing} />
+            <SectionLabel>1 • Identitas Produk</SectionLabel>
+            <TextField {...fieldProps('sku', 'Kode SKU *', 'Alfanumerik tanpa spasi, maks 30.')}
+              onChange={(e) => onSkuChange(e.target.value)} inputProps={{ maxLength: 30 }} disabled={!!editing} />
             <TextField {...fieldProps('name', 'Nama Produk *')} inputProps={{ maxLength: 100 }} />
+
+            <SectionLabel>2 • Klasifikasi & Satuan</SectionLabel>
             <TextField select {...fieldProps('category', 'Kategori *')}>
               {(db.categories || []).map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
-            <TextField select {...fieldProps('unit', 'Satuan *')}>
+            <TextField select {...fieldProps('unit', 'Satuan Jual *')}>
               <MenuItem value="pcs">Pcs</MenuItem>
               <MenuItem value="box">Box</MenuItem>
             </TextField>
-            <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *')} type="number"
-              inputProps={{ min: 1 }} hint="Dipakai transaksi Order & Quotation." />
-            <TextField {...fieldProps('hargaBeli', 'Harga Beli (Rp)')} type="number"
-              inputProps={{ min: 0 }} hint="Harga perolehan dari supplier (opsional)." />
-            <TextField {...fieldProps('pcsPerUnit', 'Konversi ke Pcs *')} type="number"
-              inputProps={{ min: 1 }} hint="Mis. 1 box = 12 pcs (#47)." />
-            <TextField select {...fieldProps('gudangId', 'Gudang Penempatan')}>
-              <MenuItem value="">— Tanpa penempatan (stok 0) —</MenuItem>
-              {gudangs.filter((w) => (w.status || 'active') === 'active'
-                || (editing?.gudangId != null && w.id === editing.gudangId)).map((w) => (
-                <MenuItem key={w.id} value={String(w.id)}>
-                  {w.code} — {w.name}{(w.status || 'active') !== 'active' ? ' (Nonaktif)' : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField {...fieldProps('stok', 'Stok di gudang terpilih (pcs)')} type="number"
-              disabled={values.gudangId === ''} inputProps={{ min: 0 }}
-              hint={values.gudangId === '' ? 'Pilih gudang dulu untuk mengisi stok.' : 'Gudang yang sama → stok diperbarui jadi nilai ini.'} />
+            {/* Konversi hanya relevan untuk Box — muncul kondisional */}
+            {values.unit === 'box' && (
+              <TextField {...fieldProps('pcsPerUnit', 'Isi per Box (pcs) *', 'Contoh: 1 box = 10 pcs.')}
+                type="number" inputProps={{ min: 1 }} />
+            )}
+
+            <SectionLabel>3 • Harga</SectionLabel>
+            <TextField {...fieldProps('hargaBeli', 'Harga Beli (Rp)', 'Harga perolehan dari supplier — opsional.')}
+              type="number" inputProps={{ min: 0 }} />
+            <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *', 'Dipakai transaksi Order & Quotation.')}
+              type="number" inputProps={{ min: 1 }} />
+
+            <SectionLabel>4 • Penempatan Stok</SectionLabel>
+            <Autocomplete
+              options={gudangOpts}
+              getOptionLabel={(w) => `${w.code} — ${w.name}`}
+              isOptionEqualToValue={(w, v) => w.id === v.id}
+              value={gudangValue}
+              onChange={(e, v) => setVal('gudangId', v ? String(v.id) : '')}
+              renderInput={(params) => (
+                <TextField {...params} label="Gudang Penempatan" placeholder="Cari gudang (kode / nama)…"
+                  helperText="Kosongkan (ikon ✕) untuk produk tanpa penempatan dulu." />
+              )}
+            />
+            <TextField {...fieldProps('stok', 'Stok di gudang terpilih (pcs)',
+              values.gudangId === '' ? 'Pilih gudang dulu untuk mengisi stok.' : 'Gudang yang sama → stok diperbarui jadi nilai ini.')}
+              type="number" disabled={values.gudangId === ''} inputProps={{ min: 0 }} />
+
+            <SectionLabel>5 • Lainnya</SectionLabel>
             <TextField {...fieldProps('desc', 'Deskripsi')} multiline minRows={2} inputProps={{ maxLength: 200 }} />
           </Stack>
         </DialogContent>
@@ -531,9 +562,11 @@ export default function ProdukPage() {
                 <KVRow label="Nama Produk" value={detailRow.name} />
                 <KVRow label="Kategori" value={detailRow.category || '-'} />
                 <KVRow label="Satuan" value={detailRow.unit} />
+                {(detailRow.unit === 'box' || (detailRow.pcsPerUnit ?? 1) > 1) && (
+                  <KVRow label="Konversi" value={`1 ${detailRow.unit} = ${detailRow.pcsPerUnit ?? 1} pcs`} />
+                )}
                 <KVRow label="Harga Jual" value={formatRupiah(detailRow.hargaJual)} />
                 <KVRow label="Harga Beli" value={formatRupiah(detailRow.hargaBeli)} />
-                <KVRow label="Konversi" value={`1 ${detailRow.unit} = ${detailRow.pcsPerUnit ?? 1} pcs (#47)`} />
                 <KVRow label="Penempatan (gudang)" value={detailPlacements || 'Belum ditempatkan'} />
                 <KVRow label="Total Stok" value={`${detailProd?.stock ?? 0} pcs (jumlah semua gudang)`} />
                 {detailRow.desc && <KVRow label="Deskripsi" value={detailRow.desc} />}
@@ -583,8 +616,8 @@ export default function ProdukPage() {
             <>
               <Alert severity="error" sx={{ mb: 1.5 }}>
                 <b>PERINGATAN:</b> produk ini sudah dipakai oleh <b>{delRefs.total}</b> transaksi/relasi.
-                Sesuai FSD 3.3 (Soft Deletes), produk yang pernah dipakai transaksi
-                <b> tidak boleh dihapus permanen</b> agar riwayat Order/Quotation/Audit lama tidak rusak.
+                Supaya riwayat transaksi lama tetap lengkap, produk ini hanya bisa <b>dinonaktifkan</b>,
+                bukan dihapus permanen.
               </Alert>
               <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
                 {delRefs.list.map((s) => (
@@ -617,7 +650,7 @@ export default function ProdukPage() {
         onConfirm={doToggle}
         title={confirmToggle?.status === 'active' ? 'Nonaktifkan Produk' : 'Aktifkan Kembali Produk'}
         message={confirmToggle?.status === 'active'
-          ? `Nonaktifkan produk "${confirmToggle?.name}"? Berlaku untuk SEMUA baris penempatannya. Data tidak dihapus permanen (soft delete / FSD 3.3) dan dapat diaktifkan kembali.`
+          ? `Nonaktifkan produk "${confirmToggle?.name}"? Berlaku untuk SEMUA baris penempatannya. Data tidak dihapus — hanya berhenti aktif, dan bisa diaktifkan kembali.`
           : `Aktifkan kembali produk "${confirmToggle?.name}"? Semua baris penempatannya ikut aktif.`}
         confirmLabel={confirmToggle?.status === 'active' ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan'}
         confirmColor={confirmToggle?.status === 'active' ? 'warning' : 'primary'}

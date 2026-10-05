@@ -51,8 +51,8 @@ const KV = ({ label, value }) => (
 /*
  * OrderDetailDialog — dipakai OrderDesktop (canApprove untuk Supervisor)
  * & OrderMobile (Sales: view-only). Admin/Finance View Only (RBAC #5).
- * Status bergerak linier maju (#43); tolak saat Submitted; batalkan oleh
- * Supervisor saat Submitted/Approved (#45). Pembayaran ditandai di modul Billing.
+ * Status bergerak linier maju; tolak saat Submitted; batalkan oleh
+ * Supervisor saat Submitted/Approved. Pembayaran ditandai di modul Billing.
  */
 export default function OrderDetailDialog({ open, orderId, onClose, canApprove = false }) {
   const { user } = useAuth();
@@ -83,6 +83,20 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === order.salesId);
   const taxPct = Math.round((order.taxRate || 0.11) * 100);
 
+  /* Metode pembayaran (terbawa dari quotation saat konversi) */
+  const payLabel = (o) => {
+    switch (o.metodePembayaran) {
+      case 'transfer': {
+        const b = (db.banks || []).find((x) => x.id === o.bankId);
+        return b ? `Transfer — ${b.nama} (${b.noRekening})` : 'Transfer Bank';
+      }
+      case 'termin': return `Termin ${o.terminHari || 14} hari`;
+      case 'cicilan': return 'Cicilan';
+      case 'konsinyasi': return 'Konsinyasi';
+      default: return 'Tunai (COD)';
+    }
+  };
+
   /* ---------- Aksi Supervisor ---------- */
   const approveOrder = () => {
     update('orders', order.id, { status: 'approved', approvedBy: user.name, approvedAt: nowStamp() });
@@ -102,17 +116,17 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
 
   const cancelOrder = () => {
     update('orders', order.id, { status: 'cancelled', cancelledBy: user.name, cancelledAt: nowStamp() });
-    if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor (#45).`);
+    if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor.`);
     toast('Order dibatalkan (hanya Supervisor, status Submitted/Approved — #45).', 'warning');
     setConfirmCancel(false);
   };
 
-  /* Maju linier: approved → processing → shipped → completed (#43) */
+  /* Maju linier: approved → processing → shipped → completed */
   const advance = (to) => {
     const extra = to === 'shipped' ? { shippedAt: nowStamp() }
       : to === 'completed' ? { completedAt: nowStamp() } : {};
     update('orders', order.id, { status: to, ...extra });
-    toast(`Status ${order.no} → ${STATUS_LABEL[to]} (#43).`, 'success');
+    toast(`Status ${order.no} → ${STATUS_LABEL[to]}.`, 'success');
   };
 
   return (
@@ -128,6 +142,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             <KV label="Status" value={<StatusChip kind="order" status={order.status} />} />
             {order.approvedBy && <KV label="Disetujui oleh" value={`${order.approvedBy} • ${order.approvedAt}`} />}
             {order.rejectReason && <KV label="Alasan Ditolak" value={order.rejectReason} />}
+            <KV label="Metode Pembayaran" value={payLabel(order)} />
             <KV label="Pembayaran" value={order.paid
               ? <Chip size="small" color="success" icon={<PaymentsRoundedIcon />} label={`Lunas — ${order.paidMethod || '-'} • ${order.paidAt || '-'}`} />
               : <Chip size="small" variant="outlined" label="Belum dibayar — ditandai di modul Billing" />} />
@@ -135,7 +150,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
 
           {order.status === 'submitted' && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              Menunggu persetujuan Supervisor — Admin &amp; Finance View Only (matriks RBAC #5).
+              Menunggu persetujuan Supervisor — Admin &amp; Finance hanya dapat melihat.
             </Alert>
           )}
           {order.status === 'rejected' && (
@@ -143,7 +158,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
           )}
           {order.status === 'cancelled' && (
             <Alert severity="error" icon={<BlockRoundedIcon fontSize="small" />} sx={{ mb: 2 }}>
-              Order dibatalkan — pembatalan hanya oleh Supervisor saat status Submitted/Approved (#45).
+              Order dibatalkan — pembatalan hanya oleh Supervisor saat status Submitted/Approved.
             </Alert>
           )}
           {order.status === 'completed' && (
@@ -244,7 +259,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
         onClose={() => setConfirmCancel(false)}
         onConfirm={cancelOrder}
         title="Batalkan Order"
-        message={`Batalkan ${order.no}? Pembatalan hanya diizinkan Supervisor saat status Submitted/Approved (#45). Tindakan ini tidak dapat dibatalkan.`}
+        message={`Batalkan ${order.no}? Pembatalan hanya diizinkan Supervisor saat status Submitted/Approved. Tindakan ini tidak dapat dibatalkan.`}
         confirmLabel="Ya, Batalkan"
         confirmColor="error"
       />

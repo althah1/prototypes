@@ -1,24 +1,29 @@
 /* =====================================================
    Konfigurasi entitas Master Data — dipakai EntityPage.jsx
-   (halaman CRUD generik): Perusahaan, Gudang, Supplier,
-   Area Kerja, Sales, Supervisor, Outlet, Kategori Prospek,
-   Jenis Tugas. PRODUK = halaman kustom (Produk.jsx) —
-   baris tabel = 1 produk × 1 gudang.
+   (CRUD generik): Perusahaan, Gudang, Supplier, Area Kerja,
+   Sales, Supervisor, Outlet, Kategori Prospek, Jenis Tugas.
+   PRODUK = halaman kustom (Produk.jsx) — baris = produk × gudang.
 
    KONVENSI:
-   - refs       : relasi yang MEMAKAI entitas ini → dialog Detail
-                  (statistik) + tombol Hapus (soft vs hard, FSD 3.3).
-                  matchSelf: true = referensi berbasis nilai.
-   - refsItems  : referensi dalam array item (snapshot transaksi).
-   - multiSelect: field pilih-banyak (array ID) — Produk Dipasok Supplier.
-   - codeGen    : prefill saran kode PREFIX-YYYY-NNN (Outlet) — editable.
-   - cascade    : data bawahan ikut nonaktif/aktif (hanya tabel ber-status
-                  siklus hidup; tasks/prospects TIDAK boleh).
-   - fmt:'rupiah' agar tampil rupiah di dialog detail.
+   - refs / refsItems / multiSelect / codeGen / cascade / fmt — lihat riwayat.
+   - Validasi khusus Perusahaan (hasil diskusi tim): NPWP, telepon,
+     rekening berpola; Nama Bank = dropdown statis (siap pindah ke
+     Master Data Bank via optionsFrom kalau tim memutuskan).
 ===================================================== */
 
 const ALNUM = /^[A-Za-z0-9-]+$/;
 const PHONE = /^[0-9]{10,15}$/;
+
+/* Validasi Perusahaan */
+const NPWP_RE = /^\d{2}\.\d{3}\.\d{3}\.\d-\d{3}\.\d{3}$/; /* 15 digit, 2 titik, 1 strip */
+const TELP_RE = /^[0-9]{2,4}-?[0-9]{6,10}$/;              /* 0274-555123 / 081234567890 */
+const REK_RE = /^[0-9]{8,16}$/;                             /* rekening bank: angka murni */
+
+/* Nama bank umum — statis dulu; kalau jadi Master Data Bank,
+   ganti field ini menjadi optionsFrom { table: 'banks' }. */
+const BANKS = ['Bank BRI', 'Bank BCA', 'Bank Mandiri', 'Bank BNI', 'Bank Syariah Indonesia (BSI)',
+  'Bank CIMB Niaga', 'Bank Danamon', 'Bank Permata', 'Bank OCBC NRI', 'Bank Panin',
+  'Bank Maybank', 'Bank BTN', 'Bank BTPN'];
 
 const areaName = (r, db) => (db.areas.find((a) => a.id === r.areaId) || {}).name || '-';
 const spvName = (r, db) => (db.supervisors.find((s) => s.id === r.supervisorId) || {}).name || '-';
@@ -49,19 +54,46 @@ export const MASTER_CONFIG = {
     ],
     fields: [
       { k: 'name', l: 'Nama Perusahaan', type: 'text', required: true, max: 100 },
-      { k: 'npwp', l: 'NPWP', type: 'text', max: 30 },
+      { k: 'npwp', l: 'NPWP', type: 'text', max: 20, pattern: NPWP_RE,
+        patternMsg: 'Format NPWP: 15 digit, 2 titik, 1 strip (contoh: 01.234.567.8-901.000).',
+        hint: 'Sesuai kartu NPWP perusahaan.' },
       { k: 'address', l: 'Alamat', type: 'textarea', required: true, max: 200 },
-      { k: 'phone', l: 'Nomor Kontak', type: 'text', max: 20 },
+      { k: 'phone', l: 'Nomor Kontak', type: 'text', max: 16, pattern: TELP_RE,
+        patternMsg: 'Nomor tidak valid — 8–14 digit angka, boleh 1 tanda hubung (contoh: 0274-555123).' },
       { k: 'email', l: 'Email Resmi', type: 'text', required: true, email: true, max: 100 },
-      { k: 'bankName', l: 'Nama Bank', type: 'text', max: 50, hint: 'Untuk instruksi pembayaran Invoice (BR-008).' },
-      { k: 'bankAccount', l: 'No. Rekening', type: 'text', max: 25 },
-      { k: 'bankHolder', l: 'Atas Nama Rekening', type: 'text', max: 100 },
       { k: 'logo', l: 'Logo (.JPG/.PNG maks 2 MB)', type: 'file' },
     ],
     search: ['name', 'npwp'],
   },
 
-  /* 2 — GUDANG (kode, nama, alamat — tanpa penanggung jawang, tahap awal) */
+    /* 2 — BANK (daftar rekening perusahaan — dipakai Quotation/Order & Billing) */
+  bank: {
+    title: 'Master Data — Bank',
+    sub: 'Daftar rekening bank perusahaan — sumber pilihan pembayaran transfer.',
+    table: 'banks',
+    addLabel: 'Rekening Bank',
+    uniques: ['kode'],
+    refs: [
+      { table: 'quotations', field: 'bankId', label: 'quotation' },
+      { table: 'orders', field: 'bankId', label: 'order' },
+    ], /* aktif dipakai di Gelombang 2 (pembayaran transfer) — proteksi hapus */
+    columns: [
+      { k: 'kode', l: 'Kode' },
+      { k: 'nama', l: 'Nama Bank' },
+      { k: 'noRekening', l: 'No. Rekening' },
+      { k: 'atasNama', l: 'Atas Nama' },
+      { k: 'status', l: 'Status', fmt: 'status' },
+    ],
+    fields: [
+      { k: 'kode', l: 'Kode Rekening', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.', hint: 'Pengenal singkat, mis. BCA-01.' },
+      { k: 'nama', l: 'Nama Bank', type: 'text', required: true, max: 60, hint: 'Nama resmi bank, mis. Bank Central Asia (BCA).' },
+      { k: 'noRekening', l: 'No. Rekening', type: 'text', required: true, max: 16, pattern: /^[0-9]{8,16}$/, patternMsg: '8–16 digit angka tanpa spasi.' },
+      { k: 'atasNama', l: 'Atas Nama', type: 'text', required: true, max: 100, hint: 'Biasanya nama perusahaan.' },
+    ],
+    search: ['kode', 'nama'],
+  },
+
+  /* 2 — GUDANG (kode, nama, alamat + status saat pembuatan) */
   gudang: {
     title: 'Master Data — Gudang',
     sub: 'Lokasi fisik penyimpanan barang.',
@@ -81,6 +113,9 @@ export const MASTER_CONFIG = {
       { k: 'code', l: 'Kode Gudang', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
       { k: 'name', l: 'Nama Gudang', type: 'text', required: true, max: 100 },
       { k: 'address', l: 'Alamat', type: 'text', max: 200 },
+      { k: 'status', l: 'Status Gudang', type: 'select', required: true, default: 'active',
+        options: [{ v: 'active', l: 'Aktif' }, { v: 'inactive', l: 'Nonaktif' }],
+        hint: 'Nonaktif = tidak bisa dipilih untuk penempatan stok baru.' },
     ],
     search: ['code', 'name'],
   },
@@ -254,7 +289,7 @@ export const MASTER_CONFIG = {
       { k: 'name', l: 'Nama Outlet', type: 'text', required: true, max: 100 },
       { k: 'owner', l: 'Nama Pemilik', type: 'text', max: 100 },
       { k: 'address', l: 'Alamat', type: 'text', required: true, max: 200 },
-      { k: 'lat', l: 'Latitude (-90 s.d 90)', type: 'number', required: true, min: -90, max: 90, step: 0.000001, notZero: true, hint: 'Wajib koordinat valid — nilai 0 ditolak (HTTP 400).' },
+      { k: 'lat', l: 'Latitude (-90 s.d 90)', type: 'number', required: true, min: -90, max: 90, step: 0.000001, notZero: true, hint: 'Wajib koordinat valid — nilai 0 tidak diterima.' },
       { k: 'lng', l: 'Longitude (-180 s.d 180)', type: 'number', required: true, min: -180, max: 180, step: 0.000001, notZero: true },
       { k: 'phone', l: 'Telepon', type: 'text', max: 15 },
       { k: 'areaId', l: 'Area Kerja', type: 'select', required: true, optionsFrom: { table: 'areas', onlyActive: true } },
@@ -265,7 +300,7 @@ export const MASTER_CONFIG = {
     ],
     validate: (v) =>
       Number(v.lat) === 0 && Number(v.lng) === 0
-        ? { _form: 'Koordinat GPS tidak valid (0,0 ditolak — HTTP 400).' }
+        ? { _form: 'Koordinat GPS tidak valid — nilai 0,0 tidak diterima.' }
         : null,
     search: ['code', 'name', 'owner', 'address'],
   },

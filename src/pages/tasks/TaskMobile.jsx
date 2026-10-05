@@ -95,7 +95,7 @@ export default function TaskMobile() {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireTasks(db, mutate);
-    if (n) toast(`${n} tugas lama ditandai Gagal (kedaluwarsa harian BR-TASK-004).`, 'info');
+    if (n) toast(`${n} tugas kemarin yang belum selesai ditandai Gagal (hangus di akhir hari).`, 'info');
     if (ensureTodayTasks(db, insert, user.salesId)) {
       toast('Jadwal tugas hari ini telah tersinkronisasi.', 'info');
     }

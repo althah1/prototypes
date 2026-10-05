@@ -51,7 +51,7 @@ export default function Prospek() {
   const [formErr, setFormErr] = useState({});
 
   if (user.role !== 'supervisor') {
-    return <Alert severity="error">Akses ditolak — halaman Prospek &amp; Klasifikasi hanya untuk <b>Supervisor</b> (RBAC #5).</Alert>;
+    return <Alert severity="error">Akses ditolak — halaman Prospek &amp; Klasifikasi hanya untuk <b>Supervisor</b>.</Alert>;
   }
 
   const prospects = db.prospects || [];
@@ -95,7 +95,7 @@ export default function Prospek() {
       categoryId: form.categoryId ? Number(form.categoryId) : null,
       status: form.status, note: form.note.trim(),
     });
-    toast('Prospek baru ditambahkan (#27).', 'success');
+    toast('Prospek baru ditambahkan.', 'success');
     setAddOpen(false);
     setForm({ name: '', owner: '', phone: '', address: '', areaId: '', salesId: '', categoryId: '', status: 'Prospek', note: '' });
   };
@@ -106,10 +106,10 @@ export default function Prospek() {
     <Box>
       <PageHeader
         title="Prospek & Klasifikasi"
-        subtitle="Hasil pemetaan calon pelanggan dari audit lapangan — integrasi Kategori Prospek & GPS Route Planning (#28/#70)."
+        subtitle="Hasil pemetaan calon pelanggan dari audit lapangan — integrasi Kategori Prospek & GPS Route Planning."
         action={(
           <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setAddOpen(true)}>
-            Tambah Prospek (#27)
+            Tambah Prospek
           </Button>
         )}
       />
@@ -197,7 +197,7 @@ export default function Prospek() {
                 </TableCell>
               </TableRow>
             )) : (
-              <TableRow><TableCell colSpan={8}><EmptyState message="Belum ada prospek — klasifikasikan dari hasil audit (#69)." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8}><EmptyState message="Belum ada prospek — klasifikasikan dari hasil audit." /></TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -221,7 +221,7 @@ export default function Prospek() {
 
       {/* Dialog Tambah Prospek */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Tambah Prospek Baru (#27)</DialogTitle>
+        <DialogTitle>Tambah Prospek Baru</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <TextField label="Nama Prospek / Toko *" value={form.name}

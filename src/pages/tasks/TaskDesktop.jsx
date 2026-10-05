@@ -119,7 +119,7 @@ function CreateScheduleDialog({ open, onClose }) {
         <Stack spacing={2}>
           <TextField select label="Sales (bawahan) *" value={salesId}
             onChange={(e) => { setSalesId(e.target.value); setOutletIds([]); setErrors((p) => ({ ...p, salesId: '' })); }}
-            error={!!errors.salesId} helperText={errors.salesId || 'Difilter otomatis sesuai hierarki Supervisor (BR-TASK-001).'}>
+            error={!!errors.salesId} helperText={errors.salesId || 'Daftar otomatis hanya menampilkan Sales di bawah Supervisor Anda.'}>
             {teamSales.map((s) => (
               <MenuItem key={s.id} value={String(s.id)}>
                 {s.name} — {areas.find((a) => a.id === s.areaId)?.name || ''}
@@ -236,7 +236,7 @@ export default function TaskDesktop() {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireTasks(db, mutate);
-    if (n > 0) toast(`${n} tugas kedaluwarsa otomatis ditandai Gagal (BR-TASK-004).`, 'info');
+    if (n > 0) toast(`${n} tugas kedaluwarsa otomatis ditandai Gagal.`, 'info');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -372,7 +372,8 @@ export default function TaskDesktop() {
       </Card>
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        Tugas <b>Pending / In-Progress</b> pada pukul 23:59 hari penugasan otomatis menjadi <b>Gagal</b> dan terkunci (BR-TASK-004 — cron backend, disimulasikan saat halaman dibuka).
+        Tugas yang masih <b>Pending / In-Progress</b> pada pukul 23:59 hari penugasan otomatis
+        ditandai <b>Gagal</b> dan terkunci — tidak bisa dikerjakan hari berikutnya.
       </Alert>
 
       <CreateScheduleDialog open={createOpen} onClose={() => setCreateOpen(false)} />

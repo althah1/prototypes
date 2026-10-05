@@ -36,7 +36,7 @@ const KV = ({ label, value }) => (
 const scoreColor = (s) => (s >= 75 ? 'success' : s >= 50 ? 'warning' : 'error');
 
 /*
- * canClassify = true → panel klasifikasi prospek untuk Supervisor (#69).
+ * canClassify = true → panel klasifikasi prospek untuk Supervisor.
  * Sisi Sales memakai dialog ini read-only (form terkunci #66).
  */
 export default function AuditDetailDialog({ open, auditId, onClose, canClassify = false }) {
@@ -102,7 +102,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
             {cat && <KV label="Kategori Prospek" value={`${cat.name} • ${audit.prospectStatus || '-'}`} />}
           </Stack>
 
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Checklist Kondisi &amp; Kebersihan (#62)</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Checklist Kondisi &amp; Kebersihan</Typography>
           {audit.checklist.map((c) => (
             <Stack key={c.item} direction="row" justifyContent="space-between" alignItems="center"
               sx={{ py: 0.6, borderBottom: '1px dashed', borderColor: 'divider' }}>
@@ -114,7 +114,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           ))}
 
           <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Evaluasi Stok vs Data Gudang (#63/#69)</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Evaluasi Stok vs Data Gudang</Typography>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -139,7 +139,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           </Table>
 
           <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Foto Bukti (#64)</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Foto Bukti</Typography>
           {audit.photos?.length ? (
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
               {audit.photos.map((ph, i) => (
@@ -157,7 +157,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
 
           {canClassify && (
             <Card variant="outlined" sx={{ mt: 2.5 }}>
-              <CardHeader title="Klasifikasi Outlet / Prospek (#69)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+              <CardHeader title="Klasifikasi Outlet / Prospek" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
               <CardContent sx={{ pt: 0 }}>
                 <Stack spacing={1.5}>
                   <TextField select label="Kategori Prospek" value={catId} onChange={(e) => setCatId(e.target.value)}>

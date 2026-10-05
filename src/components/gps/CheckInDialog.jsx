@@ -54,7 +54,7 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
     }
   }, [open, outlet?.id]);
 
-  /* Auto-commit saat posisi berada dalam radius (kriteria #74) */
+  /* Auto-commit saat posisi berada dalam radius */
   useEffect(() => {
     if (result && result.dist <= GEOFENCE_RADIUS_M && !committedRef.current) {
       committedRef.current = true;
@@ -90,7 +90,7 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
       date: todayISO(), ts: nowStamp(), salesId: user.salesId, outletId: outlet.id,
       lat: +pos.lat.toFixed(6), lng: +pos.lng.toFixed(6), distM: dist, areaOk, note,
     });
-    /* Pelanggaran wilayah → flag ke database (kriteria #75) */
+    /* Pelanggaran wilayah → flag ke database */
     if (!areaOk) {
       insert('violations', {
         date: todayISO(), ts: nowStamp(), salesId: user.salesId, outletId: outlet.id,

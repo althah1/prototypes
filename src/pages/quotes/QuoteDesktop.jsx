@@ -54,7 +54,7 @@ export default function QuoteDesktop() {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireQuotes(db, mutate);
-    if (n) toast(`${n} quotation kedaluwarsa otomatis ditandai Expired (#54).`, 'info');
+    if (n) toast(`${n} quotation kedaluwarsa otomatis ditandai Expired.`, 'info');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,7 +74,7 @@ export default function QuoteDesktop() {
     <Box>
       <PageHeader
         title="Quotation"
-        subtitle={`Monitoring riwayat penawaran${canApproveDiscount ? ' + approval diskon melebihi wewenang (#53)' : ' — akses View Only (matriks RBAC #5)'}.`}
+        subtitle={`Monitoring riwayat penawaran${canApproveDiscount ? ' + approval diskon melebihi wewenang' : ' — akses View Only'}.`}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
@@ -124,7 +124,7 @@ export default function QuoteDesktop() {
 
     <TextField
       size="small"
-      label="Cari no. quotation / outlet (#58)…"
+      label="Cari no. quotation / outlet…"
       value={q}
       onChange={(e) => setQ(e.target.value)}
       sx={{ flexGrow: 1, minWidth: 220, maxWidth: 340 }}
@@ -170,15 +170,15 @@ export default function QuoteDesktop() {
                 </TableRow>
               );
             }) : (
-              <TableRow><TableCell colSpan={9}><EmptyState message="Tidak ada quotation sesuai filter (#58)." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={9}><EmptyState message="Tidak ada quotation sesuai filter." /></TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 2 }} icon={<LockRoundedIcon fontSize="small" />}>
-        Harga quotation = <b>snapshot saat dibuat</b> (price freeze #55) — perubahan Master Data tidak mengubah dokumen (#61).
-        Quotation yang sudah dikonversi ke order <b>terkunci</b> dan tidak dapat dikonversi ulang (#60).
+        Harga quotation = <b>snapshot saat dibuat</b> (price freeze #55) — perubahan Master Data tidak mengubah dokumen.
+        Quotation yang sudah dikonversi ke order <b>terkunci</b> dan tidak dapat dikonversi ulang.
       </Alert>
 
       <QuoteDetailDialog

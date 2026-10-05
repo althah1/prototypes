@@ -98,7 +98,7 @@ export default function MobileLayout() {
             </Typography>
           </Box>
 
-          {/* Status koneksi / sinkronisasi (kriteria #8) */}
+          {/* Status koneksi / sinkronisasi */}
           <Badge color="warning" variant="dot" invisible={online && queueCount === 0}>
             <IconButton
               size="small"
@@ -109,7 +109,7 @@ export default function MobileLayout() {
             </IconButton>
           </Badge>
 
-          {/* Lonceng notifikasi (kriteria #36) */}
+          {/* Lonceng notifikasi */}
           <Badge badgeContent={unread} color="error">
             <IconButton size="small" onClick={() => navigate('/app/notifications')} title="Notifikasi">
               <NotificationsRoundedIcon fontSize="small" />

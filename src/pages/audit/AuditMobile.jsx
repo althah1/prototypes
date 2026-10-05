@@ -140,7 +140,7 @@ export default function AuditMobile() {
   const submitAudit = () => {
     if (!canSubmit) return;
     if (findSubmittedAudit(db, draft.outletId)) {
-      toast('Audit outlet ini sudah terkirim hari ini — form terkunci (#66).', 'warning');
+      toast('Audit outlet ini sudah terkirim hari ini — form terkunci.', 'warning');
       return;
     }
     setSubmitting(true);
@@ -164,7 +164,7 @@ export default function AuditMobile() {
     /* #68: offline → simpan lokal, sinkron otomatis saat pulih */
     if (!online) {
       enqueue('audit', payload);
-      toast('Anda sedang offline. Data & foto audit disimpan sementara di perangkat dan tersinkron otomatis saat koneksi pulih (#68).', 'warning', 5500);
+      toast('Anda sedang offline. Data & foto audit disimpan sementara di perangkat dan tersinkron otomatis saat koneksi pulih.', 'warning', 5500);
       setDraft(null); setSubmitting(false);
       return;
     }
@@ -172,7 +172,7 @@ export default function AuditMobile() {
     setTimeout(() => {
       const rec = insert('audits', payload);
       completeTaskAuto(db, mutate, { outletId: draft.outletId, type: 'audit', salesId: user.salesId }); /* BR-TASK-003 */
-      toast(`Audit ${rec.no} tersimpan — skor ${score}/100. Form terkunci untuk kunjungan ini (#66).`, 'success');
+      toast(`Audit ${rec.no} tersimpan — skor ${score}/100. Form terkunci untuk kunjungan ini.`, 'success');
       setSubmitting(false);
       setDraft(null);
       setDetailId(rec.id);
@@ -194,7 +194,7 @@ export default function AuditMobile() {
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Typography variant="body2" color="text.secondary">
               Formulir digital: checklist kondisi toko, stock-take aktual, dan foto bukti (kamera langsung).
-              Satu submit per outlet per kunjungan (#66).
+              Satu submit per outlet per kunjungan.
             </Typography>
           </CardContent>
         </Card>
@@ -224,7 +224,7 @@ export default function AuditMobile() {
       <Stack spacing={1.5}>
         <PageHeaderBack
           title="Pilih Outlet Audit"
-          caption="Data outlet ditarik dari Master Data (#62)"
+          caption="Data outlet ditarik dari Master Data"
           onBack={() => setDraft(null)}
         />
         <TextField label="Cari outlet…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)}
@@ -264,7 +264,7 @@ export default function AuditMobile() {
         <PageHeaderBack title="Audit Terkunci" caption={outlet.name} onBack={() => setDraft(null)} />
         <Alert severity="warning" icon={<LockRoundedIcon fontSize="small" />}
           action={<Button size="small" onClick={() => setDetailId(locked.id)}>Lihat Hasil</Button>}>
-          Outlet <b>{outlet.name}</b> sudah diaudit hari ini — form <b>terkunci</b> untuk mencegah data ganda (#66).
+          Outlet <b>{outlet.name}</b> sudah diaudit hari ini — form <b>terkunci</b> untuk mencegah data ganda.
         </Alert>
         <AuditDetailDialog open={!!detailId} auditId={detailId} onClose={() => setDetailId(null)} />
       </Stack>
@@ -280,16 +280,16 @@ export default function AuditMobile() {
         right={<Chip size="small" color={scoreColor(liveScore)} variant="outlined" label={`Skor ${liveScore}/100`} />}
       />
 
-      {/* Status offline — jelas sebelum user mengisi panjang (#68) */}
+      {/* Status offline — jelas sebelum user mengisi panjang */}
       {!online && (
         <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />}>
-          Anda sedang <b>offline</b> — data &amp; foto akan disimpan lokal di perangkat dan tersinkron otomatis saat koneksi pulih (#68).
+          Anda sedang <b>offline</b> — data &amp; foto akan disimpan lokal di perangkat dan tersinkron otomatis saat koneksi pulih.
         </Alert>
       )}
 
       {/* 1 — Checklist */}
       <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title={`1 · Checklist Kondisi & Kebersihan — ${answeredCount}/${CHECKLIST_ITEMS.length} (#62)`}
+        <CardHeader title={`1 · Checklist Kondisi & Kebersihan — ${answeredCount}/${CHECKLIST_ITEMS.length}`}
           titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           {CHECKLIST_ITEMS.map((item, i) => (
@@ -311,10 +311,10 @@ export default function AuditMobile() {
 
       {/* 2 — Stock take */}
       <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title={`2 · Stock-Take (Stok Aktual di Toko — #63)`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+        <CardHeader title={`2 · Stock-Take (Stok Aktual di Toko)`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Bandingkan dengan data gudang/master. Wajib isi minimal 1 produk (#65). Terisi: {stockCount} produk.
+            Bandingkan dengan data gudang/master. Wajib isi minimal 1 produk. Terisi: {stockCount} produk.
           </Typography>
           <TextField label="Cari produk / SKU…" value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
             sx={{ mb: 1 }}
@@ -353,7 +353,7 @@ export default function AuditMobile() {
 
       {/* 3 — Foto bukti */}
       <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3 (#64)`}
+        <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3`}
           titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <input hidden id="audit-cam" type="file" accept="image/*" capture="environment" onChange={handlePhoto} />
@@ -363,7 +363,7 @@ export default function AuditMobile() {
             </Button>
           </label>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 1 }}>
-            Wajib kamera langsung — galeri/Camera Roll ditolak (#64). Watermark waktu + GPS otomatis diterapkan. Maks 3 × 2MB.
+            Wajib kamera langsung — galeri/Camera Roll ditolak. Watermark waktu + GPS otomatis diterapkan. Maks 3 × 2MB.
           </Typography>
           {cameraErr && <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>{cameraErr}</Typography>}
           {draft.photos.length > 0 && (
@@ -392,14 +392,14 @@ export default function AuditMobile() {
         </CardContent>
       </Card>
 
-      {/* Bar kirim sticky — menunjukkan kelengkapan secara live (#65) */}
+      {/* Bar kirim sticky — menunjukkan kelengkapan secara live */}
       <SubmitBar
         ready={canSubmit}
         loading={submitting}
         actionLabel="Kirim Hasil Audit"
         statusText={canSubmit
-          ? `Skor ${liveScore}/100 • 1× per outlet per hari (#66)`
-          : `Checklist ${answeredCount}/${CHECKLIST_ITEMS.length} • stok: ${stockCount} produk (#65)`}
+          ? `Skor ${liveScore}/100 • 1× per outlet per hari`
+          : `Checklist ${answeredCount}/${CHECKLIST_ITEMS.length} • stok: ${stockCount} produk`}
         onClick={submitAudit}
       />
 

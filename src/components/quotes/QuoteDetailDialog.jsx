@@ -20,6 +20,7 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
+import NoteRoundedIcon from '@mui/icons-material/NoteRounded';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import ShareRoundedIcon from '@mui/icons-material/ShareRounded';
@@ -38,15 +39,29 @@ import { completeTaskAuto } from '../../utils/taskUtils';
 import { reduceStockByOrder } from '../../utils/gudangUtils';
 
 const KV = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
+  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.6 }}>
     <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600} component="div" sx={{ textAlign: 'right' }}>{value}</Typography>
+    <Typography variant="body2" fontWeight={600} sx={{ textAlign: 'right' }}>{value}</Typography>
   </Stack>
 );
 
+/* Label metode pembayaran quotation/order (Gelombang 2) */
+const payLabel = (q, db) => {
+  switch (q?.metodePembayaran) {
+    case 'transfer': {
+      const b = (db.banks || []).find((x) => x.id === q.bankId);
+      return b ? `Transfer — ${b.nama} (${b.noRekening} a.n. ${b.atasNama})` : 'Transfer Bank';
+    }
+    case 'termin': return `Termin ${q.terminHari || 14} hari`;
+    case 'cicilan': return 'Cicilan';
+    case 'konsinyasi': return 'Konsinyasi — bayar sesuai barang terjual';
+    default: return 'Tunai (COD)';
+  }
+};
+
 /*
  * salesActions      → tombol aksi Sales (PDF, kirim, keputusan pelanggan, konversi)
- * supervisorActions → tombol approval diskon Supervisor (#53)
+ * supervisorActions → tombol approval diskon Supervisor
  */
 export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions = false, supervisorActions = false }) {
   const { user } = useAuth();
@@ -74,7 +89,6 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   if (!quote) return null; /* early return SETELAH semua hooks — aman */
 
   const outlet = (db.outlets || []).find((o) => o.id === quote.outletId) || {};
-  const company = (db.companies || [])[0];
   const salesName = (db.sales || []).find((s) => s.id === quote.salesId)?.name || '-';
   const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === quote.salesId);
   const convertedOrder = quote.convertedOrderId
@@ -83,7 +97,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
 
   const maxDisc = maxDiscountOf(quote.items);
   const needsSpv = maxDisc > QUOTE_DISCOUNT_LIMIT;
-  /* PDF hanya boleh bila bukan pending-approval (#53) */
+  /* PDF hanya boleh bila bukan pending-approval */
   const pdfAllowed = ['draft', 'sent', 'approved'].includes(quote.status)
     && (!needsSpv || quote.spvApprovedAt);
 
@@ -96,7 +110,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   /* ---------- Aksi Sales ---------- */
   const doPdf = () => {
     const ok = openQuotePdf(quote, db);
-    if (!ok) toast('Izinkan popup pada browser untuk mencetak / menyimpan PDF (#56).', 'warning');
+    if (!ok) toast('Izinkan popup pada browser untuk mencetak / menyimpan PDF.', 'warning');
   };
 
   const markSent = () => {
@@ -111,11 +125,12 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
       rejectReason: ok ? undefined : 'Ditolak oleh pelanggan',
     });
     toast(ok
-      ? 'Quotation disetujui pelanggan — siap dikonversi ke Entry Order (#59).'
+      ? 'Quotation disetujui pelanggan — siap dikonversi ke Entry Order.'
       : 'Quotation ditolak pelanggan.', ok ? 'success' : 'warning');
   };
 
-  /* #59 & #60: konversi 1-klik tanpa input ulang → order; quotation TERKUNCI */
+  /* Konversi 1-klik tanpa input ulang → order; quotation TERKUNCI.
+     Metode pembayaran ikut terbawa ke order (Gelombang 2). */
   const convertToOrder = () => {
     if (quote.convertedOrderId) return; /* anti konversi ganda */
     const t = todayISO();
@@ -128,6 +143,9 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
       )),
       subtotal: quote.totalAfterDisc, taxRate: quote.taxRate, tax: quote.tax, total: quote.total,
       status: 'submitted', note: `Konversi dari Quotation ${quote.no}`, paid: false,
+      metodePembayaran: quote.metodePembayaran || 'tunai',
+      bankId: quote.metodePembayaran === 'transfer' ? (quote.bankId ?? null) : null,
+      terminHari: quote.metodePembayaran === 'termin' ? (quote.terminHari ?? null) : null,
     };
     const rec = insert('orders', order);
 
@@ -141,11 +159,11 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
     update('quotations', quote.id, { status: 'converted', convertedOrderId: rec.id, convertedAt: nowStamp() });
     setConfirmConvert(false);
     onClose();
-    toast(`Quotation dikonversi menjadi order ${no} — dokumen terkunci (#60).`, 'success');
+    toast(`Quotation dikonversi menjadi order ${no} — dokumen terkunci.`, 'success');
     if (salesActions) navigate('/app/order');
   };
 
-  /* ---------- Aksi Supervisor (#53) ---------- */
+  /* ---------- Aksi Supervisor ---------- */
   const spvApprove = () => {
     update('quotations', quote.id, { status: 'draft', spvApprovedAt: nowStamp(), spvApprovedBy: user.name });
     if (salesUser) notify(salesUser.id, 'Diskon Quotation Disetujui', `${quote.no} — diskon ${maxDisc}% disetujui Supervisor. Dokumen dapat dikirim.`);
@@ -153,11 +171,11 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   };
 
   const submitSpvReject = () => {
-const v = reason.trim();
-if (!v) { setReasonErr('Catatan penolakan wajib diisi.'); return; }
-if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catatan_penolakan).'); return; }
+    const v = reason.trim();
+    if (!v) { setReasonErr('Catatan penolakan wajib diisi.'); return; }
+    if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter.'); return; }
     update('quotations', quote.id, { status: 'rejected', rejectReason: v, decidedBy: user.name, decidedAt: nowStamp() });
-    if (salesUser) notify(salesUser.id, 'Quotation Ditolak Supervisor', `${quote.no} ditolak: ${v}`);
+    if (salesUser) notify(salesUser.id, 'Quotation Ditolak', `${quote.no} ditolak: ${v}`);
     toast('Quotation ditolak oleh Supervisor.', 'warning');
     setRejectOpen(false);
   };
@@ -166,14 +184,20 @@ if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catata
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>Detail Quotation {quote.no}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <Stack spacing={0.5} sx={{ mb: 2 }}>
             <KV label="Tanggal" value={quote.date} />
             <KV label="Sales" value={salesName} />
-<KV label="Outlet" value={outlet.name || '-'} />
-<KV label="Perusahaan" value={company?.name || '-'} />
-<KV label="Masa Berlaku" value={quote.validUntil} />
-            <KV label="Diskon Maks" value={`${maxDisc}%${needsSpv ? ` (batas wewenang ${QUOTE_DISCOUNT_LIMIT}%)` : ''}`} />
+            <KV label="Outlet" value={outlet.name || '-'} />
+            <KV label="Berlaku s.d" value={quote.validUntil} />
+            <KV label="Metode Pembayaran" value={payLabel(quote, db)} />
+            <KV label="Diskon Maks" value={
+              needsSpv
+                ? <Typography variant="body2" fontWeight={800} color="warning.main">
+                    {maxDisc}% (lewat batas {QUOTE_DISCOUNT_LIMIT}%)
+                  </Typography>
+                : `${maxDisc}%`
+            } />
             <KV label="Status" value={<StatusChip kind="quote" status={quote.status} />} />
             <KV label="Kode Verifikasi" value={<Chip size="small" variant="outlined" color="primary" label={quote.verCode || '-'} />} />
             {quote.spvApprovedAt && <KV label="Approval Diskon" value={`${quote.spvApprovedBy || 'Supervisor'} • ${quote.spvApprovedAt}`} />}
@@ -184,16 +208,16 @@ if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catata
 
           {quote.status === 'pending_approval' && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              Diskon {maxDisc}% melebihi batas wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen <b>tidak dapat dikirim/diunduh</b> sebelum disetujui Supervisor (#53).
+              Diskon {maxDisc}% melebihi batas wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen <b>tidak dapat dikirim/diunduh</b> sebelum disetujui Supervisor.
             </Alert>
           )}
           {quote.status === 'converted' && (
             <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />} sx={{ mb: 2 }}>
-              Telah dikonversi menjadi order <b>{convertedOrder?.no}</b> — dokumen <b>terkunci</b>, tidak dapat diubah atau dikonversi ulang (#60).
+              Telah dikonversi menjadi order <b>{convertedOrder?.no}</b> — dokumen <b>terkunci</b>, tidak dapat diubah atau dikonversi ulang.
             </Alert>
           )}
           {quote.status === 'expired' && (
-            <Alert severity="error" sx={{ mb: 2 }}>Masa berlaku quotation telah habis — otomatis Kadaluarsa (#54).</Alert>
+            <Alert severity="error" sx={{ mb: 2 }}>Masa berlaku quotation telah habis — otomatis Kadaluarsa.</Alert>
           )}
 
           <Table size="small">
@@ -209,7 +233,7 @@ if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catata
                 <TableRow key={i.productId}>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600}>{i.name}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{i.sku}</Typography>
+                    <Typography variant="caption" color="text.secondary">{formatRupiah(i.price)} / {i.unit}</Typography>
                   </TableCell>
                   <TableCell align="right">{i.qty} {i.unit}</TableCell>
                   <TableCell align="right">{formatRupiah(i.price)}</TableCell>
@@ -224,17 +248,21 @@ if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catata
             <KV label="Subtotal" value={formatRupiah(quote.subtotal)} />
             <KV label="Diskon" value={`− ${formatRupiah(quote.discTotal)}`} />
             <KV label={`PPN ${Math.round((quote.taxRate || 0.11) * 100)}%`} value={formatRupiah(quote.tax)} />
-            <KV label="Grand Total" value={<Typography color="primary" fontWeight={800}>{formatRupiah(quote.total)}</Typography>} />
+            <KV label="TOTAL" value={<Typography color="primary" fontWeight={800}>{formatRupiah(quote.total)}</Typography>} />
           </Stack>
 
-          {quote.note && <Alert severity="info" sx={{ mt: 1.5 }}>{quote.note}</Alert>}
+          {quote.note && (
+            <Alert severity="info" sx={{ mt: 1.5 }} icon={<NoteRoundedIcon fontSize="small" />}>
+              {quote.note}
+            </Alert>
+          )}
           {quote.catatanSyarat && (
             <Alert severity="info" sx={{ mt: 1.5 }} icon={<DescriptionRoundedIcon fontSize="small" />}>
-              <b>Syarat &amp; Ketentuan (catatan_syarat — tercetak di PDF):</b> {quote.catatanSyarat}
+              <b>Syarat &amp; Ketentuan (tercetak di PDF):</b> {quote.catatanSyarat}
             </Alert>
           )}
           <Alert severity="info" sx={{ mt: 1.5 }} icon={<LockRoundedIcon fontSize="small" />}>
-            Harga merupakan <b>snapshot</b> saat dokumen dibuat (price freeze #55) — perubahan Master Data tidak mengubah dokumen (#61).
+            Harga merupakan <b>snapshot</b> saat dokumen dibuat — perubahan Master Data tidak mengubah dokumen.
           </Alert>
         </DialogContent>
 
@@ -290,7 +318,7 @@ if (v.length < 10) { setReasonErr('Catatan penolakan minimal 10 karakter (catata
         onClose={() => setConfirmConvert(false)}
         onConfirm={convertToOrder}
         title="Konversi ke Entry Order"
-        message={`Konversi ${quote.no} menjadi Entry Order tanpa input ulang (#59)? Setelah dikonversi, quotation akan TERKUNCI dan tidak dapat dikonversi ulang (#60).`}
+        message={`Konversi ${quote.no} menjadi Entry Order tanpa input ulang? Metode pembayaran (${payLabel(quote, db)}) ikut terbawa. Setelah dikonversi, quotation akan TERKUNCI dan tidak dapat dikonversi ulang.`}
         confirmLabel="Ya, Konversi"
       />
     </>

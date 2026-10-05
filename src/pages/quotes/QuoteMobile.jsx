@@ -13,6 +13,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -59,6 +60,21 @@ const FILTERS = [
   { v: 'approved', l: 'Disetujui' }, { v: 'rejected', l: 'Ditolak' },
   { v: 'expired', l: 'Kadaluarsa' }, { v: 'converted', l: 'Jadi Order' },
 ];
+
+/* ===== Syarat pembayaran — dipilih Sales saat membuat quotation ===== */
+const METODE_BAYAR = [
+  { v: 'tunai', l: 'Tunai (COD)' },
+  { v: 'transfer', l: 'Transfer Bank' },
+  { v: 'termin', l: 'Termin (Tempo)' },
+  { v: 'cicilan', l: 'Cicilan' },
+  { v: 'konsinyasi', l: 'Konsinyasi (bayar sesuai terjual)' },
+];
+const TERMIN_OPTS = [7, 14, 30];
+
+const payShort = (q) => {
+  if (q.metodePembayaran === 'termin') return `Termin ${q.terminHari || 14} hr`;
+  return ({ tunai: 'Tunai', transfer: 'Transfer', cicilan: 'Cicilan', konsinyasi: 'Konsinyasi' })[q.metodePembayaran] || 'Tunai';
+};
 
 const KV = ({ label, value }) => (
   <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.6 }}>
@@ -119,38 +135,40 @@ export default function QuoteMobile() {
   const location = useLocation();
   const today = todayISO();
 
+  /* Order asal (draft diteruskan dari Order) — untuk prefill metode pembayaran */
+  const fromOrd = location.state?.fromOrder != null
+    ? ((db.orders || []).find((o) => o.id === location.state.fromOrder) || null)
+    : null;
+
   /* ===== SEMUA HOOKS DI PALING ATAS ===== */
   const [filter, setFilter] = useState('all');
-  const [draft, setDraft] = useState(() => {
-    /* #49: diteruskan dari Order — outlet & item ter-prefill, diskon diatur ulang */
-    const fromId = location.state?.fromOrder;
-    if (fromId) {
-      const ord = (db.orders || []).find((o) => o.id === fromId);
-      if (ord) {
-        return {
-          step: 'items', outletId: ord.outletId, fromOrderNo: ord.no,
-          items: ord.items.map((it) => ({ productId: it.productId, qty: it.qty, disc: 0 })),
-        };
-      }
-    }
-    return null;
-  });
+  const [draft, setDraft] = useState(() => (
+    fromOrd ? {
+      step: 'items', outletId: fromOrd.outletId, fromOrderNo: fromOrd.no,
+      items: fromOrd.items.map((it) => ({ productId: it.productId, qty: it.qty, disc: 0 })),
+    } : null
+  ));
   const [outletSearch, setOutletSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14)); /* #57: default 14 hari */
+  const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14)); /* default 14 hari */
   const [note, setNote] = useState('');
-  const [syarat, setSyarat] = useState(''); /* catatan_syarat — eksternal, tercetak di PDF */
+  const [syarat, setSyarat] = useState(''); /* catatan_syarat — tercetak di PDF */
+  const [metode, setMetode] = useState(fromOrd?.metodePembayaran || 'tunai');
+  const [bankId, setBankId] = useState(
+    fromOrd?.metodePembayaran === 'transfer' && fromOrd.bankId != null ? String(fromOrd.bankId) : '');
+  const [terminHari, setTerminHari] = useState(
+    fromOrd?.terminHari != null ? String(fromOrd.terminHari) : '14');
   const [submitting, setSubmitting] = useState(false);
   const [successQuote, setSuccessQuote] = useState(null);
   const [detailId, setDetailId] = useState(null);
 
-  /* #54: auto-expire saat halaman dibuka (sekali) */
+  /* auto-expire saat halaman dibuka (sekali) */
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireQuotes(db, mutate);
-    if (n) toast(`${n} quotation kedaluwarsa otomatis ditandai Kadaluarsa (#54).`, 'info');
+    if (n) toast(`${n} quotation kedaluwarsa otomatis ditandai Kadaluarsa.`, 'info');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -168,6 +186,7 @@ export default function QuoteMobile() {
     const q = productSearch.trim().toLowerCase();
     return p.status === 'active' && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
   });
+  const banks = (db.banks || []).filter((b) => (b.status || 'active') === 'active');
 
   const myQuotes = (db.quotations || []).filter((q) => q.salesId === user.salesId).slice().reverse();
   const quoteList = filter === 'all' ? myQuotes : myQuotes.filter((q) => q.status === filter);
@@ -209,22 +228,27 @@ export default function QuoteMobile() {
   };
 
   const resetDraft = () => {
-    setDraft(null); setNote(''); setSyarat(''); setValidUntil(addDays(todayISO(), 14));
+    setDraft(null); setNote(''); setSyarat('');
+    setValidUntil(addDays(todayISO(), 14));
+    setMetode('tunai'); setBankId(''); setTerminHari('14');
   };
 
   const genQuoteNo = () => {
     const t = todayISO();
     const count = (db.quotations || []).filter((q) => q.date === t).length;
-const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
-return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
+    const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
+    return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
   const genVerCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
   const submitQuote = () => {
     if (submitting || !draft?.items.length || !validUntil) return;
+    if (metode === 'transfer' && !bankId) {
+      return toast('Pilih rekening bank tujuan untuk pembayaran transfer.', 'warning');
+    }
     setSubmitting(true);
     setTimeout(() => { /* simulasi latency API */
-      /* Snapshot harga master saat disimpan — price freeze (#55/#61) */
+      /* Snapshot harga master saat disimpan (price freeze) */
       const items = draft.items.map((i) => {
         const p = (db.products || []).find((x) => x.id === i.productId);
         return {
@@ -239,21 +263,25 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
       const discTotal = subtotal - after;
       const tax = Math.round(after * TAX_RATE);
       const maxDisc = Math.max(...items.map((i) => i.disc || 0));
-      const status = maxDisc > QUOTE_DISCOUNT_LIMIT ? 'pending_approval' : 'draft'; /* #53 */
+      const status = maxDisc > QUOTE_DISCOUNT_LIMIT ? 'pending_approval' : 'draft';
 
       const rec = insert('quotations', {
         no: genQuoteNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
         items, subtotal, discTotal, totalAfterDisc: after, taxRate: TAX_RATE, tax,
-        total: after + tax, status, validUntil, verCode: genVerCode(), note: note.trim(), catatanSyarat: syarat.trim(),
+        total: after + tax, status, validUntil, verCode: genVerCode(),
+        note: note.trim(), catatanSyarat: syarat.trim(),
+        metodePembayaran: metode,
+        bankId: metode === 'transfer' ? Number(bankId) : null,
+        terminHari: metode === 'termin' ? Number(terminHari) : null,
       });
 
-      /* #53: diskon melebihi wewenang → notifikasi Supervisor */
+      /* diskon melebihi wewenang → notifikasi Supervisor */
       if (status === 'pending_approval') {
         const sales = (db.sales || []).find((s) => s.id === user.salesId);
         const spv = (db.supervisors || []).find((s) => s.id === sales?.supervisorId);
         const spvUser = (db.users || []).find((u) => u.email === spv?.email);
         if (spvUser) notify(spvUser.id, 'Approval Diskon Quotation',
-          `${rec.no} — diskon ${maxDisc}% melebihi wewenang ${QUOTE_DISCOUNT_LIMIT}%, menunggu keputusan Anda (#53).`);
+          `${rec.no} — diskon ${maxDisc}% melebihi wewenang ${QUOTE_DISCOUNT_LIMIT}%, menunggu keputusan Anda.`);
       }
 
       setSubmitting(false);
@@ -294,7 +322,7 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
                   <StatusChip kind="quote" status={q.status} />
                 </Stack>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  {outletName(q.outletId)} • berlaku s.d {q.validUntil}
+                  {outletName(q.outletId)} • {payShort(q)} • berlaku s.d {q.validUntil}
                   {md > 0 ? ` • disc maks ${md}%` : ''}
                 </Typography>
                 <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
@@ -322,8 +350,8 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
               <Typography variant="body2">Total: <b>{formatRupiah(successQuote?.total || 0)}</b></Typography>
               <Typography variant="caption" color="text.secondary" align="center">
                 {successQuote?.status === 'pending_approval'
-                  ? <>Diskon melebihi wewenang — menunggu <b>approval Supervisor</b> sebelum dapat dikirim/diunduh (#53).</>
-                  : <>Berlaku s.d {successQuote?.validUntil}. Buka detail untuk mengirim / mencetak PDF dan berbagi WhatsApp (#56/#58).</>}
+                  ? <>Diskon melebihi wewenang — menunggu <b>persetujuan Supervisor</b> sebelum dapat dikirim/diunduh.</>
+                  : <>Berlaku s.d {successQuote?.validUntil}. Buka detail untuk mengirim / mencetak PDF dan berbagi WhatsApp.</>}
               </Typography>
             </Stack>
           </DialogContent>
@@ -372,7 +400,7 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
 
         {draft.fromOrderNo && (
           <Alert severity="info" icon={<DescriptionRoundedIcon fontSize="small" />}>
-            Draft diteruskan dari Order <b>{draft.fromOrderNo}</b> (#49) — periksa kembali qty &amp; atur diskon sebelum menyimpan.
+            Draft diteruskan dari Order <b>{draft.fromOrderNo}</b> — periksa kembali qty &amp; atur diskon sebelum menyimpan.
           </Alert>
         )}
 
@@ -388,7 +416,7 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
               </Box>
             </Stack>
             <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={<LockRoundedIcon fontSize="small" />}>
-              Harga <b>terkunci dari Master Data</b> — snapshot saat disimpan (price freeze #55), hanya diskon yang bisa diatur (#61).
+              Harga <b>terkunci dari Master Data</b> — tersimpan otomatis saat dokumen dibuat; hanya diskon yang bisa diatur.
             </Alert>
           </CardContent>
         </Card>
@@ -441,7 +469,7 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
                 </Stack>
                 {disc > QUOTE_DISCOUNT_LIMIT && (
                   <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
-                    Diskon melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen akan menunggu <b>approval Supervisor</b> (#53).
+                    Diskon melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen akan menunggu <b>persetujuan Supervisor</b>.
                   </Alert>
                 )}
               </CardContent>
@@ -502,6 +530,54 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
         </CardContent>
       </Card>
 
+      {/* ===== Syarat Pembayaran ===== */}
+      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+          <Stack spacing={2}>
+            <TextField select label="Metode Pembayaran *" value={metode}
+              onChange={(e) => setMetode(e.target.value)}>
+              {METODE_BAYAR.map((m) => (
+                <MenuItem key={m.v} value={m.v}>{m.l}</MenuItem>
+              ))}
+            </TextField>
+            {metode === 'transfer' && (banks.length ? (
+              <TextField select label="Rekening Tujuan *" value={bankId}
+                onChange={(e) => setBankId(e.target.value)}
+                helperText="Rekening perusahaan — pihak pembeli transfer ke sini.">
+                {banks.map((b) => (
+                  <MenuItem key={b.id} value={String(b.id)}>
+                    {b.nama} — {b.noRekening} (a.n. {b.atasNama})
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <Alert severity="warning">
+                Belum ada rekening bank aktif — minta Admin menambahkannya di Master Data → Bank,
+                atau pilih metode pembayaran lain.
+              </Alert>
+            ))}
+            {metode === 'termin' && (
+              <TextField select label="Jatuh Tempo (Termin) *" value={terminHari}
+                onChange={(e) => setTerminHari(e.target.value)}>
+                {TERMIN_OPTS.map((d) => (
+                  <MenuItem key={d} value={String(d)}>Termin {d} hari</MenuItem>
+                ))}
+              </TextField>
+            )}
+            {metode === 'cicilan' && (
+              <Alert severity="info">
+                Tulis rincian cicilan (DP, jumlah angsuran) di kolom <b>Syarat &amp; Ketentuan khusus</b> di bawah.
+              </Alert>
+            )}
+            {metode === 'konsinyasi' && (
+              <Alert severity="info">
+                Konsinyasi: barang titipan — penagihan mengikuti hasil stock-take (jumlah barang yang terjual).
+              </Alert>
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
+
       <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack spacing={2}>
@@ -509,8 +585,10 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
               InputLabelProps={{ shrink: true }}
               onChange={(e) => setValidUntil(e.target.value)}
               inputProps={{ min: addDays(today, 1), max: addDays(today, 30) }}
-              helperText={`Default 14 hari, maksimal 30 hari dari hari ini (#57).`}
-            />
+              helperText="Default 14 hari, maksimal 30 hari dari hari ini." />
+            <TextField label="Syarat & Ketentuan khusus (tercetak di PDF, maks 500)" multiline minRows={2}
+              value={syarat} onChange={(e) => setSyarat(e.target.value)} inputProps={{ maxLength: 500 }}
+              helperText="Opsional — mis. rincian cicilan/DP atau syarat pengiriman." />
             <TextField label="Catatan (opsional, maks 255)" multiline minRows={2} value={note}
               onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }} />
           </Stack>
@@ -520,12 +598,12 @@ return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, 
       {draftMaxDisc > QUOTE_DISCOUNT_LIMIT ? (
         <Alert severity="warning" icon={<WarningAmberRoundedIcon fontSize="small" />}>
           Diskon maks <b>{draftMaxDisc}%</b> melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — quotation akan berstatus
-          <b> Menunggu Approval Supervisor</b> dan tidak dapat dikirim/diunduh sebelum disetujui (#53).
+          <b> Menunggu Persetujuan Supervisor</b> dan tidak dapat dikirim/diunduh sebelum disetujui.
         </Alert>
       ) : (
         <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />}>
-          Harga merupakan <b>snapshot</b> saat dokumen disimpan (price freeze #55) — perubahan Master Data
-          tidak mengubah dokumen (#61).
+          Harga merupakan <b>snapshot</b> saat dokumen disimpan — perubahan Master Data
+          tidak mengubah dokumen.
         </Alert>
       )}
 

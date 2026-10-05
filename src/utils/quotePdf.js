@@ -10,6 +10,25 @@ export function openQuotePdf(quote, db) {
   const outlet = (db.outlets || []).find((o) => o.id === quote.outletId) || {};
   const sales = (db.sales || []).find((s) => s.id === quote.salesId) || {};
 
+  /* Syarat pembayaran dinamis — sesuai metode yang dipilih Sales */
+  const payLine = (() => {
+    const bank = (db.banks || []).find((x) => x.id === quote.bankId);
+    switch (quote.metodePembayaran) {
+      case 'transfer':
+        return bank
+          ? `Pembayaran via transfer ke <b>${esc(bank.nama)}</b>, No. Rekening <b>${esc(bank.noRekening)}</b> a.n. <b>${esc(bank.atasNama)}</b>.`
+          : 'Pembayaran via transfer bank — rekening tujuan dikonfirmasi tim keuangan.';
+      case 'termin':
+        return `Pembayaran tempo <b>${quote.terminHari || 14} hari</b> setelah barang diterima.`;
+      case 'cicilan':
+        return 'Pembayaran mengangsur sesuai kesepakatan (lihat syarat khusus bila ada).';
+      case 'konsinyasi':
+        return 'Konsinyasi — penagihan mengikuti jumlah barang yang terjual di outlet.';
+      default:
+        return 'Pembayaran tunai saat penyerahan barang.';
+    }
+  })();
+
   const rows = quote.items.map((i, ix) => `
     <tr>
       <td class="c">${ix + 1}</td>
@@ -88,9 +107,9 @@ export function openQuotePdf(quote, db) {
     <ol>
       <li>Penawaran berlaku hingga <b>${esc(quote.validUntil)}</b> — setelah lewat, harga dapat berubah.</li>
       <li>Harga sudah termasuk PPN ${Math.round((quote.taxRate || 0.11) * 100)}%.</li>
-      <li>Harga bersifat mengikat (<i>price freeze</i>) selama masa berlaku dokumen ini.</li>
+      <li>Harga bersifat mengikat selama masa berlaku dokumen ini.</li>
       <li>Pengiriman 2–3 hari kerja setelah konfirmasi PO.</li>
-      <li>Pembayaran: DP 50%, pelunasan sebelum pengiriman${comp.bankAccount ? ` — transfer ke <b>${esc(comp.bankName)} ${esc(comp.bankAccount)}</b> a.n. <b>${esc(comp.bankHolder)}</b>` : ''}.</li>
+      <li>${payLine}</li>
     </ol>
     ${quote.catatanSyarat ? `<p style="margin-bottom:4px"><b>Syarat &amp; ketentuan khusus penawaran ini:</b></p><p style="white-space:pre-line;margin-top:2px">${esc(quote.catatanSyarat)}</p>` : ''}
     ${quote.note ? `<p>Catatan: ${esc(quote.note)}</p>` : ''}

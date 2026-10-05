@@ -48,7 +48,7 @@ export default function AuditDesktop() {
   if (user.role !== 'supervisor') {
     return (
       <Alert severity="error">
-        Akses ditolak — modul <b>Audit &amp; Survey</b> hanya dapat diakses <b>Supervisor</b> (matriks RBAC #5 &amp; #14).
+        Akses ditolak — modul <b>Audit &amp; Survey</b> hanya dapat diakses <b>Supervisor</b>.
       </Alert>
     );
   }
@@ -68,7 +68,7 @@ export default function AuditDesktop() {
 
   const doExport = () => {
     const n = exportAuditsCsv(db);
-    if (n) toast(`${n} baris hasil audit diekspor ke CSV (#71).`, 'success');
+    if (n) toast(`${n} baris hasil audit diekspor ke CSV.`, 'success');
     else toast('Belum ada data audit untuk diekspor.', 'info');
   };
 
@@ -79,7 +79,7 @@ export default function AuditDesktop() {
         subtitle="Evaluasi laporan kunjungan outlet & klasifikasi prospek."
         action={(
           <Button variant="contained" startIcon={<FileDownloadRoundedIcon />} onClick={doExport}>
-            Export CSV (#71)
+            Export CSV
           </Button>
         )}
       />
@@ -168,9 +168,9 @@ export default function AuditDesktop() {
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 2 }} icon={<LockRoundedIcon fontSize="small" />}>
-        Form audit <b>terkunci setelah submit</b> — satu submit per outlet per kunjungan (#66). Struktur form yang sudah
-        terjadwal tidak diubah sepihak; revisi besar dibuat sebagai versi form baru (#67). Hasil evaluasi terintegrasi
-        dengan data <b>GPS Route Planning</b> (#70) dan dapat diekspor ke CSV/Excel (#71).
+        Form audit <b>terkunci setelah submit</b> — satu submit per outlet per kunjungan. Struktur form yang sudah
+        terjadwal tidak diubah sepihak; revisi besar dibuat sebagai versi form baru. Hasil evaluasi terintegrasi
+        dengan data <b>GPS Route Planning</b> dan dapat diekspor ke CSV/Excel.
       </Alert>
 
       <AuditDetailDialog open={!!detailId} auditId={detailId} onClose={() => setDetailId(null)} canClassify />
