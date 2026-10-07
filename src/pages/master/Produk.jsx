@@ -229,28 +229,28 @@ export default function ProdukPage() {
   const validate = () => {
     const v = values;
     const errs = {};
-    if (!v.sku || !v.sku.trim()) errs.sku = 'Kolom ini wajib diisi.';
-    else if (!ALNUM.test(v.sku.trim())) errs.sku = 'Alfanumerik tanpa spasi.';
-    else if (v.sku.trim().length > 30) errs.sku = 'Maksimal 30 karakter.';
-    if (!v.name || !v.name.trim()) errs.name = 'Kolom ini wajib diisi.';
-    else if (v.name.trim().length > 100) errs.name = 'Maksimal 100 karakter.';
-    if (!v.category) errs.category = 'Kolom ini wajib diisi.';
-    if (!v.unit) errs.unit = 'Kolom ini wajib diisi.';
+    if (!v.sku || !v.sku.trim()) errs.sku = 'Kode SKU wajib diisi.';
+    else if (!ALNUM.test(v.sku.trim())) errs.sku = 'Kode SKU harus alfanumerik tanpa spasi.';
+    else if (v.sku.trim().length > 30) errs.sku = 'Kode SKU maksimal 30 karakter.';
+    if (!v.name || !v.name.trim()) errs.name = 'Nama Produk wajib diisi.';
+    else if (v.name.trim().length > 100) errs.name = 'Nama Produk maksimal 100 karakter.';
+    if (!v.category) errs.category = 'Kategori wajib dipilih.';
+    if (!v.unit) errs.unit = 'Satuan Jual wajib dipilih.';
     /* Konversi hanya divalidasi bila satuan Box */
     if (v.unit === 'box') {
       const ppu = v.pcsPerUnit === '' ? '' : Number(v.pcsPerUnit);
-      if (ppu === '' || Number.isNaN(ppu) || ppu < 1) errs.pcsPerUnit = 'Isi jumlah pcs per box (minimal 1).';
+      if (ppu === '' || Number.isNaN(ppu) || ppu < 1) errs.pcsPerUnit = 'Isi per Box harus berupa angka minimal 1.';
     }
     const hb = v.hargaBeli === '' ? 0 : Number(v.hargaBeli);
-    if (v.hargaBeli !== '' && (Number.isNaN(hb) || hb < 0)) errs.hargaBeli = 'Nilai minimal 0.';
+    if (v.hargaBeli !== '' && (Number.isNaN(hb) || hb < 0)) errs.hargaBeli = 'Harga Beli tidak boleh kurang dari 0.';
     const hj = v.hargaJual === '' ? '' : Number(v.hargaJual);
-    if (hj === '' || hj == null) errs.hargaJual = 'Kolom ini wajib diisi.';
-    else if (Number.isNaN(hj) || hj < 1) errs.hargaJual = 'Nilai minimal 1 (integer).';
+    if (hj === '' || hj == null) errs.hargaJual = 'Harga Jual wajib diisi.';
+    else if (Number.isNaN(hj) || hj < 1) errs.hargaJual = 'Harga Jual harus berupa angka bulat, minimal 1.';
     if (v.gudangId !== '') {
       const st = v.stok === '' ? 0 : Number(v.stok);
-      if (Number.isNaN(st) || st < 0) errs.stok = 'Penempatan stok harus berupa angka ≥ 0.';
+      if (Number.isNaN(st) || st < 0) errs.stok = 'Stok di gudang harus berupa angka, minimal 0.';
     }
-    if (v.desc && v.desc.length > 200) errs.desc = 'Maksimal 200 karakter.';
+    if (v.desc && v.desc.length > 200) errs.desc = 'Deskripsi maksimal 200 karakter.';
     return errs;
   };
 

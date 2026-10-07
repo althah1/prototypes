@@ -148,12 +148,14 @@ export default function OrderMobile() {
   const draftTotals = (() => {
     const subtotal = (draft?.items || []).reduce((s, i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
       return s + (p ? p.hargaJual * i.qty : 0);
     }, 0);
     const tax = Math.round(subtotal * TAX_RATE);
     return { subtotal, tax, total: subtotal + tax };
   })();
 
+  const ckOutlets = new Set((db.checkins || []).filter((c) => c.salesId === user.salesId).filter((c) => c.date === todayISO()).map((c) => c.outletId)); /* F-23: gerbang check-in */
   const myOrders = (db.orders || []).filter((o) => o.salesId === user.salesId).slice().reverse();
   const orderList = filter === 'all' ? myOrders : myOrders.filter((o) => o.status === filter);
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
@@ -172,9 +174,9 @@ export default function OrderMobile() {
   /* Nomor unik otomatis — ikut menghitung antrean offline agar tidak duplikat */
   const genOrderNo = () => {
     const t = todayISO();
-    const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
-    const count = (db.orders || []).filter((o) => o.date === t).length
-      + (db.syncQueue || []).filter((x) => x.kind === 'order' && x.payload?.date === t).length;
+    const kodeSales = user.salesId ? `SAL-${String(user.salesId).padStart(3, '0')}` : 'SFA';
+    const count = (db.orders || []).filter((o) => o.date === t && o.salesId === user.salesId).length
+      + (db.syncQueue || []).filter((x) => x.kind === 'order' && x.payload?.salesId === user.salesId && x.payload?.date === t).length;
     return `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
 
@@ -182,13 +184,15 @@ export default function OrderMobile() {
     if (submitting || !draft?.items.length) return; /* anti-duplikat klik ganda */
     setSubmitting(true);
 
-    const items = draft.items.map((i) => {
+    const items = draft.items.filter((i) => (db.products || []).some((x) => x.id === i.productId)).map((i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
       return {
         productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
         price: p.hargaJual, disc: 0, line: p.hargaJual * i.qty, pcsPerUnit: p.pcsPerUnit || 1,
       };
     });
+    if (items.length === 0) { setSubmitting(false); return toast('Produk pesanan sudah tidak tersedia di Master Data — buat ulang pesanan.', 'warning'); }
     const order = {
       no: genOrderNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
       items, subtotal: draftTotals.subtotal, taxRate: TAX_RATE, tax: draftTotals.tax,
@@ -308,7 +312,7 @@ export default function OrderMobile() {
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
 
         {outlets.length ? outlets.map((o) => (
-          <Card key={o.id} elevation={0} onClick={() => setDraft({ step: 'items', outletId: o.id, items: [] })}
+          <Card key={o.id} elevation={0} onClick={() => ckOutlets.has(o.id) ? setDraft({ step: 'items', outletId: o.id, items: [] }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')}
             sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
@@ -317,6 +321,7 @@ export default function OrderMobile() {
               <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={14} noWrap>{o.name}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap display="block">{o.address}</Typography>
+              {!ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" sx={{ flexShrink: 0 }} />}
               </Box>
             </CardContent>
           </Card>
@@ -425,6 +430,7 @@ export default function OrderMobile() {
             <TableBody>
               {draft.items.map((i) => {
                 const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
                 return (
                   <TableRow key={i.productId}>
                     <TableCell>

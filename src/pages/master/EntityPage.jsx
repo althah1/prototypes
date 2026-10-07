@@ -102,6 +102,17 @@ function suggestCode(rows, prefix) {
   return `${head}${String(max + 1).padStart(3, '0')}`;
 }
 
+/* Kode sistem tersembunyi (cfg.autoGen) — PREFIX-NNN berurutan, mis. BNK-001.
+   Untuk data yang butuh pengenal unik tetapi tidak perlu dilihat pengguna. */
+function nextAutoCode(rows, field, prefix) {
+  let max = 0;
+  (rows || []).forEach((r) => {
+    const m = String(r[field] || '').match(new RegExp(`^${prefix}-(\\d+)$`));
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return `${prefix}-${String(max + 1).padStart(3, '0')}`;
+}
+
 /* Produk = halaman kustom (baris = 1 produk × 1 gudang). Wrapper memisahkan
    komponen supaya Rules of Hooks aman. */
 export default function EntityPage({ slug }) {
@@ -228,7 +239,7 @@ function EntityPageInner({ slug }) {
     const errs = {};
     cfg.fields.forEach((f) => {
       if (f.type === 'multiSelect') {
-        if (f.required && !(values[f.k] || []).length) errs[f.k] = 'Pilih minimal satu item.';
+        if (f.required && !(values[f.k] || []).length) errs[f.k] = `${f.l}: pilih minimal satu.`;
         return;
       }
       if (f.type === 'gudangAlloc') {
@@ -242,17 +253,17 @@ function EntityPageInner({ slug }) {
       if (f.type === 'number') v = v === '' ? '' : Number(v);
       else v = String(v ?? '').trim();
 
-      if (f.required && (v === '' || v == null)) { errs[f.k] = 'Kolom ini wajib diisi.'; return; }
+      if (f.required && (v === '' || v == null)) { errs[f.k] = `${f.l} wajib diisi.`; return; }
       if (v === '' || v == null) return;
 
       if (f.type === 'number') {
-        if (f.min != null && v < f.min) errs[f.k] = `Nilai minimal ${f.min}.`;
-        if (f.max != null && v > f.max) errs[f.k] = `Nilai maksimal ${f.max}.`;
-        if (f.notZero && v === 0) errs[f.k] = 'Nilai 0 tidak valid.';
+        if (f.min != null && v < f.min) errs[f.k] = `${f.l} tidak boleh kurang dari ${f.min}.`;
+        if (f.max != null && v > f.max) errs[f.k] = `${f.l} tidak boleh lebih dari ${f.max}.`;
+        if (f.notZero && v === 0) errs[f.k] = `${f.l} tidak boleh bernilai 0.`;
       } else {
-        if (f.max && String(v).length > f.max) errs[f.k] = `Maksimal ${f.max} karakter.`;
-        if (f.pattern && !f.pattern.test(v)) errs[f.k] = f.patternMsg || 'Format tidak sesuai.';
-        if (f.email && !EMAIL_RE.test(v)) errs[f.k] = 'Format email tidak valid.';
+        if (f.max && String(v).length > f.max) errs[f.k] = `${f.l} maksimal ${f.max} karakter.`;
+        if (f.pattern && !f.pattern.test(v)) errs[f.k] = f.patternMsg || `${f.l}: format tidak sesuai.`;
+        if (f.email && !EMAIL_RE.test(v)) errs[f.k] = 'Format email tidak valid — gunakan bentuk seperti nama@perusahaan.com.';
       }
     });
 
@@ -268,7 +279,7 @@ function EntityPageInner({ slug }) {
     });
 
     if (cfg.validate) {
-      Object.entries(cfg.validate(values) || {}).forEach(([k, msg]) => { if (msg) errs[k] = msg; });
+      Object.entries(cfg.validate(values, db, editing) || {}).forEach(([k, msg]) => { if (msg) errs[k] = msg; });
     }
     return errs;
   };
@@ -298,6 +309,7 @@ function EntityPageInner({ slug }) {
         toast('Data berhasil diperbarui.', 'success');
       } else {
         payload.status = payload.status || 'active'; /* default Aktif — bisa Nonaktif dari form (Gudang) */
+        if (cfg.autoGen) payload[cfg.autoGen.field] = nextAutoCode(rows, cfg.autoGen.field, cfg.autoGen.prefix);
         const rec = insert(cfg.table, payload);
         if (allocField) syncAllocation(mutate, rec.id, values[allocField.k]);
         toast('Data baru berhasil disimpan.', 'success');

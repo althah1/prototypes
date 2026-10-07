@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -18,6 +19,7 @@ import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import MapRoundedIcon from '@mui/icons-material/MapRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
+import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
 import StatusChip from '../../components/ui/StatusChip';
 import EmptyState from '../../components/ui/EmptyState';
@@ -36,7 +38,7 @@ const QUICK = [
 export default function Home() {
   const { user } = useAuth();
   const { db } = useDb();
-  const { notify } = useSync();
+  const { notify, online, queueCount } = useSync();
   const navigate = useNavigate();
   const today = todayISO();
 
@@ -75,6 +77,19 @@ export default function Home() {
 
   return (
     <Stack spacing={2}>
+      {/* Status sinkronisasi (ASM 003 — versi lunak, tanpa memblokir) */}
+      <Alert
+        severity={online ? (queueCount > 0 ? 'info' : 'success') : 'warning'}
+        icon={online ? <CheckCircleRoundedIcon fontSize="small" /> : <WifiOffRoundedIcon fontSize="small" />}
+        sx={{ py: 0.75, '& .MuiAlert-message': { fontSize: 13 } }}
+      >
+        {online
+          ? (queueCount > 0
+            ? `${queueCount} data menunggu sinkronisasi — akan terkirim otomatis.`
+            : 'Sinkronisasi berhasil — data tugas hari ini sudah terbaru.')
+          : 'Mode offline aktif — transaksi tersimpan lokal dan tersinkron otomatis saat koneksi pulih.'}
+      </Alert>
+
       {/* Banner notifikasi terbaru */}
       {lastNotif && (
         <Box

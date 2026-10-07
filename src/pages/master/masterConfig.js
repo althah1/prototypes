@@ -66,31 +66,41 @@ export const MASTER_CONFIG = {
     search: ['name', 'npwp'],
   },
 
-    /* 2 — BANK (daftar rekening perusahaan — dipakai Quotation/Order & Billing) */
+    /* 2 — BANK (daftar rekening perusahaan — dipakai Quotation/Order & Billing).
+     Kode rekening = kode sistem (BNK-001, …) — dibuat otomatis saat tambah, tidak
+     tampil di form/tabel/detail. Pencegahan data ganda: kombinasi Nama + No. Rekening. */
   bank: {
     title: 'Master Data — Bank',
     sub: 'Daftar rekening bank perusahaan — sumber pilihan pembayaran transfer.',
     table: 'banks',
     addLabel: 'Rekening Bank',
-    uniques: ['kode'],
+    autoGen: { field: 'kode', prefix: 'BNK' },
     refs: [
       { table: 'quotations', field: 'bankId', label: 'quotation' },
       { table: 'orders', field: 'bankId', label: 'order' },
-    ], /* aktif dipakai di Gelombang 2 (pembayaran transfer) — proteksi hapus */
+    ],
     columns: [
-      { k: 'kode', l: 'Kode' },
       { k: 'nama', l: 'Nama Bank' },
       { k: 'noRekening', l: 'No. Rekening' },
       { k: 'atasNama', l: 'Atas Nama' },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
-      { k: 'kode', l: 'Kode Rekening', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.', hint: 'Pengenal singkat, mis. BCA-01.' },
       { k: 'nama', l: 'Nama Bank', type: 'text', required: true, max: 60, hint: 'Nama resmi bank, mis. Bank Central Asia (BCA).' },
-      { k: 'noRekening', l: 'No. Rekening', type: 'text', required: true, max: 16, pattern: /^[0-9]{8,16}$/, patternMsg: '8–16 digit angka tanpa spasi.' },
+      { k: 'noRekening', l: 'No. Rekening', type: 'text', required: true, max: 16, pattern: /^[0-9]{8,16}$/, patternMsg: 'No. Rekening harus 8–16 digit angka, tanpa spasi.' },
       { k: 'atasNama', l: 'Atas Nama', type: 'text', required: true, max: 100, hint: 'Biasanya nama perusahaan.' },
     ],
-    search: ['kode', 'nama'],
+    validate: (v, db, editing) => {
+      const nama = String(v.nama || '').trim().toLowerCase();
+      const rek = String(v.noRekening || '').trim();
+      if (!nama || !rek) return null;
+      const dup = (db.banks || []).find((b) =>
+        String(b.nama || '').trim().toLowerCase() === nama &&
+        String(b.noRekening || '').trim() === rek &&
+        (!editing || b.id !== editing.id));
+      return dup ? { noRekening: 'Nama Bank dengan No. Rekening ini sudah terdaftar.' } : null;
+    },
+    search: ['nama', 'noRekening'],
   },
 
   /* 2 — GUDANG (kode, nama, alamat + status saat pembuatan) */
@@ -177,8 +187,8 @@ export const MASTER_CONFIG = {
       { k: 'code', l: 'Kode Area', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
       { k: 'name', l: 'Nama Area', type: 'text', required: true, max: 100 },
       { k: 'desc', l: 'Deskripsi', type: 'textarea', max: 200 },
-      { k: 'lat', l: 'Titik Tengah — Latitude', type: 'number', required: true, min: -90, max: 90, step: 0.0001 },
-      { k: 'lng', l: 'Titik Tengah — Longitude', type: 'number', required: true, min: -180, max: 180, step: 0.0001 },
+      { k: 'lat', l: 'Titik Tengah — Latitude', type: 'number', required: true, min: -90, max: 90, step: 0.0001, notZero: true },
+      { k: 'lng', l: 'Titik Tengah — Longitude', type: 'number', required: true, min: -180, max: 180, step: 0.0001, notZero: true },
       { k: 'radiusKm', l: 'Radius (km)', type: 'number', required: true, min: 1, max: 100 },
     ],
     search: ['code', 'name'],
@@ -213,7 +223,7 @@ export const MASTER_CONFIG = {
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
-      { k: 'nik', l: 'NIK', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
+      { k: 'nik', l: 'NIK', type: 'text', required: true, max: 16, pattern: /^[0-9]{16}$/, patternMsg: 'NIK harus tepat 16 digit angka.' },
       { k: 'name', l: 'Nama Lengkap', type: 'text', required: true, max: 100 },
       { k: 'email', l: 'Email (untuk login)', type: 'text', required: true, email: true, max: 100 },
       { k: 'phone', l: 'No. HP', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
@@ -248,7 +258,7 @@ export const MASTER_CONFIG = {
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
-      { k: 'nik', l: 'NIK', type: 'text', required: true, max: 20, pattern: ALNUM, patternMsg: 'Alfanumerik tanpa spasi.' },
+      { k: 'nik', l: 'NIK', type: 'text', required: true, max: 16, pattern: /^[0-9]{16}$/, patternMsg: 'NIK harus tepat 16 digit angka.' },
       { k: 'name', l: 'Nama Lengkap', type: 'text', required: true, max: 100 },
       { k: 'email', l: 'Email', type: 'text', required: true, email: true, max: 100 },
       { k: 'phone', l: 'No. Telepon', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
@@ -291,7 +301,7 @@ export const MASTER_CONFIG = {
       { k: 'address', l: 'Alamat', type: 'text', required: true, max: 200 },
       { k: 'lat', l: 'Latitude (-90 s.d 90)', type: 'number', required: true, min: -90, max: 90, step: 0.000001, notZero: true, hint: 'Wajib koordinat valid — nilai 0 tidak diterima.' },
       { k: 'lng', l: 'Longitude (-180 s.d 180)', type: 'number', required: true, min: -180, max: 180, step: 0.000001, notZero: true },
-      { k: 'phone', l: 'Telepon', type: 'text', max: 15 },
+      { k: 'phone', l: 'Telepon', type: 'text', max: 15, pattern: PHONE, patternMsg: 'Nomor telepon harus 10–15 digit angka.' },
       { k: 'areaId', l: 'Area Kerja', type: 'select', required: true, optionsFrom: { table: 'areas', onlyActive: true } },
       { k: 'category', l: 'Kategori Outlet', type: 'select', options: [
         { v: 'Retail', l: 'Retail' }, { v: 'Warung', l: 'Warung' },

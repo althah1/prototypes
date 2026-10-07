@@ -103,6 +103,7 @@ export default function AuditMobile() {
     const q = outletSearch.trim().toLowerCase();
     return o.status === 'active' && (!q || o.name.toLowerCase().includes(q) || (o.address || '').toLowerCase().includes(q));
   });
+  const ckOutlets = new Set((db.checkins || []).filter((c) => c.salesId === user.salesId).filter((c) => c.date === todayISO()).map((c) => c.outletId)); /* gerbang check-in: hanya outlet yang sudah check-in hari ini */
   const products = (db.products || []).filter((p) => {
     const q = productSearch.trim().toLowerCase();
     return p.status === 'active' && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
@@ -233,7 +234,7 @@ export default function AuditMobile() {
           const done = findSubmittedAudit(db, o.id); /* #66 */
           return (
             <Card key={o.id} elevation={0}
-              onClick={() => (done ? setDetailId(done.id) : setDraft({ step: 'form', outletId: o.id, scores: {}, stocks: {}, photos: [], note: '' }))}
+              onClick={() => (done ? setDetailId(done.id) : (ckOutlets.has(o.id) ? setDraft({ step: 'form', outletId: o.id, scores: {}, stocks: {}, photos: [], note: '' }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')))}
               sx={{
                 cursor: 'pointer', borderRadius: 3,
                 border: '1px solid', borderColor: 'divider', opacity: done ? 0.75 : 1,
@@ -247,6 +248,7 @@ export default function AuditMobile() {
                   <Typography variant="caption" color="text.secondary" noWrap display="block">{o.address}</Typography>
                 </Box>
                 {done && <Chip size="small" color="success" icon={<LockRoundedIcon />} label="Sudah diaudit" />}
+                {!done && !ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" />}
               </CardContent>
             </Card>
           );

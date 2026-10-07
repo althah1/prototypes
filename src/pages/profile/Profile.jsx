@@ -103,7 +103,7 @@ export default function Profile() {
       <ConfirmDialog
         open={openReset}
         onClose={() => setOpenReset(false)}
-        onConfirm={() => { reset(); setOpenReset(false); toast('Data prototype dimuat ulang dari seed awal.', 'success'); }}
+        onConfirm={() => { Object.keys(localStorage).filter((k) => k.startsWith('sfa_morn_') || k.startsWith('sfa_ensure_')).forEach((k) => localStorage.removeItem(k)); reset(); setOpenReset(false); toast('Data prototype dimuat ulang dari seed awal.', 'success'); }}
         title="Reset Data Prototype"
         message="Seluruh data akan dikembalikan ke kondisi awal (seed). Sesi login Anda tetap aktif. Lanjutkan?"
         confirmLabel="Ya, Reset"

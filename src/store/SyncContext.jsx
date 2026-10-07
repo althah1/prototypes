@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from 'react';
 import { useDb } from './DbContext';
 import { useToast } from '../components/ui/ToastProvider';
 import { nowStamp } from '../utils/helpers';
+import { applyStockReduction } from '../utils/gudangUtils';
 
 const KEY = 'sfa_react_online';
 const SyncContext = createContext(null);
@@ -24,20 +25,21 @@ export function SyncProvider({ children }) {
       (d.syncQueue || []).forEach((item) => {
         if (item.kind === 'order') {
           const id = d.orders.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-          d.orders.push({ ...item.payload, id, createdAt: nowStamp() });
+          d.orders.push({ ...item.payload, id, createdAt: item.ts });
+          applyStockReduction(d, item.payload.items);
           /* Auto-complete tugas terkait (BR-TASK-003) — pakai waktu pengerjaan asli */
           const t = d.tasks.find((x) =>
             x.date === item.payload.date && x.outletId === item.payload.outletId &&
             x.type === 'order' && x.salesId === item.payload.salesId && x.status === 'in_progress');
-          if (t) { t.status = 'done'; t.completedAt = nowStamp(); }
+          if (t) { t.status = 'done'; t.completedAt = item.ts; }
           n++;
         } else if (item.kind === 'audit') {
           const id = d.audits.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-          d.audits.push({ ...item.payload, id, createdAt: nowStamp() });
+          d.audits.push({ ...item.payload, id, createdAt: item.ts });
           const t = d.tasks.find((x) =>
             x.date === item.payload.date && x.outletId === item.payload.outletId &&
             x.type === 'audit' && x.salesId === item.payload.salesId && x.status === 'in_progress');
-          if (t) { t.status = 'done'; t.completedAt = nowStamp(); }
+          if (t) { t.status = 'done'; t.completedAt = item.ts; }
           n++;
         }
       });

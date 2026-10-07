@@ -38,7 +38,7 @@ export default function GpsMobile() {
   /* Keringanan: filter berat hanya dihitung ulang saat tabel terkait berubah */
   const tasksToday = useMemo(
     () => (db.tasks || []).filter(
-      (t) => t.salesId === user.salesId && t.date === today && t.status !== 'failed'
+      (t) => t.salesId === user.salesId && t.date === today && !['failed', 'cancelled'].includes(t.status)
     ),
     [db.tasks, user.salesId, today]
   );
@@ -54,7 +54,8 @@ export default function GpsMobile() {
   const checkedInIds = new Set(checkins.map((c) => c.outletId));
   const openStops = stopOutlets.filter((o) => !checkedInIds.has(o.id));
   const doneStops = stopOutlets.filter((o) => checkedInIds.has(o.id));
-  const pct = stopOutlets.length ? Math.round((doneStops.length / stopOutlets.length) * 100) : 0;
+  const doneTasks = tasksToday.filter((t) => t.status === 'done').length;
+  const pct = tasksToday.length ? Math.round((doneTasks / tasksToday.length) * 100) : 0;
 
   /* #72: urutan rute = jarak terdekat (nearest-neighbor + Haversine) — instan */
   const route = openStops.length ? optimizeRoute(pos, openStops) : [];
@@ -108,7 +109,7 @@ export default function GpsMobile() {
         <Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
-              {doneStops.length} dari {stopOutlets.length} kunjungan selesai
+              {doneTasks} dari {tasksToday.length} tugas selesai
             </Typography>
             <Typography variant="body2" fontWeight={700} color="success.main">{pct}%</Typography>
           </Stack>
@@ -128,7 +129,7 @@ export default function GpsMobile() {
                 </Typography>
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Wilayah kerja: {area?.name || '-'} • radius {area?.radiusKm || 5} km (geofencing #75)
+                Wilayah kerja: {area?.name || '-'} • radius {area?.radiusKm || 5} km
               </Typography>
             </Box>
             <Button size="small" variant="outlined" startIcon={<MyLocationRoundedIcon />} onClick={useRealGps}>

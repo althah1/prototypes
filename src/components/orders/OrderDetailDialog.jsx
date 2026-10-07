@@ -32,6 +32,7 @@ import { useSync } from '../../store/SyncContext';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusChip from '../../components/ui/StatusChip';
 import { nowStamp, formatRupiah } from '../../utils/helpers';
+import { restoreStockByOrder } from '../../utils/gudangUtils';
 
 const STATUS_LABEL = {
   submitted: 'Diajukan', approved: 'Disetujui', processing: 'Diproses',
@@ -56,7 +57,7 @@ const KV = ({ label, value }) => (
  */
 export default function OrderDetailDialog({ open, orderId, onClose, canApprove = false }) {
   const { user } = useAuth();
-  const { db, update } = useDb();
+  const { db, update, mutate } = useDb();
   const { toast } = useToast();
   const { notify } = useSync();
 
@@ -109,6 +110,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
     if (!v) { setReasonErr('Alasan penolakan wajib diisi.'); return; }
     if (v.length < 10) { setReasonErr('Alasan penolakan minimal 10 karakter.'); return; }
     update('orders', order.id, { status: 'rejected', rejectReason: v, decidedBy: user.name, decidedAt: nowStamp() });
+    restoreStockByOrder(mutate, order.items); /* F-41: kembalikan stok ke gudang */
     if (salesUser) notify(salesUser.id, 'Order Ditolak', `${order.no} ditolak: ${v}`);
     toast('Order ditolak.', 'warning');
     setRejectOpen(false);
@@ -116,8 +118,9 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
 
   const cancelOrder = () => {
     update('orders', order.id, { status: 'cancelled', cancelledBy: user.name, cancelledAt: nowStamp() });
+    restoreStockByOrder(mutate, order.items); /* F-41: kembalikan stok ke gudang */
     if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor.`);
-    toast('Order dibatalkan (hanya Supervisor, status Submitted/Approved — #45).', 'warning');
+    toast('Order dibatalkan (hanya Supervisor, status Submitted/Approved).', 'warning');
     setConfirmCancel(false);
   };
 
@@ -142,7 +145,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             <KV label="Status" value={<StatusChip kind="order" status={order.status} />} />
             {order.approvedBy && <KV label="Disetujui oleh" value={`${order.approvedBy} • ${order.approvedAt}`} />}
             {order.rejectReason && <KV label="Alasan Ditolak" value={order.rejectReason} />}
-            <KV label="Metode Pembayaran" value={payLabel(order)} />
+            {order.metodePembayaran && <KV label="Metode Pembayaran" value={payLabel(order)} />}
             <KV label="Pembayaran" value={order.paid
               ? <Chip size="small" color="success" icon={<PaymentsRoundedIcon />} label={`Lunas — ${order.paidMethod || '-'} • ${order.paidAt || '-'}`} />
               : <Chip size="small" variant="outlined" label="Belum dibayar — ditandai di modul Billing" />} />

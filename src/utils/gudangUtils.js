@@ -84,8 +84,7 @@ export function syncAllocation(mutate, productId, map) {
    sistem seperti alur fulfillment nyata). Setelah dipotong,
    products.stock disinkronkan = jumlah seluruh stokTercatat (#47).
    ============================================================ */
-export function reduceStockByOrder(mutate, items) {
-  mutate((d) => {
+export function applyStockReduction(d, items) {
     if (!Array.isArray(d.gudangDetails)) d.gudangDetails = [];
     const need = {};
     (items || []).forEach((it) => {
@@ -110,9 +109,7 @@ export function reduceStockByOrder(mutate, items) {
           .reduce((s, r) => s + (Number(r.stokTercatat) || 0), 0);
       }
     });
-  });
 }
-
 /* Reserved per produk = item order AKTIF (pcs) — barang terikat pesanan */
 export function reservedByProduct(db) {
   const out = {};
@@ -141,4 +138,35 @@ export function reservedByRow(db) {
       });
   });
   return out;
+}
+/* Wrapper transaksi online — dipanggil OrderMobile & konversi quotation. */
+export function reduceStockByOrder(mutate, items) {
+  mutate((d) => applyStockReduction(d, items));
+}
+
+/* F-41: kembalikan stok saat order ditolak/dibatalkan (Supervisor) —
+   cermin applyStockReduction: qty dikembalikan ke baris gudang terbesar produk itu,
+   lalu products.stock disinkronkan. */
+export function restoreStockByOrder(mutate, items) {
+  mutate((d) => {
+    if (!Array.isArray(d.gudangDetails)) d.gudangDetails = [];
+    const back = {};
+    (items || []).forEach((it) => {
+      back[it.productId] = (back[it.productId] || 0) + it.qty * (it.pcsPerUnit || 1);
+    });
+    Object.entries(back).forEach(([pid, qty]) => {
+      const rows = d.gudangDetails.filter((r) => r.productId === Number(pid))
+        .sort((a, b) => b.stokTercatat - a.stokTercatat);
+      if (rows.length) {
+        rows[0].stokTercatat += qty;
+        rows[0].updatedAt = nowStamp();
+      }
+      const p = (d.products || []).find((x) => x.id === Number(pid));
+      if (p) {
+        p.stock = d.gudangDetails
+          .filter((r) => r.productId === p.id)
+          .reduce((s, r) => s + (Number(r.stokTercatat) || 0), 0);
+      }
+    });
+  });
 }

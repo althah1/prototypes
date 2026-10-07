@@ -28,6 +28,7 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
@@ -130,7 +131,7 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
 export default function QuoteMobile() {
   const { user } = useAuth();
   const { db, insert, mutate } = useDb();
-  const { notify } = useSync();
+  const { notify, online } = useSync();
   const { toast } = useToast();
   const location = useLocation();
   const today = todayISO();
@@ -182,6 +183,7 @@ export default function QuoteMobile() {
     const q = outletSearch.trim().toLowerCase();
     return o.status === 'active' && (!q || o.name.toLowerCase().includes(q) || (o.address || '').toLowerCase().includes(q));
   });
+  const ckOutlets = new Set((db.checkins || []).filter((c) => c.salesId === user.salesId).filter((c) => c.date === todayISO()).map((c) => c.outletId)); /* F-23: gerbang check-in */
   const products = (db.products || []).filter((p) => {
     const q = productSearch.trim().toLowerCase();
     return p.status === 'active' && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
@@ -200,6 +202,7 @@ export default function QuoteMobile() {
     let gross = 0, after = 0;
     (draft?.items || []).forEach((i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
       if (!p) return;
       const g = p.hargaJual * i.qty;
       gross += g;
@@ -233,24 +236,38 @@ export default function QuoteMobile() {
     setMetode('tunai'); setBankId(''); setTerminHari('14');
   };
 
+  /* Template dari Entry Order — prefill outlet, item, dan metode pembayaran order terpilih. */
+  const applyFromOrder = (o) => {
+    setDraft({
+      step: 'items', outletId: o.outletId, fromOrderNo: o.no,
+      items: (o.items || []).map((it) => ({ productId: it.productId, qty: it.qty, disc: 0 })),
+    });
+    setMetode(o.metodePembayaran || 'tunai');
+    setBankId(o.metodePembayaran === 'transfer' && o.bankId != null ? String(o.bankId) : '');
+    setTerminHari(o.terminHari != null ? String(o.terminHari) : '14');
+    toast(`Template dimuat dari order ${o.no} — periksa kembali item & diskon sebelum menyimpan.`, 'info');
+  };
+
   const genQuoteNo = () => {
     const t = todayISO();
-    const count = (db.quotations || []).filter((q) => q.date === t).length;
-    const kodeSales = (db.sales || []).find((s) => s.id === user.salesId)?.nik || 'SFA';
+    const count = (db.quotations || []).filter((q) => q.date === t && q.salesId === user.salesId).length;
+    const kodeSales = user.salesId ? `SAL-${String(user.salesId).padStart(3, '0')}` : 'SFA';
     return `QUO-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
   const genVerCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
   const submitQuote = () => {
     if (submitting || !draft?.items.length || !validUntil) return;
+    if (validUntil < addDays(today, 1) || validUntil > addDays(today, 30)) return toast('Masa berlaku harus antara besok sampai 30 hari ke depan.', 'warning');
     if (metode === 'transfer' && !bankId) {
       return toast('Pilih rekening bank tujuan untuk pembayaran transfer.', 'warning');
     }
     setSubmitting(true);
     setTimeout(() => { /* simulasi latency API */
       /* Snapshot harga master saat disimpan (price freeze) */
-      const items = draft.items.map((i) => {
+      const items = draft.items.filter((i) => (db.products || []).some((x) => x.id === i.productId)).map((i) => {
         const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
         return {
           productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
           price: p.hargaJual, disc: i.disc || 0,
@@ -258,6 +275,7 @@ export default function QuoteMobile() {
           pcsPerUnit: p.pcsPerUnit || 1,
         };
       });
+        if (items.length === 0) { setSubmitting(false); return toast('Produk penawaran sudah tidak tersedia di Master Data — buat ulang quotation.', 'warning'); }
       const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
       const after = items.reduce((s, i) => s + i.line, 0);
       const discTotal = subtotal - after;
@@ -296,10 +314,16 @@ export default function QuoteMobile() {
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h6" fontWeight={800}>Quotation</Typography>
-          <Button variant="contained" size="small" startIcon={<AddRoundedIcon />}
-            onClick={() => setDraft({ step: 'outlet', items: [] })}>
-            Buat Baru
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" size="small" startIcon={<ReceiptLongRoundedIcon />}
+              onClick={() => setDraft({ step: 'order', items: [] })}>
+              Dari Entry Order
+            </Button>
+            <Button variant="contained" size="small" startIcon={<AddRoundedIcon />}
+              onClick={() => setDraft({ step: 'outlet', items: [] })}>
+              Buat Baru
+            </Button>
+          </Stack>
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
@@ -375,7 +399,7 @@ export default function QuoteMobile() {
         <TextField label="Cari outlet…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
         {outlets.length ? outlets.map((o) => (
-          <Card key={o.id} elevation={0} onClick={() => setDraft({ step: 'items', outletId: o.id, items: [] })}
+          <Card key={o.id} elevation={0} onClick={() => ckOutlets.has(o.id) ? setDraft({ step: 'items', outletId: o.id, items: [] }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')}
             sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
@@ -384,10 +408,44 @@ export default function QuoteMobile() {
               <Box sx={{ minWidth: 0 }}>
                 <Typography fontWeight={700} fontSize={14} noWrap>{o.name}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap display="block">{o.address}</Typography>
+              {!ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" sx={{ flexShrink: 0 }} />}
               </Box>
             </CardContent>
           </Card>
         )) : <EmptyState message="Outlet tidak ditemukan." />}
+      </Stack>
+    );
+  }
+
+  /* ===================== LANGKAH 1B: PILIH ENTRY ORDER (template) ===================== */
+  if (step === 'order') {
+    const tplOrders = (db.orders || [])
+      .filter((o) => o.salesId === user.salesId && !['rejected', 'cancelled'].includes(o.status))
+      .slice().reverse();
+    return (
+      <Stack spacing={1.5}>
+        <StepHeader title="Pilih Entry Order" onBack={() => setDraft(null)} step={0} />
+        <Typography variant="body2" color="text.secondary">
+          Quotation terisi otomatis mengikuti order terpilih — outlet, produk, dan metode
+          pembayaran yang sudah dipilih saat order dibuat.
+        </Typography>
+        {tplOrders.length ? tplOrders.map((o) => (
+          <Card key={o.id} elevation={0} onClick={() => applyFromOrder(o)}
+            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{o.no}</Typography>
+                <StatusChip kind="order" status={o.status} />
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block">
+                {outletName(o.outletId)} • {o.items.length} produk • {payShort(o)} • {o.date}
+              </Typography>
+              <Stack direction="row" justifyContent="flex-end" sx={{ mt: 0.5 }}>
+                <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        )) : <EmptyState message="Belum ada entry order yang bisa dijadikan template." />}
       </Stack>
     );
   }
@@ -490,6 +548,13 @@ export default function QuoteMobile() {
     <Stack spacing={1.5} sx={{ pb: 7 }}>
       <StepHeader title="Review Quotation" onBack={() => setDraft((d) => ({ ...d, step: 'items' }))} step={2} />
 
+        {!online && (
+          <Alert severity="info">
+            Anda sedang offline — dokumen quotation tetap dapat dibuat: seluruh data tersimpan
+            lokal di perangkat (dokumen digital, tidak memerlukan koneksi server).
+          </Alert>
+        )}
+
       <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
@@ -505,6 +570,7 @@ export default function QuoteMobile() {
             <TableBody>
               {draft.items.map((i) => {
                 const p = (db.products || []).find((x) => x.id === i.productId);
+                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
                 const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
                 return (
                   <TableRow key={i.productId}>

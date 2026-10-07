@@ -80,7 +80,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
         salesId: audit.salesId, categoryId: cid, status, note: audit.note || '',
       });
     }
-    toast('Klasifikasi tersimpan & terintegrasi dengan data Prospek (terhubung GPS Route Planning #70).', 'success');
+    toast('Klasifikasi tersimpan & terintegrasi dengan data Prospek.', 'success');
   };
 
   return (

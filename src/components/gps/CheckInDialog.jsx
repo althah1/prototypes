@@ -75,7 +75,7 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
   const pickSim = (id) => {
     if (id === 'near') return resolveWith({ lat: outlet.lat + 0.00025, lng: outlet.lng + 0.00018 });
     if (id === 'far') return resolveWith({ lat: outlet.lat + 0.0022, lng: outlet.lng - 0.0015 });
-    if (id === 'ooc') return resolveWith({ lat: (area.lat ?? -7.7) + 0.02, lng: (area.lng ?? 110.3) + 0.012 });
+    if (id === 'ooc') return resolveWith({ lat: (area.lat ?? -7.7) + 0.08, lng: (area.lng ?? 110.3) + 0.05 });
     if (!navigator.geolocation) return toast('Geolocation API tidak tersedia di browser ini.', 'error');
     navigator.geolocation.getCurrentPosition(
       (p) => resolveWith({ lat: p.coords.latitude, lng: p.coords.longitude }),
@@ -98,13 +98,18 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
         distM: Math.round(distArea), note: 'Check-in di luar batas wilayah kerja',
       });
     }
-    if (task && task.status === 'pending') update('tasks', task.id, { status: 'in_progress' });
+    /* F-20: aktifkan SEMUA tugas pending outlet ini hari ini (multi-tugas per outlet) */
+    (db.tasks || []).forEach((t) => {
+      if (t.salesId === user.salesId && t.outletId === outlet.id && t.date === todayISO() && t.status === 'pending') {
+        update('tasks', t.id, { status: 'in_progress' });
+      }
+    });
   };
 
   const commitSuccess = () => {
     setBusy(true);
     recordCheckIn('');
-    toast(`Check-In berhasil pada ${nowStamp()} WIB — jarak ${formatDistance(result.dist)}. Status tugas: Berlangsung.`, 'success');
+    toast(`Check-In berhasil pada ${nowStamp()} WIB — jarak ${formatDistance(result.dist)}${task ? '. Status tugas: Berlangsung.' : '.'}`, 'success');
     setTimeout(() => { onClose(); onDone && onDone(); }, 1300);
   };
 
@@ -169,7 +174,7 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
               <Button size="small" variant="outlined" startIcon={<WrongLocationRoundedIcon />}
                 onClick={() => pickSim('ooc')}
                 sx={{ justifyContent: 'flex-start', borderRadius: 2 }}>
-                Simulasi Luar Wilayah Kerja (± 2 km)
+                Simulasi Luar Wilayah Kerja (± 10 km)
               </Button>
             </Stack>
           </>

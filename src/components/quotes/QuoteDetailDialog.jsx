@@ -134,8 +134,8 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
   const convertToOrder = () => {
     if (quote.convertedOrderId) return; /* anti konversi ganda */
     const t = todayISO();
-    const kodeSales = (db.sales || []).find((s) => s.id === quote.salesId)?.nik || 'SFA';
-    const no = `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String((db.orders || []).filter((o) => o.date === t).length + 1).padStart(3, '0')}`;
+    const kodeSales = quote.salesId ? `SAL-${String(quote.salesId).padStart(3, '0')}` : 'SFA';
+    const no = `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String((db.orders || []).filter((o) => o.date === t && o.salesId === quote.salesId).length + (db.syncQueue || []).filter((x) => x.kind === 'order' && x.payload?.salesId === quote.salesId && x.payload?.date === t).length + 1).padStart(3, '0')}`;
     const order = {
       no, date: t, salesId: quote.salesId, outletId: quote.outletId,
       items: quote.items.map(({ productId, sku, name, unit, qty, price, disc, line, pcsPerUnit }) => (

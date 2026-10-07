@@ -177,7 +177,7 @@ export default function QuoteDesktop() {
       </TableContainer>
 
       <Alert severity="info" sx={{ mt: 2 }} icon={<LockRoundedIcon fontSize="small" />}>
-        Harga quotation = <b>snapshot saat dibuat</b> (price freeze #55) — perubahan Master Data tidak mengubah dokumen.
+        Harga quotation = <b>snapshot saat dibuat</b> (harga terkunci) — perubahan Master Data tidak mengubah dokumen.
         Quotation yang sudah dikonversi ke order <b>terkunci</b> dan tidak dapat dikonversi ulang.
       </Alert>
 
