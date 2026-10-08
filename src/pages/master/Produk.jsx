@@ -42,6 +42,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
 import StatusChip from '../../components/ui/StatusChip';
+import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { nowStamp, formatRupiah } from '../../utils/helpers';
@@ -80,6 +81,8 @@ const SectionLabel = ({ children }) => (
  * (gudang sama → 1 baris, stok diperbarui).
  */
 export default function ProdukPage() {
+  const { user } = useAuth();
+  const readOnly = user?.role === 'finance'; /* Finance: lihat saja */
   const { db, insert, update, mutate, remove } = useDb();
   const { toast } = useToast();
 
@@ -355,7 +358,7 @@ export default function ProdukPage() {
       <PageHeader
         title="Master Data — Produk"
         subtitle="Katalog produk & penempatan stok per gudang — 1 produk dapat menempati beberapa gudang."
-        action={(
+        action={!readOnly && (
           <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
             Tambah Produk
           </Button>
@@ -435,6 +438,7 @@ export default function ProdukPage() {
                     <Tooltip title="Detail data">
                       <IconButton size="small" onClick={() => setDetailRow(r)}><VisibilityRoundedIcon fontSize="small" /></IconButton>
                     </Tooltip>
+                    {!readOnly && (<>
                     <Tooltip title="Ubah data">
                       <IconButton size="small" onClick={() => openEditRow(r)}><EditRoundedIcon fontSize="small" /></IconButton>
                     </Tooltip>
@@ -449,6 +453,7 @@ export default function ProdukPage() {
                         <DeleteRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    </>)}
                   </Stack>
                 </TableCell>
               </TableRow>
@@ -489,7 +494,7 @@ export default function ProdukPage() {
             <SectionLabel>1 • Identitas Produk</SectionLabel>
             <TextField {...fieldProps('sku', 'Kode SKU *', 'Alfanumerik tanpa spasi, maks 30.')}
               onChange={(e) => onSkuChange(e.target.value)} inputProps={{ maxLength: 30 }} disabled={!!editing} />
-            <TextField {...fieldProps('name', 'Nama Produk *')} inputProps={{ maxLength: 100 }} />
+            <TextField {...fieldProps('name', 'Nama Produk *', 'Maksimal 100 karakter.')} inputProps={{ maxLength: 100 }} />
 
             <SectionLabel>2 • Klasifikasi & Satuan</SectionLabel>
             <TextField select {...fieldProps('category', 'Kategori *')}>
@@ -508,7 +513,7 @@ export default function ProdukPage() {
             <SectionLabel>3 • Harga</SectionLabel>
             <TextField {...fieldProps('hargaBeli', 'Harga Beli (Rp)', 'Harga perolehan dari supplier — opsional.')}
               type="number" inputProps={{ min: 0 }} />
-            <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *', 'Dipakai transaksi Order & Quotation.')}
+            <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *', 'Dipakai transaksi Order & Quotation — angka bulat, minimal 1.')}
               type="number" inputProps={{ min: 1 }} />
 
             <SectionLabel>4 • Penempatan Stok</SectionLabel>
@@ -528,7 +533,7 @@ export default function ProdukPage() {
               type="number" disabled={values.gudangId === ''} inputProps={{ min: 0 }} />
 
             <SectionLabel>5 • Lainnya</SectionLabel>
-            <TextField {...fieldProps('desc', 'Deskripsi')} multiline minRows={2} inputProps={{ maxLength: 200 }} />
+            <TextField {...fieldProps('desc', 'Deskripsi', 'Maksimal 200 karakter.')} multiline minRows={2} inputProps={{ maxLength: 200 }} />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -590,7 +595,7 @@ export default function ProdukPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDetailRow(null)}>Tutup</Button>
-          {detailRow && (
+          {detailRow && !readOnly && (
             <Button variant="contained" startIcon={<EditRoundedIcon />}
               onClick={() => { const r = detailRow; setDetailRow(null); openEditRow(r); }}>
               Ubah Data

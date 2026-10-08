@@ -33,6 +33,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusChip from '../../components/ui/StatusChip';
 import { nowStamp, formatRupiah } from '../../utils/helpers';
 import { restoreStockByOrder } from '../../utils/gudangUtils';
+import { buildInvoiceFromOrder, genInvoiceNo, findInvoiceByOrder } from '../../utils/invoiceUtils';
 
 const STATUS_LABEL = {
   submitted: 'Diajukan', approved: 'Disetujui', processing: 'Diproses',
@@ -57,7 +58,7 @@ const KV = ({ label, value }) => (
  */
 export default function OrderDetailDialog({ open, orderId, onClose, canApprove = false }) {
   const { user } = useAuth();
-  const { db, update, mutate } = useDb();
+  const { db, update, mutate, insert } = useDb();
   const { toast } = useToast();
   const { notify } = useSync();
 
@@ -101,8 +102,19 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   /* ---------- Aksi Supervisor ---------- */
   const approveOrder = () => {
     update('orders', order.id, { status: 'approved', approvedBy: user.name, approvedAt: nowStamp() });
-    if (salesUser) notify(salesUser.id, 'Order Disetujui', `${order.no} disetujui Supervisor — siap diproses.`);
-    toast('Order disetujui.', 'success');
+
+    /* Langkah 1 alur tim: invoice terbit OTOMATIS saat transaksi disetujui (BR-INV-001/002) */
+    let invNo = null;
+    if (!findInvoiceByOrder(db, order.id)) {
+      const inv = buildInvoiceFromOrder(order);
+      inv.no = genInvoiceNo(db);
+      inv.createdAt = nowStamp();
+      insert('invoices', inv);
+      invNo = inv.no;
+    }
+    if (salesUser) notify(salesUser.id, 'Order Disetujui',
+      `${order.no} disetujui Supervisor${invNo ? ` — invoice ${invNo} terbit` : ''}.`);
+    toast(invNo ? `Order disetujui — invoice ${invNo} terbit otomatis.` : 'Order disetujui.', 'success');
   };
 
   const submitReject = () => {
@@ -119,6 +131,9 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   const cancelOrder = () => {
     update('orders', order.id, { status: 'cancelled', cancelledBy: user.name, cancelledAt: nowStamp() });
     restoreStockByOrder(mutate, order.items); /* F-41: kembalikan stok ke gudang */
+    /* Order dibatalkan setelah approved → invoice ikut Dibatalkan (FSD 4.8) */
+    const inv = findInvoiceByOrder(db, order.id);
+    if (inv) update('invoices', inv.id, { status: 'dibatalkan', cancelledAt: nowStamp() });
     if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor.`);
     toast('Order dibatalkan (hanya Supervisor, status Submitted/Approved).', 'warning');
     setConfirmCancel(false);

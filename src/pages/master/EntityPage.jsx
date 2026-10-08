@@ -50,6 +50,7 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { MASTER_CONFIG } from './masterConfig';
 import ProdukPage from './Produk';
+import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -122,6 +123,8 @@ export default function EntityPage({ slug }) {
 
 function EntityPageInner({ slug }) {
   const cfg = MASTER_CONFIG[slug];
+  const { user } = useAuth();
+  const readOnly = user?.role === 'finance'; /* Finance: Data Acuan — lihat saja (matriks R) */
   const { db, insert, update, mutate, remove } = useDb();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -416,12 +419,30 @@ function EntityPageInner({ slug }) {
   };
 
   /* ---------- Render field form ---------- */
+  /* Penjelasan syarat isi — diturunkan otomatis dari aturan validasi field
+     (format angka/huruf, panjang maksimal, format email, rentang angka)
+     supaya pengguna tahu ketentuannya SEBELUM terjadi kesalahan. */
+  const fieldHint = (f) => {
+    if (['select', 'multiSelect', 'file', 'gudangAlloc'].includes(f.type)) return '';
+    const parts = [];
+    if (f.email) parts.push('Format email, contoh: nama@perusahaan.com.');
+    if (f.patternMsg) parts.push(f.patternMsg);
+    if (f.type === 'number') {
+      if (f.min != null && f.max != null) parts.push(`Isi angka ${f.min}–${f.max}.`);
+      else if (f.min != null) parts.push(`Isi angka minimal ${f.min}.`);
+      if (f.notZero) parts.push('Tidak boleh 0.');
+    } else if (f.max && !f.patternMsg) {
+      parts.push(`Maksimal ${f.max} karakter.`);
+    }
+    return parts.join(' ');
+  };
+
   const fieldProps = (f) => ({
     label: `${f.l}${f.required ? ' *' : ''}`,
     value: values[f.k] ?? '',
     onChange: (e) => setVal(f.k, e.target.value),
     error: !!errors[f.k],
-    helperText: errors[f.k] || f.hint || ' ',
+    helperText: errors[f.k] || [f.hint, fieldHint(f)].filter(Boolean).join(' ') || ' ',
   });
 
   const renderField = (f) => {
@@ -655,7 +676,7 @@ function EntityPageInner({ slug }) {
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setDetailRow(null)}>Tutup</Button>
-        {detailRow && (
+        {detailRow && !readOnly && (
           <Button variant="contained" startIcon={<EditRoundedIcon />}
             onClick={() => { const rec = detailRow; setDetailRow(null); openEdit(rec); }}>
             Ubah Data
@@ -718,7 +739,7 @@ function EntityPageInner({ slug }) {
         <PageHeader
           title={cfg.title}
           subtitle={cfg.sub}
-          action={rec && (
+          action={rec && !readOnly && (
             <Button variant="contained" startIcon={<EditRoundedIcon />} onClick={() => openEdit(rec)}>
               Ubah Profil
             </Button>
@@ -775,7 +796,7 @@ function EntityPageInner({ slug }) {
       <PageHeader
         title={cfg.title}
         subtitle={cfg.sub}
-        action={(
+        action={!readOnly && (
           <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
             Tambah {cfg.addLabel}
           </Button>
@@ -831,6 +852,7 @@ function EntityPageInner({ slug }) {
                         <VisibilityRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    {!readOnly && (<>
                     <Tooltip title="Ubah data">
                       <IconButton size="small" onClick={() => openEdit(r)}><EditRoundedIcon fontSize="small" /></IconButton>
                     </Tooltip>
@@ -844,6 +866,7 @@ function EntityPageInner({ slug }) {
                         <DeleteRoundedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    </>)}
                   </Stack>
                 </TableCell>
               </TableRow>

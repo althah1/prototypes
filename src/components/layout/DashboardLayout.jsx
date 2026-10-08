@@ -39,40 +39,42 @@ import { initials, dateID, todayISO } from '../../utils/helpers';
 
 const ALL = ['admin', 'supervisor', 'finance'];
 
-/* Sidebar mengikuti matriks RBAC (kriteria #5) + urutan master data BARU */
+/* Sidebar = alur kerja per peran (matriks RBAC + keputusan tim).
+   Finance: rumahnya Billing (financeOrder 1) → Data Acuan (lihat saja)
+   → Referensi → Profil — urutan atas-ke-bawah = urutan kerja harian. */
 const GROUPS = [
   { label: 'Utama', items: [
-    { path: '/dashboard', label: 'Dashboard', icon: DashboardRoundedIcon, roles: ALL },
+    { path: '/dashboard', label: 'Dashboard', icon: DashboardRoundedIcon, roles: ['admin', 'supervisor'] },
   ]},
   /* Master Data — alur setup: identitas → wilayah → struktur orang → tujuan →
-     barang (gudang → produk → supplier) → konfigurasi operasional */
-  { label: 'Master Data', items: [
-    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ['admin', 'supervisor'] },
+     barang (gudang → produk → supplier) → konfigurasi operasional.
+     Finance hanya melima Data Acuan (Bank, Outlet, Sales, Produk, Perusahaan). */
+  { label: 'Master Data', financeLabel: 'Data Acuan (Lihat Saja)', financeOrder: 2, items: [
+    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor', 'finance'] },
+    { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ['admin', 'supervisor', 'finance'] },
     { path: '/dashboard/master/area-kerja',       label: 'Area Kerja',       icon: MapRoundedIcon,               roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/supervisor',       label: 'Supervisor',       icon: SupervisorAccountRoundedIcon, roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor', 'finance'] },
+    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor', 'finance'] },
     { path: '/dashboard/master/gudang',           label: 'Gudang',           icon: WarehouseRoundedIcon,         roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor', 'finance'] },
     { path: '/dashboard/master/supplier',         label: 'Supplier',         icon: LocalShippingRoundedIcon,     roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/kategori-prospek', label: 'Kategori Prospek', icon: TrackChangesRoundedIcon,      roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/tugas',            label: 'Jenis Tugas',      icon: AssignmentRoundedIcon,        roles: ['admin', 'supervisor'] },
   ]},
-  /* Operasional — alur harian: jadwal → eksekusi (penawaran → pesanan → audit →
-     prospek) → pengawasan */
-  { label: 'Operasional', items: [
-    { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor', 'finance'] },
+  /* Operasional — alur harian supervisor. Finance hanya Entry Order (R). */
+  { label: 'Operasional', financeLabel: 'Referensi (Lihat Saja)', financeOrder: 3, items: [
+    { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor'] },
     { path: '/dashboard/quotations', label: 'Quotation',             icon: DescriptionRoundedIcon,    roles: ['supervisor', 'admin'] },
     { path: '/dashboard/orders',     label: 'Entry Order',           icon: ReceiptLongRoundedIcon,    roles: ['supervisor', 'admin', 'finance'] },
     { path: '/dashboard/audit',      label: 'Audit & Survey',        icon: FactCheckRoundedIcon,      roles: ['supervisor'] },
     { path: '/dashboard/prospek',    label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
     { path: '/dashboard/gps',        label: 'GPS Monitoring',        icon: LocationOnRoundedIcon,     roles: ['supervisor', 'admin'] },
   ]},
-  { label: 'Keuangan', items: [
+  { label: 'Keuangan', financeOrder: 1, items: [
     { path: '/dashboard/billing', label: 'Billing', icon: PaymentsRoundedIcon, roles: ALL },
   ]},
-  { label: 'Lainnya', items: [
+  { label: 'Lainnya', financeOrder: 4, items: [
     { path: '/dashboard/profile', label: 'Profil Pengguna', icon: PersonRoundedIcon, roles: ALL },
   ]},
 ];
@@ -104,6 +106,11 @@ export default function DashboardLayout() {
 
   const roleLabel = { admin: 'Administrator', supervisor: 'Supervisor', finance: 'Finance' }[user.role] || user.role;
 
+  /* Finance: urutan kelompok mengikuti alur kerjanya — Billing paling atas */
+  const groups = user.role === 'finance'
+    ? [...GROUPS].sort((a, b) => (a.financeOrder ?? 99) - (b.financeOrder ?? 99))
+    : GROUPS;
+
   return (
     <Box sx={{ display: 'flex' }}>
       {/* ===== Sidebar ===== */}
@@ -124,13 +131,14 @@ export default function DashboardLayout() {
           </Box>
 
           <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.25, py: 1 }}>
-            {GROUPS.map((g) => {
+            {groups.map((g) => {
               const items = g.items.filter((i) => i.roles.includes(user.role));
               if (!items.length) return null;
+              const groupLabel = user.role === 'finance' && g.financeLabel ? g.financeLabel : g.label;
               return (
                 <Box key={g.label} sx={{ mb: 1 }}>
                   <Typography variant="overline" sx={{ px: 1.25, display: 'block', lineHeight: 2, color: 'text.secondary', fontWeight: 800 }}>
-                    {g.label}
+                    {groupLabel}
                   </Typography>
                   <List dense disablePadding>
                     {items.map((item) => (

@@ -59,7 +59,7 @@ export const MASTER_CONFIG = {
         hint: 'Sesuai kartu NPWP perusahaan.' },
       { k: 'address', l: 'Alamat', type: 'textarea', required: true, max: 200 },
       { k: 'phone', l: 'Nomor Kontak', type: 'text', max: 16, pattern: TELP_RE,
-        patternMsg: 'Nomor tidak valid — 8–14 digit angka, boleh 1 tanda hubung (contoh: 0274-555123).' },
+        patternMsg: 'Nomor Kontak harus 8–14 digit angka, boleh 1 tanda hubung (contoh: 0274-555123).' },
       { k: 'email', l: 'Email Resmi', type: 'text', required: true, email: true, max: 100 },
       { k: 'logo', l: 'Logo (.JPG/.PNG maks 2 MB)', type: 'file' },
     ],

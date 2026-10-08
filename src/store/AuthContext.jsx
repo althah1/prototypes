@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
     return { ok: true };
   };
 
-  const homePath = (role) => (role === 'sales' ? '/app' : '/dashboard');
+  const homePath = (role) => (role === 'sales' ? '/app' : role === 'finance' ? '/dashboard/billing' : '/dashboard');
 
   return (
     <AuthContext.Provider value={{ user, login, logout, requestOtp, verifyOtp, resetPassword, homePath, consumeLogoutReason }}>
