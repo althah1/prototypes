@@ -167,7 +167,7 @@ export default function Prospek() {
   </Stack>
 </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -206,7 +206,7 @@ export default function Prospek() {
       {/* Dialog Atur PIC */}
       <Dialog open={!!picId} onClose={() => setPicId(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Atur PIC Sales — {(db.prospects || []).find((p) => p.id === picId)?.name}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <TextField select label="Sales Penanggung Jawab" value={picSales} onChange={(e) => setPicSales(e.target.value)} fullWidth>
             {(db.sales || []).filter((s) => s.status === 'active').map((s) => (
               <MenuItem key={s.id} value={String(s.id)}>{s.name} — {areaName(s.areaId)}</MenuItem>
@@ -222,7 +222,7 @@ export default function Prospek() {
       {/* Dialog Tambah Prospek */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Tambah Prospek Baru</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <Stack spacing={2}>
             <TextField label="Nama Prospek / Toko *" value={form.name}
               onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setFormErr((p) => ({ ...p, name: '' })); }}

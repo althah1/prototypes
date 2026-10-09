@@ -59,7 +59,7 @@ export default function Profile() {
     <Stack spacing={2} sx={{ maxWidth: isMobile ? 'none' : 560 }}>
       <Typography variant="h6" fontWeight={800}>Profil Saya</Typography>
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 2 }}>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 64, height: 64, fontSize: 24, fontWeight: 800 }}>

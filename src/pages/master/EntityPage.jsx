@@ -72,7 +72,7 @@ const KVRow = ({ label, value }) => (
       {label}
     </Typography>
     <Typography variant="body2" fontWeight={600}
-      sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.25, py: 0.85, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
+      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
       {value}
     </Typography>
   </Stack>
@@ -124,7 +124,7 @@ export default function EntityPage({ slug }) {
 function EntityPageInner({ slug }) {
   const cfg = MASTER_CONFIG[slug];
   const { user } = useAuth();
-  const readOnly = user?.role === 'finance'; /* Finance: Data Acuan — lihat saja (matriks R) */
+  const readOnly = user?.role === 'finance'; /* Finance: seluruh Master Data = lihat saja (keputusan tim) */
   const { db, insert, update, mutate, remove } = useDb();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -442,7 +442,7 @@ function EntityPageInner({ slug }) {
     value: values[f.k] ?? '',
     onChange: (e) => setVal(f.k, e.target.value),
     error: !!errors[f.k],
-    helperText: errors[f.k] || [f.hint, fieldHint(f)].filter(Boolean).join(' ') || ' ',
+    helperText: errors[f.k] || f.hint || ' ',
   });
 
   const renderField = (f) => {
@@ -596,13 +596,14 @@ function EntityPageInner({ slug }) {
 
   /* ---------- Dialog form ---------- */
   const formDialog = (
-    <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>
+    <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 1 } }}>
       <DialogTitle>{editing ? `Ubah — ${cfg.title}` : `Tambah — ${cfg.title}`}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         {errors._form && <Alert severity="error" sx={{ mb: 2 }}>{errors._form}</Alert>}
         <Stack spacing={2}>{cfg.fields.map(renderField)}</Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ p: 2 }}>
         <Button onClick={() => setFormOpen(false)}>Batal</Button>
         {!editing && (
           <Button onClick={() => handleSubmit(true)} disabled={saving}>Simpan &amp; Tambah Lagi</Button>
@@ -638,7 +639,7 @@ function EntityPageInner({ slug }) {
 
   const detailDialog = (
     <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="sm" fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}>
+      PaperProps={{ sx: { borderRadius: 1 } }}>
       <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
         Detail {cfg.addLabel} — {detailRow ? labelOf(detailRow) : ''}
       </DialogTitle>
@@ -689,7 +690,7 @@ function EntityPageInner({ slug }) {
   /* ---------- Dialog HAPUS ---------- */
   const deleteDialog = (
     <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}>
+      PaperProps={{ sx: { borderRadius: 1 } }}>
       <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
         Hapus {cfg.addLabel} — {confirmDelete ? labelOf(confirmDelete) : ''}
       </DialogTitle>
@@ -748,7 +749,7 @@ function EntityPageInner({ slug }) {
         {!rec ? (
           <EmptyState message="Profil perusahaan belum diisi." />
         ) : (
-          <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+          <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent>
               <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
                 {rec.logo ? (
@@ -825,7 +826,7 @@ function EntityPageInner({ slug }) {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>

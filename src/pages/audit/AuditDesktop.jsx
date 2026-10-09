@@ -123,7 +123,7 @@ export default function AuditDesktop() {
   </Stack>
 </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>

@@ -38,7 +38,7 @@ function TaskCard({ t, outlet, onOpen }) {
   const Icon = meta.icon;
   return (
     <Card elevation={0} onClick={onOpen}
-      sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
       <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
         <Avatar variant="rounded"
           sx={{ bgcolor: `${meta.color}.main`, color: 'common.white', width: 42, height: 42, borderRadius: 2, flexShrink: 0 }}>
@@ -46,7 +46,7 @@ function TaskCard({ t, outlet, onOpen }) {
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-            <Typography fontWeight={700} fontSize={14} noWrap>{outlet.name || '-'}</Typography>
+            <Typography fontWeight={700} fontSize={13} noWrap>{outlet.name || '-'}</Typography>
             <StatusChip kind="task" status={t.status} />
           </Stack>
           <Typography variant="caption" color="text.secondary" noWrap display="block">

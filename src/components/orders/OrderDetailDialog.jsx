@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -19,6 +22,7 @@ import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
 import LocalShippingRoundedIcon from '@mui/icons-material/LocalShippingRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
@@ -43,18 +47,28 @@ const STATUS_LABEL = {
 /* component="div" pada nilai → chip/typography bersarang tidak memicu
    warning validateDOMNesting (div/p dalam <p>). */
 const KV = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" alignItems="center"
-    sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
-    <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600} component="div" sx={{ textAlign: 'right' }}>{value}</Typography>
+  <Stack sx={{ py: 0.5 }}>
+    <Typography variant="caption" color="text.secondary"
+      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4, display: 'block' }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600} component="div"
+      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', display: 'block' }}>
+      {value}
+    </Typography>
   </Stack>
 );
 
 /*
- * OrderDetailDialog — dipakai OrderDesktop (canApprove untuk Supervisor)
- * & OrderMobile (Sales: view-only). Admin/Finance View Only (RBAC #5).
- * Status bergerak linier maju; tolak saat Submitted; batalkan oleh
- * Supervisor saat Submitted/Approved. Pembayaran ditandai di modul Billing.
+ * OrderDetailDialog — dipakai OrderDesktop (canApprove Supervisor) & OrderMobile
+ * (Sales: view-only). Admin/Finance view-only. Status bergerak linier maju;
+ * tolak saat Submitted; batalkan Supervisor saat Submitted/Approved. Invoice
+ * terbit otomatis saat approval; stok dikembalikan saat tolak/batalkan.
+ *
+ * DESAIN RESPONSIF BERBASIS ROUTE (bukan ukuran layar): mobile (/app) menutup
+ * via tombol X di pojok judul (hemat ruang bawah untuk tombol aksi); desktop
+ * menutup via tombol Tutup di bawah (judul bersih). Deteksi route benar
+ * walau tampilan mobile dibuka di browser desktop.
  */
 export default function OrderDetailDialog({ open, orderId, onClose, canApprove = false }) {
   const { user } = useAuth();
@@ -67,6 +81,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   const [reason, setReason] = useState('');
   const [reasonErr, setReasonErr] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const isMobile = useLocation().pathname.startsWith('/app');
 
   const order = (db.orders || []).find((o) => o.id === orderId);
 
@@ -122,7 +137,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
     if (!v) { setReasonErr('Alasan penolakan wajib diisi.'); return; }
     if (v.length < 10) { setReasonErr('Alasan penolakan minimal 10 karakter.'); return; }
     update('orders', order.id, { status: 'rejected', rejectReason: v, decidedBy: user.name, decidedAt: nowStamp() });
-    restoreStockByOrder(mutate, order.items); /* F-41: kembalikan stok ke gudang */
+    restoreStockByOrder(mutate, order.items); /* stok dikembalikan ke gudang */
     if (salesUser) notify(salesUser.id, 'Order Ditolak', `${order.no} ditolak: ${v}`);
     toast('Order ditolak.', 'warning');
     setRejectOpen(false);
@@ -130,8 +145,8 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
 
   const cancelOrder = () => {
     update('orders', order.id, { status: 'cancelled', cancelledBy: user.name, cancelledAt: nowStamp() });
-    restoreStockByOrder(mutate, order.items); /* F-41: kembalikan stok ke gudang */
-    /* Order dibatalkan setelah approved → invoice ikut Dibatalkan (FSD 4.8) */
+    restoreStockByOrder(mutate, order.items); /* stok dikembalikan ke gudang */
+    /* Order dibatalkan setelah approved → invoice ikut Dibatalkan */
     const inv = findInvoiceByOrder(db, order.id);
     if (inv) update('invoices', inv.id, { status: 'dibatalkan', cancelledAt: nowStamp() });
     if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor.`);
@@ -150,10 +165,18 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Detail Order {order.no}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
+        PaperProps={{ sx: { borderRadius: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, pr: isMobile ? 6 : 3, position: 'relative' }}>
+          Detail Order {order.no}
+          {isMobile && (
+            <IconButton onClick={onClose} size="small" aria-label="Tutup"
+              sx={{ position: 'absolute', right: 12, top: 12 }}>
+              <CloseRoundedIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
+          <Stack spacing={0.5} sx={{ mb: 1.5 }}>
             <KV label="Tanggal" value={order.date} />
             <KV label="Sales" value={salesName} />
             <KV label="Outlet" value={outlet.name || '-'} />
@@ -167,7 +190,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
           </Stack>
 
           {order.status === 'submitted' && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
+            <Alert severity="warning" sx={{ mb: 1.5 }}>
               Menunggu persetujuan Supervisor — Admin &amp; Finance hanya dapat melihat.
             </Alert>
           )}
@@ -185,31 +208,26 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             </Alert>
           )}
 
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Produk</TableCell><TableCell align="right">Qty</TableCell>
-                <TableCell align="right">Harga</TableCell><TableCell align="center">Disc</TableCell>
-                <TableCell align="right">Jumlah</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {order.items.map((i) => (
-                <TableRow key={i.productId}>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>{i.name}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{i.sku}</Typography>
-                  </TableCell>
-                  <TableCell align="right">{i.qty} {i.unit}</TableCell>
-                  <TableCell align="right">{formatRupiah(i.price)}</TableCell>
-                  <TableCell align="center">{i.disc || 0}%</TableCell>
-                  <TableCell align="right"><b>{formatRupiah(i.line)}</b></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {/* Rincian item — gaya keranjang (konsisten dengan review mobile) */}
+          <Stack spacing={1}>
+            {order.items.map((i) => (
+              <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25 }}>
+                  {i.name}
+                </Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                    {i.qty} {i.unit} × {formatRupiah(i.price)}{(i.disc || 0) > 0 ? ` (disc ${i.disc}%)` : ''}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
+                    {formatRupiah(i.line)}
+                  </Typography>
+                </Stack>
+              </Box>
+            ))}
+          </Stack>
 
-          <Stack spacing={0.5} sx={{ mt: 2 }}>
+          <Stack spacing={0.5} sx={{ mt: 1.5 }}>
             <KV label="Subtotal" value={formatRupiah(order.subtotal)} />
             <KV label={`PPN ${taxPct}%`} value={formatRupiah(order.tax)} />
             <KV label="TOTAL" value={<Typography color="primary" fontWeight={800}>{formatRupiah(order.total)}</Typography>} />
@@ -223,8 +241,10 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
           </Alert>
         </DialogContent>
 
-        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Button onClick={onClose}>Tutup</Button>
+        <DialogActions sx={isMobile
+          ? { flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2 }
+          : { gap: 1, p: 2 }}>
+          {!isMobile && <Button onClick={onClose}>Tutup</Button>}
 
           {canApprove && order.status === 'submitted' && (
             <>
@@ -258,9 +278,9 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
 
       {/* Dialog alasan tolak order (Supervisor) */}
       <Dialog open={rejectOpen} onClose={() => setRejectOpen(false)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
+        PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle>Tolak Order — {order.no}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <TextField label="Alasan penolakan (wajib)" multiline minRows={2} value={reason}
             onChange={(e) => { setReason(e.target.value); setReasonErr(''); }}
             error={!!reasonErr} helperText={reasonErr || ' '}

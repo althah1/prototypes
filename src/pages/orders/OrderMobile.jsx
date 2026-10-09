@@ -53,7 +53,7 @@ const FILTERS = [
 const KV = ({ label, value }) => (
   <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.6 }}>
     <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600}>{value}</Typography>
+    <Typography variant="body2" fontWeight={600} sx={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{value}</Typography>
   </Stack>
 );
 
@@ -93,7 +93,7 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
     }}>
       <Box>
         <Typography fontWeight={800} fontSize={14}>{itemCount} item</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.9 }}>{formatRupiah(total)}</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap' }}>{formatRupiah(total)}</Typography>
       </Box>
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Typography fontWeight={700} fontSize={14}>{loading ? 'Menyimpan…' : actionLabel}</Typography>
@@ -250,18 +250,18 @@ export default function OrderMobile() {
 
         {orderList.length ? orderList.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => setDetailId(o.id)}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{o.no}</Typography>
+                <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{o.no}</Typography>
                 <StatusChip kind="order" status={o.status} />
               </Stack>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="caption" color="text.secondary" display="block" noWrap>
                 {outletName(o.outletId)} • {o.items.length} produk • {o.date}
               </Typography>
               <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">Total</Typography>
-                <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
+                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(o.total)}</Typography>
               </Stack>
             </CardContent>
           </Card>
@@ -271,9 +271,9 @@ export default function OrderMobile() {
 
         {/* Dialog sukses (#49: teruskan draft ke Quotation) */}
         <Dialog open={!!successOrder} onClose={() => setSuccessOrder(null)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: 3 } }}>
+          PaperProps={{ sx: { borderRadius: 1 } }}>
           <DialogTitle>Pesanan Tersimpan</DialogTitle>
-          <DialogContent dividers>
+          <DialogContent dividers sx={{ overflowX: 'hidden' }}>
             <Stack alignItems="center" spacing={1} sx={{ py: 1 }}>
               <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
                 <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
@@ -313,7 +313,7 @@ export default function OrderMobile() {
 
         {outlets.length ? outlets.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => ckOutlets.has(o.id) ? setDraft({ step: 'items', outletId: o.id, items: [] }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
                 <StorefrontRoundedIcon fontSize="small" />
@@ -336,7 +336,7 @@ export default function OrderMobile() {
       <Stack spacing={1.5} sx={{ pb: 7 }}>
         <StepHeader title="Pilih Produk" onBack={() => setDraft({ step: 'outlet', items: [] })} step={1} />
 
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Stack direction="row" spacing={1.25} alignItems="center">
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2, flexShrink: 0 }}>
@@ -362,7 +362,7 @@ export default function OrderMobile() {
           const short = qty > 0 && baseQty > p.stock; /* soft warning #41 */
           return (
             <Card key={p.id} elevation={0}
-              sx={{ borderRadius: 3, border: '1px solid', borderColor: qty > 0 ? 'primary.main' : 'divider' }}>
+              sx={{ borderRadius: 2, border: '1px solid', borderColor: qty > 0 ? 'primary.main' : 'divider' }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -415,49 +415,51 @@ export default function OrderMobile() {
     <Stack spacing={1.5} sx={{ pb: 7 }}>
       <StepHeader title="Review Pesanan" onBack={() => setDraft((d) => ({ ...d, step: 'items' }))} step={2} />
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             {outlet.address}
           </Typography>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Produk</TableCell><TableCell align="right">Qty</TableCell><TableCell align="right">Jumlah</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {draft.items.map((i) => {
-                const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
-                return (
-                  <TableRow key={i.productId}>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{p.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.hargaJual)} / {p.unit}</Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2">{i.qty} {p.unit}</Typography>
-                      {p.pcsPerUnit > 1 && (
-                        <Typography variant="caption" color="text.secondary" display="block">= {i.qty * p.pcsPerUnit} pcs</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right"><Typography variant="body2" fontWeight={700}>{formatRupiah(p.hargaJual * i.qty)}</Typography></TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <Stack spacing={0.5} sx={{ mt: 1.5 }}>
-            <KV label="Subtotal" value={formatRupiah(draftTotals.subtotal)} />
-            <KV label={`PPN ${Math.round(TAX_RATE * 100)}%`} value={formatRupiah(draftTotals.tax)} />
-            <KV label="TOTAL" value={<Typography color="primary" fontWeight={800}>{formatRupiah(draftTotals.total)}</Typography>} />
+          {/* Rincian item — gaya keranjang */}
+          <Stack spacing={1}>
+            {draft.items.map((i) => {
+              const p = (db.products || []).find((x) => x.id === i.productId);
+              return (
+                <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                  <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25 }}>
+                    {p.name}
+                  </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                      {i.qty} {p.unit} × {formatRupiah(p.hargaJual)}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
+                      {formatRupiah(p.hargaJual * i.qty)}
+                    </Typography>
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Stack>
+          <Stack spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftTotals.subtotal)}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" color="text.secondary">PPN {Math.round(TAX_RATE * 100)}%</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftTotals.tax)}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" fontWeight={800}>TOTAL</Typography>
+              <Typography variant="body2" fontWeight={800} color="primary" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftTotals.total)}</Typography>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <TextField label="Catatan (opsional, maks 255)" multiline minRows={2} value={note}
             onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }} />

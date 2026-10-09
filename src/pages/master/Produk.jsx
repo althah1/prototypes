@@ -401,7 +401,7 @@ export default function ProdukPage() {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -549,7 +549,7 @@ export default function ProdukPage() {
 
       {/* ===== Dialog Detail ===== */}
       <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
+        PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
           Detail Produk — {detailRow ? detailRow.name : ''}
         </DialogTitle>
@@ -606,7 +606,7 @@ export default function ProdukPage() {
 
       {/* ===== Dialog Hapus ===== */}
       <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
+        PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
           Hapus — {delRow ? (delRow.placed ? `Penempatan ${delRow.sku} di ${delRow.gudangCode}` : `Produk ${delRow.sku}`) : ''}
         </DialogTitle>

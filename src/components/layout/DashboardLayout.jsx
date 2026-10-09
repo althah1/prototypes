@@ -39,31 +39,27 @@ import { initials, dateID, todayISO } from '../../utils/helpers';
 
 const ALL = ['admin', 'supervisor', 'finance'];
 
-/* Sidebar = alur kerja per peran (matriks RBAC + keputusan tim).
-   Finance: rumahnya Billing (financeOrder 1) → Data Acuan (lihat saja)
-   → Referensi → Profil — urutan atas-ke-bawah = urutan kerja harian. */
+/* Sidebar = alur kerja per peran. Finance: fokus di Billing (rumah kerja),
+   kelola Bank (rekening perusahaan), profil. Tanpa menu acuan yang memenuhi
+   sidebar — data acuan tampil otomatis di detail invoice. */
 const GROUPS = [
   { label: 'Utama', items: [
     { path: '/dashboard', label: 'Dashboard', icon: DashboardRoundedIcon, roles: ['admin', 'supervisor'] },
   ]},
-  /* Master Data — alur setup: identitas → wilayah → struktur orang → tujuan →
-     barang (gudang → produk → supplier) → konfigurasi operasional.
-     Finance hanya melima Data Acuan (Bank, Outlet, Sales, Produk, Perusahaan). */
-  { label: 'Master Data', financeLabel: 'Data Acuan (Lihat Saja)', financeOrder: 2, items: [
-    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor', 'finance'] },
+  { label: 'Master Data', financeOrder: 2, items: [
+    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ['admin', 'supervisor', 'finance'] },
     { path: '/dashboard/master/area-kerja',       label: 'Area Kerja',       icon: MapRoundedIcon,               roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/supervisor',       label: 'Supervisor',       icon: SupervisorAccountRoundedIcon, roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor', 'finance'] },
-    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor', 'finance'] },
+    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/gudang',           label: 'Gudang',           icon: WarehouseRoundedIcon,         roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor', 'finance'] },
+    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/supplier',         label: 'Supplier',         icon: LocalShippingRoundedIcon,     roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/kategori-prospek', label: 'Kategori Prospek', icon: TrackChangesRoundedIcon,      roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/tugas',            label: 'Jenis Tugas',      icon: AssignmentRoundedIcon,        roles: ['admin', 'supervisor'] },
   ]},
-  /* Operasional — alur harian supervisor. Finance hanya Entry Order (R). */
-  { label: 'Operasional', financeLabel: 'Referensi (Lihat Saja)', financeOrder: 3, items: [
+  { label: 'Operasional', financeLabel: 'Referensi (Lihat)', financeOrder: 3, items: [
     { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor'] },
     { path: '/dashboard/quotations', label: 'Quotation',             icon: DescriptionRoundedIcon,    roles: ['supervisor', 'admin'] },
     { path: '/dashboard/orders',     label: 'Entry Order',           icon: ReceiptLongRoundedIcon,    roles: ['supervisor', 'admin', 'finance'] },
@@ -72,20 +68,19 @@ const GROUPS = [
     { path: '/dashboard/gps',        label: 'GPS Monitoring',        icon: LocationOnRoundedIcon,     roles: ['supervisor', 'admin'] },
   ]},
   { label: 'Keuangan', financeOrder: 1, items: [
-    { path: '/dashboard/billing', label: 'Billing', icon: PaymentsRoundedIcon, roles: ALL },
+    { path: '/dashboard/billing', label: 'Billing / Invoice', icon: PaymentsRoundedIcon, roles: ALL },
   ]},
   { label: 'Lainnya', financeOrder: 4, items: [
     { path: '/dashboard/profile', label: 'Profil Pengguna', icon: PersonRoundedIcon, roles: ALL },
   ]},
 ];
 
-const IDLE_MS = 60 * 60 * 1000; /* BR-A03: sesi dashboard berakhir setelah 60 menit idle */
+const IDLE_MS = 60 * 60 * 1000;
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
 
-  /* Idle timeout — reset timer pada setiap aktivitas (mouse/keyboard/klik/scroll) */
   useEffect(() => {
     let t;
     const reset = () => {
@@ -106,14 +101,13 @@ export default function DashboardLayout() {
 
   const roleLabel = { admin: 'Administrator', supervisor: 'Supervisor', finance: 'Finance' }[user.role] || user.role;
 
-  /* Finance: urutan kelompok mengikuti alur kerjanya — Billing paling atas */
+  /* Finance: Billing paling atas — urutan alur kerja */
   const groups = user.role === 'finance'
     ? [...GROUPS].sort((a, b) => (a.financeOrder ?? 99) - (b.financeOrder ?? 99))
     : GROUPS;
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* ===== Sidebar ===== */}
       <Drawer
         variant="permanent"
         sx={{
@@ -134,11 +128,10 @@ export default function DashboardLayout() {
             {groups.map((g) => {
               const items = g.items.filter((i) => i.roles.includes(user.role));
               if (!items.length) return null;
-              const groupLabel = user.role === 'finance' && g.financeLabel ? g.financeLabel : g.label;
               return (
                 <Box key={g.label} sx={{ mb: 1 }}>
                   <Typography variant="overline" sx={{ px: 1.25, display: 'block', lineHeight: 2, color: 'text.secondary', fontWeight: 800 }}>
-                    {groupLabel}
+                    {user.role === 'finance' && g.financeLabel ? g.financeLabel : g.label}
                   </Typography>
                   <List dense disablePadding>
                     {items.map((item) => (
@@ -174,7 +167,6 @@ export default function DashboardLayout() {
         </Box>
       </Drawer>
 
-      {/* ===== Area utama ===== */}
       <Box sx={{ flexGrow: 1, minWidth: 0, height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <AppBar position="static" color="inherit" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Toolbar sx={{ gap: 2 }}>

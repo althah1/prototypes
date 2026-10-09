@@ -191,7 +191,7 @@ export default function AuditMobile() {
             Mulai Audit
           </Button>
         </Stack>
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Typography variant="body2" color="text.secondary">
               Formulir digital: checklist kondisi toko, stock-take aktual, dan foto bukti (kamera langsung).
@@ -201,7 +201,7 @@ export default function AuditMobile() {
         </Card>
         {myAudits.length ? myAudits.map((a) => (
           <Card key={a.id} elevation={0} onClick={() => setDetailId(a.id)}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography fontWeight={700} fontSize={14}>{outletName(a.outletId)}</Typography>
@@ -236,7 +236,7 @@ export default function AuditMobile() {
             <Card key={o.id} elevation={0}
               onClick={() => (done ? setDetailId(done.id) : (ckOutlets.has(o.id) ? setDraft({ step: 'form', outletId: o.id, scores: {}, stocks: {}, photos: [], note: '' }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')))}
               sx={{
-                cursor: 'pointer', borderRadius: 3,
+                cursor: 'pointer', borderRadius: 2,
                 border: '1px solid', borderColor: 'divider', opacity: done ? 0.75 : 1,
               }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
@@ -290,7 +290,7 @@ export default function AuditMobile() {
       )}
 
       {/* 1 — Checklist */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader title={`1 · Checklist Kondisi & Kebersihan — ${answeredCount}/${CHECKLIST_ITEMS.length}`}
           titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
@@ -312,7 +312,7 @@ export default function AuditMobile() {
       </Card>
 
       {/* 2 — Stock take */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader title={`2 · Stock-Take (Stok Aktual di Toko)`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -354,7 +354,7 @@ export default function AuditMobile() {
       </Card>
 
       {/* 3 — Foto bukti */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3`}
           titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
@@ -385,7 +385,7 @@ export default function AuditMobile() {
       </Card>
 
       {/* 4 — Catatan */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader title="4 · Catatan Kendala (maks 500)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <TextField label="mis. toko tutup sementara / POSM usai" multiline minRows={2}

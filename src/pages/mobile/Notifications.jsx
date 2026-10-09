@@ -59,7 +59,7 @@ export default function Notifications() {
         return (
           <Card key={n.id} elevation={0}
             sx={{
-              borderRadius: 3, border: '1px solid', borderColor: 'divider',
+              borderRadius: 2, border: '1px solid', borderColor: 'divider',
               borderLeft: isNew ? '3px solid' : '1px solid',
               borderLeftColor: isNew ? 'primary.main' : 'divider',
             }}>

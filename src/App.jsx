@@ -45,7 +45,7 @@ export default function App() {
         <ToastProvider>
           <SyncProvider>
             <Routes>
-              {/* ===== Publik (belum login) ===== */}
+              {/* ===== Publik ===== */}
               <Route element={<GuestOnly />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -53,31 +53,32 @@ export default function App() {
                 <Route path="/reset-password" element={<ResetPassword />} />
               </Route>
 
-              {/* ===== Web Dashboard — Admin / Supervisor / Finance ===== */}
+              {/* ===== Web Dashboard ===== */}
               <Route element={<RequireRole roles={['admin', 'supervisor', 'finance']} />}>
                 <Route path="/dashboard" element={<DashboardLayout />}>
 
-                  {/* Boleh untuk Finance: Billing (rumahnya), Data Acuan, Entry Order, Profil */}
+                  {/* Finance: Billing (rumah kerja), Bank (read-only), Profile */}
                   <Route path="billing" element={<Billing />} />
+                  <Route path="master/bank" element={<EntityPage key="bank" slug="bank" />} />
                   <Route path="orders" element={<OrderDesktop />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="master/perusahaan" element={<EntityPage key="perusahaan" slug="perusahaan" />} />
-                  <Route path="master/bank" element={<EntityPage key="bank" slug="bank" />} />
-                  <Route path="master/outlet" element={<EntityPage key="outlet" slug="outlet" />} />
-                  <Route path="master/sales" element={<EntityPage key="sales" slug="sales" />} />
-                  <Route path="master/produk" element={<EntityPage key="produk" slug="produk" />} />
 
-                  {/* Khusus Admin & Supervisor — Finance ditolak → dialihkan ke Billing */}
+                  {/* Khusus Admin & Supervisor */}
                   <Route element={<RequireRole roles={['admin', 'supervisor']} />}>
                     <Route index element={<Dashboard />} />
+                    <Route path="master/perusahaan" element={<EntityPage key="perusahaan" slug="perusahaan" />} />
                     <Route path="master/area-kerja" element={<EntityPage key="area-kerja" slug="area-kerja" />} />
                     <Route path="master/supervisor" element={<EntityPage key="supervisor" slug="supervisor" />} />
+                    <Route path="master/sales" element={<EntityPage key="sales" slug="sales" />} />
+                    <Route path="master/outlet" element={<EntityPage key="outlet" slug="outlet" />} />
                     <Route path="master/gudang" element={<EntityPage key="gudang" slug="gudang" />} />
                     <Route path="master/gudang/:id" element={<GudangDetail />} />
+                    <Route path="master/produk" element={<EntityPage key="produk" slug="produk" />} />
                     <Route path="master/supplier" element={<EntityPage key="supplier" slug="supplier" />} />
                     <Route path="master/kategori-prospek" element={<EntityPage key="kategori-prospek" slug="kategori-prospek" />} />
                     <Route path="master/tugas" element={<EntityPage key="tugas" slug="tugas" />} />
                     <Route path="tasks" element={<TaskDesktop />} />
+                    <Route path="orders" element={<OrderDesktop />} />
                     <Route path="quotations" element={<QuoteDesktop />} />
                     <Route path="audit" element={<AuditDesktop />} />
                     <Route path="prospek" element={<Prospek />} />

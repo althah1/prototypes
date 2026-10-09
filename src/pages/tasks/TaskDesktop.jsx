@@ -115,7 +115,7 @@ function CreateScheduleDialog({ open, onClose }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Buat Jadwal Tugas</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         <Stack spacing={2}>
           <TextField select label="Sales (bawahan) *" value={salesId}
             onChange={(e) => { setSalesId(e.target.value); setOutletIds([]); setErrors((p) => ({ ...p, salesId: '' })); }}
@@ -195,7 +195,7 @@ function EditTaskDialog({ open, task, onClose }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Ubah Jadwal Tugas</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         <Stack spacing={2}>
           <TextField type="date" label="Tanggal Tugas *" value={date} InputLabelProps={{ shrink: true }}
             onChange={(e) => { setDate(e.target.value); setErr(''); }} inputProps={{ min: todayISO() }} />
@@ -311,7 +311,7 @@ export default function TaskDesktop() {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>

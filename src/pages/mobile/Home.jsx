@@ -108,7 +108,7 @@ export default function Home() {
       )}
 
       {/* ===== Kartu progres hari ini (hero) ===== */}
-      <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+      <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
           <Stack direction="row" alignItems="center" spacing={2}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -165,7 +165,7 @@ export default function Home() {
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
         {QUICK.map((q) => (
           <Card key={q.path} elevation={0} onClick={() => navigate(q.path)}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Avatar variant="rounded" sx={{ bgcolor: `${q.color}.main`, borderRadius: 2, width: 40, height: 40 }}>
                 <q.icon sx={{ color: 'common.white' }} fontSize="small" />
@@ -184,7 +184,7 @@ export default function Home() {
       </Stack>
       {tasks.length ? tasks.slice(0, 3).map((t) => (
         <Card key={t.id} elevation={0} onClick={() => navigate(`/app/tasks/${t.id}`)}
-          sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+          sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography fontWeight={700} fontSize={14} noWrap>{outletOf(t.outletId).name}</Typography>
@@ -203,14 +203,14 @@ export default function Home() {
         <Chip size="small" variant="outlined" label={`${ordersToday.length} order hari ini`} />
       </Stack>
       {recentOrders.length ? recentOrders.map((o) => (
-        <Card key={o.id} elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card key={o.id} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
             <Box>
-              <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{o.no}</Typography>
+              <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{o.no}</Typography>
               <Typography variant="caption" color="text.secondary">{outletOf(o.outletId).name} • {o.date}</Typography>
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
+              <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(o.total)}</Typography>
               <StatusChip kind="order" status={o.status} />
             </Stack>
           </CardContent>

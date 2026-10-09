@@ -41,9 +41,15 @@ import { openInvoicePdf, shareInvoiceWhatsApp } from '../../utils/invoicePdf';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 
 const KV = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
-    <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600}>{value}</Typography>
+  <Stack sx={{ py: 0.5 }}>
+    <Typography variant="caption" color="text.secondary"
+      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4, display: 'block' }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600}
+      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', display: 'block' }}>
+      {value}
+    </Typography>
   </Stack>
 );
 
@@ -211,7 +217,7 @@ export default function Billing() {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -231,7 +237,7 @@ export default function Billing() {
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{i.date}</TableCell>
                 <TableCell>{outletName(i.outletId)}</TableCell>
                 <TableCell>{salesName(i.salesId)}</TableCell>
-                <TableCell align="right"><b>{formatRupiah(i.total)}</b></TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}><b>{formatRupiah(i.total)}</b></TableCell>
                 <TableCell>{syaratLabel(i)}</TableCell>
                 <TableCell>
                   <Typography variant="caption" fontWeight={700} color={i.status === 'lunas' ? 'success.main' : paidOf(i) > 0 ? 'info.main' : 'text.secondary'}>
@@ -244,6 +250,8 @@ export default function Billing() {
                       <StatusChip kind="paid" status="yes" />
                     ) : i.status === 'dibatalkan' ? (
                       <Chip size="small" variant="outlined" label="Dibatalkan" />
+                    ) : paidOf(i) > 0 ? (
+                      <Chip size="small" color="warning" label="Belum Lunas" />
                     ) : (
                       <StatusChip kind="paid" status="no" />
                     )}
@@ -253,7 +261,7 @@ export default function Billing() {
                 <TableCell align="right">
                   {i.status === 'belum_lunas' && isFinance ? (
                     <Button size="small" variant="contained" color="success" onClick={() => setPayId(i.id)}>
-                      {i.metodePembayaran === 'cicilan' ? 'Bayar Angsuran' : 'Catat Pembayaran'}
+                      {i.metodePembayaran === 'cicilan' ? 'Angsuran' : 'Payment'}
                     </Button>
                   ) : '—'}
                 </TableCell>
@@ -266,9 +274,10 @@ export default function Billing() {
       </TableContainer>
 
       {/* ===== Dialog: catat pembayaran / bayar angsuran ===== */}
-      <Dialog open={!!payId} onClose={() => setPayId(null)} maxWidth={payInvoice?.metodePembayaran === 'cicilan' ? 'sm' : 'xs'} fullWidth>
+      <Dialog open={!!payId} onClose={() => setPayId(null)} maxWidth={payInvoice?.metodePembayaran === 'cicilan' ? 'sm' : 'xs'} fullWidth
+        PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle>Catat Pembayaran — {payInvoice?.no}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <KV label="Total Tagihan" value={formatRupiah(payInvoice?.total || 0)} />
           <KV label="Syarat (dari Quotation)" value={syaratLabel(payInvoice)} />
           <KV label="Order Sumber" value={payInvoice?.orderNo || '-'} />
@@ -281,7 +290,7 @@ export default function Billing() {
               <Typography variant="subtitle2" fontWeight={700}>Jadwal Angsuran</Typography>
               {payInvoice.installments.map((a) => (
                 <Card key={a.ke} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: a.status === 'lunas' ? 'success.main' : 'divider' }}>
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 }, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Typography fontWeight={700} fontSize={13}>Angsuran {a.ke}</Typography>
@@ -350,7 +359,7 @@ export default function Billing() {
 
       {/* ===== Dialog Detail Invoice — klik baris untuk membuka ===== */}
       <Dialog open={!!detailId} onClose={() => setDetailId(null)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}>
+        PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
           Detail Invoice — {detailInvoice?.no}
         </DialogTitle>
@@ -362,6 +371,8 @@ export default function Billing() {
                   <StatusChip kind="paid" status="yes" />
                 ) : detailInvoice.status === 'dibatalkan' ? (
                   <Chip size="small" variant="outlined" label="Dibatalkan" />
+                ) : paidOf(detailInvoice) > 0 ? (
+                  <Chip size="small" color="warning" label="Belum Lunas" />
                 ) : (
                   <StatusChip kind="paid" status="no" />
                 )}

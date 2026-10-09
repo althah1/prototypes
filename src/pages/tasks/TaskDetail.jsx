@@ -137,7 +137,7 @@ export default function TaskDetail() {
       />
 
       {/* ===== Kartu outlet ===== */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack direction="row" spacing={1.25} alignItems="center">
             <Avatar variant="rounded" sx={{ bgcolor: `${meta.color}.main`, color: 'common.white', width: 42, height: 42, borderRadius: 2, flexShrink: 0 }}>
@@ -168,7 +168,7 @@ export default function TaskDetail() {
 
       {/* ===== PENDING: mulai kunjungan ===== */}
       {task.status === 'pending' && outlet && (
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
             <Typography fontWeight={700} fontSize={14} sx={{ mb: 0.5 }}>Kunjungan Belum Dimulai</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
@@ -185,7 +185,7 @@ export default function TaskDetail() {
 
       {/* ===== BERLANGSUNG: aktivitas sesuai jenis tugas ===== */}
       {task.status === 'in_progress' && outlet && (
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'primary.main' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'primary.main' }}>
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
               <CheckCircleRoundedIcon color="info" fontSize="small" />
@@ -274,7 +274,7 @@ export default function TaskDetail() {
 
       {/* ===== SELESAI ===== */}
       {task.status === 'done' && (
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
             <Stack alignItems="center" spacing={0.75} sx={{ py: 1 }}>
               <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>

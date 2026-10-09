@@ -118,7 +118,7 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
     }}>
       <Box>
         <Typography fontWeight={800} fontSize={14}>{itemCount} item</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.9 }}>{formatRupiah(total)}</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap' }}>{formatRupiah(total)}</Typography>
       </Box>
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Typography fontWeight={700} fontSize={14}>{loading ? 'Menyimpan…' : actionLabel}</Typography>
@@ -280,8 +280,7 @@ export default function QuoteMobile() {
       const after = items.reduce((s, i) => s + i.line, 0);
       const discTotal = subtotal - after;
       const tax = Math.round(after * TAX_RATE);
-      const maxDisc = Math.max(...items.map((i) => i.disc || 0));
-      const status = maxDisc > QUOTE_DISCOUNT_LIMIT ? 'pending_approval' : 'draft';
+      const status = 'draft';
 
       const rec = insert('quotations', {
         no: genQuoteNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
@@ -339,19 +338,19 @@ export default function QuoteMobile() {
           const md = q.items.length ? Math.max(...q.items.map((i) => i.disc || 0)) : 0;
           return (
             <Card key={q.id} elevation={0} onClick={() => setDetailId(q.id)}
-              sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+              sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{q.no}</Typography>
+                  <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{q.no}</Typography>
                   <StatusChip kind="quote" status={q.status} />
                 </Stack>
-                <Typography variant="caption" color="text.secondary" display="block">
+                <Typography variant="caption" color="text.secondary" display="block" noWrap>
                   {outletName(q.outletId)} • {payShort(q)} • berlaku s.d {q.validUntil}
                   {md > 0 ? ` • disc maks ${md}%` : ''}
                 </Typography>
                 <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
                   <Typography variant="caption" color="text.secondary">Total</Typography>
-                  <Typography variant="body2" fontWeight={700}>{formatRupiah(q.total)}</Typography>
+                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(q.total)}</Typography>
                 </Stack>
               </CardContent>
             </Card>
@@ -362,9 +361,9 @@ export default function QuoteMobile() {
 
         {/* Dialog sukses */}
         <Dialog open={!!successQuote} onClose={() => setSuccessQuote(null)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: 3 } }}>
+          PaperProps={{ sx: { borderRadius: 1 } }}>
           <DialogTitle>Quotation Tersimpan</DialogTitle>
-          <DialogContent dividers>
+          <DialogContent dividers sx={{ overflowX: 'hidden' }}>
             <Stack alignItems="center" spacing={1} sx={{ py: 1 }}>
               <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
                 <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
@@ -400,7 +399,7 @@ export default function QuoteMobile() {
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }} />
         {outlets.length ? outlets.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => ckOutlets.has(o.id) ? setDraft({ step: 'items', outletId: o.id, items: [] }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
                 <StorefrontRoundedIcon fontSize="small" />
@@ -431,17 +430,17 @@ export default function QuoteMobile() {
         </Typography>
         {tplOrders.length ? tplOrders.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => applyFromOrder(o)}
-            sx={{ cursor: 'pointer', borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography fontFamily="monospace" fontWeight={700} fontSize={14}>{o.no}</Typography>
+                <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{o.no}</Typography>
                 <StatusChip kind="order" status={o.status} />
               </Stack>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="caption" color="text.secondary" display="block" noWrap>
                 {outletName(o.outletId)} • {o.items.length} produk • {payShort(o)} • {o.date}
               </Typography>
               <Stack direction="row" justifyContent="flex-end" sx={{ mt: 0.5 }}>
-                <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
+                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(o.total)}</Typography>
               </Stack>
             </CardContent>
           </Card>
@@ -462,7 +461,7 @@ export default function QuoteMobile() {
           </Alert>
         )}
 
-        <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Stack direction="row" spacing={1.25} alignItems="center">
               <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2, flexShrink: 0 }}>
@@ -487,7 +486,7 @@ export default function QuoteMobile() {
           const disc = discOf(p.id);
           return (
             <Card key={p.id} elevation={0}
-              sx={{ borderRadius: 3, border: '1px solid', borderColor: qty > 0 ? 'primary.main' : 'divider' }}>
+              sx={{ borderRadius: 2, border: '1px solid', borderColor: qty > 0 ? 'primary.main' : 'divider' }}>
               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -555,49 +554,57 @@ export default function QuoteMobile() {
           </Alert>
         )}
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>{outlet.address}</Typography>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Produk</TableCell><TableCell align="right">Qty</TableCell>
-                <TableCell align="right">Harga</TableCell><TableCell align="center">Disc</TableCell>
-                <TableCell align="right">Jumlah</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {draft.items.map((i) => {
-                const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
-                const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
-                return (
-                  <TableRow key={i.productId}>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{p.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatRupiah(p.hargaJual)} / {p.unit}</Typography>
-                    </TableCell>
-                    <TableCell align="right">{i.qty} {p.unit}</TableCell>
-                    <TableCell align="right">{formatRupiah(p.hargaJual)}</TableCell>
-                    <TableCell align="center">{i.disc || 0}%</TableCell>
-                    <TableCell align="right"><b>{formatRupiah(line)}</b></TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <Stack spacing={0.5} sx={{ mt: 1.5 }}>
-            <KV label="Subtotal" value={formatRupiah(totals.subtotal)} />
-            <KV label="Diskon" value={`− ${formatRupiah(totals.discTotal)}`} />
-            <KV label={`PPN ${Math.round(TAX_RATE * 100)}%`} value={formatRupiah(totals.tax)} />
-            <KV label="TOTAL" value={<Typography color="primary" fontWeight={800}>{formatRupiah(totals.total)}</Typography>} />
+          {/* Rincian item — gaya keranjang */}
+          <Stack spacing={1}>
+            {draft.items.map((i) => {
+              const p = (db.products || []).find((x) => x.id === i.productId);
+              const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
+              return (
+                <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                  <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25 }}>
+                    {p.name}
+                  </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                      {i.qty} {p.unit} × {formatRupiah(p.hargaJual)}{(i.disc || 0) > 0 ? ` (disc ${i.disc}%)` : ''}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
+                      {formatRupiah(line)}
+                    </Typography>
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Stack>
+          <Stack spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(totals.subtotal)}</Typography>
+            </Stack>
+            {totals.discTotal > 0 && (
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">Diskon</Typography>
+                <Typography variant="body2" color="success.main" sx={{ whiteSpace: 'nowrap' }}>− {formatRupiah(totals.discTotal)}</Typography>
+              </Stack>
+            )}
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" color="text.secondary">PPN {Math.round(TAX_RATE * 100)}%</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(totals.tax)}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" fontWeight={800}>TOTAL</Typography>
+              <Typography variant="body2" fontWeight={800} color="primary" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(totals.total)}</Typography>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
 
       {/* ===== Syarat Pembayaran ===== */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack spacing={2}>
             <TextField select label="Metode Pembayaran *" value={metode}
@@ -609,10 +616,15 @@ export default function QuoteMobile() {
             {metode === 'transfer' && (banks.length ? (
               <TextField select label="Rekening Tujuan *" value={bankId}
                 onChange={(e) => setBankId(e.target.value)}
-                helperText="Rekening perusahaan — pihak pembeli transfer ke sini.">
+                helperText="Rekening perusahaan — pihak pembeli transfer ke sini."
+                sx={{ mt: 1.5 }}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}>
                 {banks.map((b) => (
                   <MenuItem key={b.id} value={String(b.id)}>
-                    {b.nama} — {b.noRekening} (a.n. {b.atasNama})
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>{b.nama}</Typography>
+                      <Typography variant="caption" color="text.secondary">No. {b.noRekening}</Typography>
+                    </Box>
                   </MenuItem>
                 ))}
               </TextField>
@@ -644,7 +656,7 @@ export default function QuoteMobile() {
         </CardContent>
       </Card>
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack spacing={2}>
             <TextField type="date" label="Berlaku Hingga *" value={validUntil}

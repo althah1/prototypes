@@ -129,11 +129,11 @@ export default function CheckInDialog({ open, onClose, outlet, task, onDone }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}>
+      PaperProps={{ sx: { borderRadius: 1 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <LocationOnRoundedIcon color="primary" /> Check-In — {outlet.name}
       </DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
         <Stack spacing={0.5} sx={{ mb: 2 }}>
           <KV label="Koordinat Outlet" value={<Typography sx={{ fontFamily: 'monospace', fontSize: 13 }}>{outlet.lat}, {outlet.lng}</Typography>} />
           <KV label="Area Outlet" value={area.name || '-'} />

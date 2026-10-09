@@ -118,7 +118,7 @@ export default function GpsMobile() {
       )}
 
       {/* Posisi */}
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
             <Box sx={{ minWidth: 0 }}>
@@ -162,7 +162,7 @@ export default function GpsMobile() {
             return (
               <Card key={r.stop.id} elevation={0}
                 sx={{
-                  borderRadius: 3,
+                  borderRadius: 2,
                   border: isNext ? '2px solid' : '1px solid',
                   borderColor: isNext ? 'primary.main' : 'divider',
                 }}>
@@ -217,7 +217,7 @@ export default function GpsMobile() {
           {doneStops.map((o) => {
             const ck = [...checkins].reverse().find((c) => c.outletId === o.id);
             return (
-              <Card key={o.id} elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', opacity: 0.85 }}>
+              <Card key={o.id} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', opacity: 0.85 }}>
                 <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
                   <Avatar variant="rounded" sx={{ bgcolor: 'success.main', color: 'common.white', width: 34, height: 34, borderRadius: 2, flexShrink: 0 }}>
                     <CheckCircleRoundedIcon fontSize="small" />

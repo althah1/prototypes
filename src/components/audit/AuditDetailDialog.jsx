@@ -27,9 +27,15 @@ import { useToast } from '../ui/ToastProvider';
 import { checkLabel } from '../../utils/auditUtils';
 
 const KV = ({ label, value }) => (
-  <Stack direction="row" justifyContent="space-between" sx={{ borderBottom: '1px dashed', borderColor: 'divider', py: 0.7 }}>
-    <Typography variant="body2" color="text.secondary">{label}</Typography>
-    <Typography variant="body2" fontWeight={600} sx={{ textAlign: 'right' }}>{value}</Typography>
+  <Stack sx={{ py: 0.5 }}>
+    <Typography variant="caption" color="text.secondary"
+      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4, display: 'block' }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600}
+      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', display: 'block' }}>
+      {value}
+    </Typography>
   </Stack>
 );
 
@@ -87,7 +93,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>Laporan Audit {audit.no}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
           <Stack spacing={0.5} sx={{ mb: 2 }}>
             <KV label="Outlet" value={outlet.name || '-'} />
             <KV label="Area" value={areaName} />
