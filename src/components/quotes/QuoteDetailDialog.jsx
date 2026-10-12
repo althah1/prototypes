@@ -55,7 +55,7 @@ const KV = ({ label, value }) => (
   </Stack>
 );
 
-/* Label metode pembayaran quotation/order */
+/* Label  quotation/order */
 const payLabel = (q, db) => {
   switch (q?.metodePembayaran) {
     case 'transfer': {
@@ -153,7 +153,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
       : 'Quotation ditolak pelanggan.', ok ? 'success' : 'warning');
   };
 
-  /* Konversi 1-klik → order; quotation TERKUNCI; metode pembayaran terbawa */
+  /* Konversi 1-klik → order; quotation TERKUNCI;  terbawa */
   const convertToOrder = () => {
     if (quote.convertedOrderId) return; /* anti konversi ganda */
     const t = todayISO();
@@ -232,7 +232,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
             <KV label="Sales" value={salesName} />
             <KV label="Outlet" value={outlet.name || '-'} />
             <KV label="Berlaku s.d" value={quote.validUntil} />
-            <KV label="Metode Pembayaran" value={payLabel(quote, db)} />
+            <KV label="" value={payLabel(quote, db)} />
             <KV label="Diskon Maks" value={
               overLimit
                 ? <Typography variant="body2" fontWeight={800} color="warning.main">
@@ -390,7 +390,7 @@ export default function QuoteDetailDialog({ open, quoteId, onClose, salesActions
         onClose={() => setConfirmConvert(false)}
         onConfirm={convertToOrder}
         title="Konversi ke Entry Order"
-        message={`Konversi ${quote.no} menjadi Entry Order tanpa input ulang? Metode pembayaran (${payLabel(quote, db)}) ikut terbawa. Setelah dikonversi, quotation akan TERKUNCI dan tidak dapat dikonversi ulang.`}
+        message={`Konversi ${quote.no} menjadi Entry Order tanpa input ulang?  (${payLabel(quote, db)}) ikut terbawa. Setelah dikonversi, quotation akan TERKUNCI dan tidak dapat dikonversi ulang.`}
         confirmLabel="Ya, Konversi"
       />
     </>

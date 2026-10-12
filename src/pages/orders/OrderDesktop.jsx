@@ -132,10 +132,14 @@ export default function OrderDesktop() {
               <TableRow key={o.id} sx={{ cursor: 'pointer' }} onClick={() => setDetailId(o.id)}>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{o.no}</TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{o.date}</TableCell>
-                <TableCell>{salesName(o.salesId)}</TableCell>
-                <TableCell>{outletName(o.outletId)}</TableCell>
-                <TableCell align="right">{o.items.length}</TableCell>
-                <TableCell align="right"><b>{formatRupiah(o.total)}</b></TableCell>
+                <TableCell>
+                  <Box title={salesName(o.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(o.salesId)}</Box>
+                </TableCell>
+                <TableCell>
+                  <Box title={outletName(o.outletId)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outletName(o.outletId)}</Box>
+                </TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{o.items.length}</TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}><b>{formatRupiah(o.total)}</b></TableCell>
                 <TableCell><StatusChip kind="order" status={o.status} /></TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Tooltip title="Detail"><IconButton size="small" onClick={() => setDetailId(o.id)}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip>

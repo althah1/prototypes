@@ -153,16 +153,19 @@ export default function QuoteDesktop() {
                 <TableRow key={qt.id} sx={{ cursor: 'pointer' }} onClick={() => setDetailId(qt.id)}>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{qt.no}</TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{qt.date}</TableCell>
-                  <TableCell>{salesName(qt.salesId)}</TableCell>
-                  <TableCell>{outletName(qt.outletId)}</TableCell>
+                <TableCell>
+                  <Box title={salesName(qt.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(qt.salesId)}</Box>
+                </TableCell>
+                <TableCell>
+                  <Box title={outletName(qt.outletId)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outletName(qt.outletId)}</Box>
+                </TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{qt.validUntil}</TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     {md > 0 ? (
                       <StatusChip kind="quote" status={md > 10 ? 'pending_approval' : 'draft'} />
-                    ) : '—'}
-                    <Typography variant="caption" display="block" color="text.secondary">{md}%</Typography>
+                    ) : '—'} <Typography variant="caption" color="text.secondary">{md}%</Typography>
                   </TableCell>
-                  <TableCell align="right"><b>{formatRupiah(qt.total)}</b></TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}><b>{formatRupiah(qt.total)}</b></TableCell>
                   <TableCell><StatusChip kind="quote" status={qt.status} /></TableCell>
                   <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                     <Tooltip title="Detail"><IconButton size="small" onClick={() => setDetailId(qt.id)}><VisibilityRoundedIcon fontSize="small" /></IconButton></Tooltip>

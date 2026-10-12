@@ -12,8 +12,8 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
           {icon}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h6" noWrap>{value}</Typography>
-          <Typography variant="caption" color="text.secondary">{label}</Typography>
+          <Typography variant="h6" noWrap sx={{ fontSize: '1.05rem' }}>{value}</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{label}</Typography>
         </Box>
       </CardContent>
     </Card>

@@ -326,10 +326,16 @@ export default function TaskDesktop() {
               return (
                 <TableRow key={t.id}>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{t.date}</TableCell>
-                  <TableCell>{salesName(t.salesId)}</TableCell>
-                  <TableCell>{o.name || '-'}</TableCell>
-                  <TableCell>{areaName(o.areaId)}</TableCell>
-                  <TableCell>{TASK_TYPE_LABEL[t.type] || t.type}</TableCell>
+                  <TableCell>
+                    <Box title={salesName(t.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(t.salesId)}</Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box title={o.name || '-'} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name || '-'}</Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box title={areaName(o.areaId)} sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{areaName(o.areaId)}</Box>
+                  </TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{TASK_TYPE_LABEL[t.type] || t.type}</TableCell>
                   <TableCell><StatusChip kind="task" status={t.status} /></TableCell>
                   <TableCell sx={{ maxWidth: 180 }}>
                     <Typography variant="caption" color="text.secondary" noWrap display="block">{t.note || '-'}</Typography>

@@ -183,7 +183,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             <KV label="Status" value={<StatusChip kind="order" status={order.status} />} />
             {order.approvedBy && <KV label="Disetujui oleh" value={`${order.approvedBy} • ${order.approvedAt}`} />}
             {order.rejectReason && <KV label="Alasan Ditolak" value={order.rejectReason} />}
-            {order.metodePembayaran && <KV label="Metode Pembayaran" value={payLabel(order)} />}
+            {order.metodePembayaran && <KV label="" value={payLabel(order)} />}
             <KV label="Pembayaran" value={order.paid
               ? <Chip size="small" color="success" icon={<PaymentsRoundedIcon />} label={`Lunas — ${order.paidMethod || '-'} • ${order.paidAt || '-'}`} />
               : <Chip size="small" variant="outlined" label="Belum dibayar — ditandai di modul Billing" />} />

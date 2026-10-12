@@ -81,13 +81,13 @@ export default function Dashboard() {
           <CardHeader title="Invoice Terbaru" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
           <CardContent>
             {invoices.length ? invoices.slice(-6).reverse().map((o) => (
-              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={ORDER_ROW_STYLE} onClick={() => navigate('/dashboard/billing')}>
-                <Box>
-                  <Typography variant="body2" fontFamily="monospace" fontWeight={700}>{o.no}</Typography>
-                  <Typography variant="caption" color="text.secondary">{outletOf(o.outletId)} • {o.date}</Typography>
+              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ORDER_ROW_STYLE, overflow: 'hidden' }} onClick={() => navigate('/dashboard/billing')}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography variant="body2" fontFamily="monospace" fontWeight={700} noWrap>{o.no}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>{outletOf(o.outletId)} • {o.date}</Typography>
                 </Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                  <Typography variant="body2" fontWeight={700} noWrap>{formatRupiah(o.total)}</Typography>
                   <StatusChip kind="paid" status={o.paid ? 'yes' : 'no'} />
                 </Stack>
               </Stack>
@@ -184,14 +184,14 @@ export default function Dashboard() {
           />
           <CardContent>
             {recentOrders.length ? recentOrders.map((o) => (
-              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={ORDER_ROW_STYLE} onClick={() => navigate('/dashboard/orders')}>
-                <Box>
-                  <Typography variant="body2" fontFamily="monospace" fontWeight={700}>{o.no}</Typography>
-                  <Typography variant="caption" color="text.secondary">{outletOf(o.outletId)} • {o.date}</Typography>
+              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ORDER_ROW_STYLE, overflow: 'hidden' }} onClick={() => navigate('/dashboard/orders')}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography variant="body2" fontFamily="monospace" fontWeight={700} noWrap>{o.no}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>{outletOf(o.outletId)} • {o.date}</Typography>
                 </Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="body2" fontWeight={700}>{formatRupiah(o.total)}</Typography>
-                  <StatusChip kind="order" status={o.status} />
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                  <Typography variant="body2" fontWeight={700} noWrap>{formatRupiah(o.total)}</Typography>
+                  <StatusChip kind="order" status={o.status}	 />
                 </Stack>
               </Stack>
             )) : <EmptyState message="Belum ada order." />}

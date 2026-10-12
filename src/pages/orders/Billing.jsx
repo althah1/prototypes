@@ -22,10 +22,11 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
-import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
 import StatCard from '../../components/ui/StatCard';
@@ -38,7 +39,6 @@ import { useToast } from '../../components/ui/ToastProvider';
 import { useSync } from '../../store/SyncContext';
 import { nowStamp, formatRupiah, todayISO } from '../../utils/helpers';
 import { openInvoicePdf, shareInvoiceWhatsApp } from '../../utils/invoicePdf';
-import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 
 const KV = ({ label, value }) => (
   <Stack sx={{ py: 0.5 }}>
@@ -46,8 +46,8 @@ const KV = ({ label, value }) => (
       sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4, display: 'block' }}>
       {label}
     </Typography>
-    <Typography variant="body2" fontWeight={600}
-      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', display: 'block' }}>
+    <Typography variant="body2" fontWeight={600} component="div"
+      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
       {value}
     </Typography>
   </Stack>
@@ -57,11 +57,14 @@ const KV = ({ label, value }) => (
    Billing / Penagihan — alur 3 langkah tim:
    1. Invoice terbit otomatis saat Supervisor menyetujui order.
    2. Sistem memantau batas waktu (jatuh tempo) + progress cicilan.
-   3. Finance memverifikasi & memperbarui status Lunas / Belum / Jatuh Tempo.
+   3. Finance memverifikasi & memperbarui status Lunas / Belum Lunas /
+      Belum Bayar / Jatuh Tempo.
    Monitoring per metode:
-   - Termin: jatuh tempo + sisa tagihan (pembayaran parsial).
-   - Cicilan: jadwal angsuran — Finance bayar per angsuran.
-   - Konsinyasi: menunggu stock-take (indikator).
+   - Tunai/COD    : bayar sekali saat serah barang.
+   - Transfer     : bayar sekali ke rekening tertera.
+   - Termin       : jatuh tempo + via tunai/transfer sesuai perjanjian.
+   - Cicilan      : DP + jadwal angsuran — Finance bayar per angsuran (via bank).
+   - Konsinyasi   : masa titip + via tunai/transfer + menunggu stock-take.
 ============================================================ */
 export default function Billing() {
   const { user } = useAuth();
@@ -121,16 +124,21 @@ export default function Billing() {
     return `${formatRupiah(paid)} / ${formatRupiah(i.total)}`;
   }
 
+  /* ===== Label syarat — metode + via + DP + masa titip (5 metode lengkap) ===== */
   const syaratLabel = (i) => {
     switch (i?.metodePembayaran) {
       case 'transfer': {
         const b = (db.banks || []).find((x) => x.id === i.bankId);
         return b ? `Transfer — ${b.nama}` : 'Transfer Bank';
       }
-      case 'termin': return `Termin ${i.terminHari || 14} hari`;
-      case 'cicilan': return 'Cicilan';
-      case 'konsinyasi': return 'Konsinyasi (bayar sesuai terjual)';
-      default: return 'Tunai (COD)';
+      case 'termin':
+        return `Termin ${i.terminHari || 14} hari`;
+      case 'cicilan':
+        return `Cicilan${i?.cicilanDP > 0 ? ` (DP ${formatRupiah(i.cicilanDP)})` : ''}`;
+      case 'konsinyasi':
+        return `Konsinyasi`;
+      default:
+        return 'Tunai (COD)';
     }
   };
 
@@ -231,16 +239,22 @@ export default function Billing() {
               <TableRow key={i.id} onClick={() => setDetailId(i.id)}
                 sx={{ cursor: 'pointer', opacity: i.status === 'dibatalkan' ? 0.55 : 1 }}>
                 <TableCell>
-                  <Typography sx={{ fontFamily: 'monospace', fontSize: 13 }} fontWeight={700}>{i.no}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{i.orderNo}</Typography>
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: 13, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} fontWeight={700} title={i.no}>{i.no}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', display: 'block', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={i.orderNo}>{i.orderNo}</Typography>
                 </TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{i.date}</TableCell>
-                <TableCell>{outletName(i.outletId)}</TableCell>
-                <TableCell>{salesName(i.salesId)}</TableCell>
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}><b>{formatRupiah(i.total)}</b></TableCell>
-                <TableCell>{syaratLabel(i)}</TableCell>
                 <TableCell>
-                  <Typography variant="caption" fontWeight={700} color={i.status === 'lunas' ? 'success.main' : paidOf(i) > 0 ? 'info.main' : 'text.secondary'}>
+                  <Box title={outletName(i.outletId)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outletName(i.outletId)}</Box>
+                </TableCell>
+                <TableCell>
+                  <Box title={salesName(i.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(i.salesId)}</Box>
+                </TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}><b>{formatRupiah(i.total)}</b></TableCell>
+                <TableCell>
+                  <Box title={syaratLabel(i)} sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{syaratLabel(i)}</Box>
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <Typography variant="caption" fontWeight={700} noWrap color={i.status === 'lunas' ? 'success.main' : paidOf(i) > 0 ? 'info.main' : 'text.secondary'}>
                     {progressLabel(i)}
                   </Typography>
                 </TableCell>
@@ -284,7 +298,6 @@ export default function Billing() {
           <KV label="Sudah Dibayar" value={formatRupiah(paidOf(payInvoice || {}))} />
           <KV label="Sisa Tagihan" value={formatRupiah((payInvoice?.total || 0) - paidOf(payInvoice || {}))} />
 
-          {/* ===== CICILAN: daftar angsuran dengan tombol bayar per angsuran ===== */}
           {payInvoice?.metodePembayaran === 'cicilan' && payInvoice.installments ? (
             <Stack spacing={1} sx={{ mt: 2 }}>
               <Typography variant="subtitle2" fontWeight={700}>Jadwal Angsuran</Typography>
@@ -357,7 +370,7 @@ export default function Billing() {
         )}
       </Dialog>
 
-      {/* ===== Dialog Detail Invoice — klik baris untuk membuka ===== */}
+      {/* ===== Dialog Detail Invoice ===== */}
       <Dialog open={!!detailId} onClose={() => setDetailId(null)} maxWidth="sm" fullWidth
         PaperProps={{ sx: { borderRadius: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>

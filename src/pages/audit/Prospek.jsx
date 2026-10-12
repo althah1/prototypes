@@ -180,13 +180,27 @@ export default function Prospek() {
             {filtered.length ? filtered.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight={700}>{p.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{p.address || '-'}</Typography>
+                  <Box title={p.name} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" fontWeight={700}>{p.name}</Typography>
+                  </Box>
+                  <Box title={p.address || '-'} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography variant="caption" color="text.secondary">{p.address || '-'}</Typography>
+                  </Box>
                 </TableCell>
-                <TableCell>{p.owner || '-'}</TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12.5 }}>{p.phone || '-'}</TableCell>
-                <TableCell>{areaName(p.areaId)}</TableCell>
-                <TableCell>{p.salesId ? salesName(p.salesId) : <Typography variant="caption" color="text.secondary">belum ada</Typography>}</TableCell>
+                <TableCell>
+                  <Box title={p.owner || '-'} sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.owner || '-'}</Box>
+                </TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12.5, whiteSpace: 'nowrap' }}>{p.phone || '-'}</TableCell>
+                <TableCell>
+                  <Box title={areaName(p.areaId)} sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{areaName(p.areaId)}</Box>
+                </TableCell>
+                <TableCell>
+                  {p.salesId ? (
+                    <Box title={salesName(p.salesId)} sx={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(p.salesId)}</Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">belum ada</Typography>
+                  )}
+                </TableCell>
                 <TableCell>{catChip(p.categoryId)}</TableCell>
                 <TableCell>{statusChip(p.status)}</TableCell>
                 <TableCell align="right">

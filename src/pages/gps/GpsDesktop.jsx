@@ -265,8 +265,12 @@ function GpsMonitor() {
                   <TableBody>
                     {violations.slice(0, 10).map((v) => (
                       <TableRow key={v.id}>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{v.date} {v.ts?.slice(11) || ''}</TableCell>
-                        <TableCell>{(db.outlets || []).find((o) => o.id === v.outletId)?.name || '-'}</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{v.date} {v.ts?.slice(11) || ''}</TableCell>
+                        <TableCell>
+                          <Box title={(db.outlets || []).find((o) => o.id === v.outletId)?.name || '-'} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {(db.outlets || []).find((o) => o.id === v.outletId)?.name || '-'}
+                          </Box>
+                        </TableCell>
                         <TableCell>
                           <Chip size="small" color={v.type === 'area' ? 'error' : 'warning'}
                             label={v.type === 'area' ? 'Luar Wilayah' : 'Luar Radius'} />

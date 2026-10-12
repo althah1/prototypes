@@ -140,8 +140,12 @@ export default function AuditDesktop() {
                 <TableRow key={a.id} sx={{ cursor: 'pointer' }} onClick={() => setDetailId(a.id)}>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{a.no}</TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{a.date}</TableCell>
-                  <TableCell>{salesName(a.salesId)}</TableCell>
-                  <TableCell>{outletName(a.outletId)}</TableCell>
+                  <TableCell>
+                    <Box title={salesName(a.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(a.salesId)}</Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box title={outletName(a.outletId)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outletName(a.outletId)}</Box>
+                  </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 110 }}>
                       <LinearProgress variant="determinate" value={a.score} sx={{ flex: 1, height: 7, borderRadius: 99 }} />

@@ -18,9 +18,16 @@ export function openInvoicePdf(invoice, db) {
         const b = banks.find((x) => x.id === invoice.bankId);
         return b ? `Transfer ke <b>${esc(b.nama)}</b>, No. Rekening <b>${esc(b.noRekening)}</b> a.n. <b>${esc(b.atasNama)}</b>.` : 'Transfer bank.';
       }
-      case 'termin': return `Pembayaran tempo <b>${invoice.terminHari || 14} hari</b> — jatuh tempo <b>${invoice.jatuhTempo || '-'}</b>.`;
-      case 'cicilan': return 'Pembayaran mengangsur sesuai jadwal angsuran di bawah.';
-      case 'konsinyasi': return 'Penagihan mengikuti hasil stock-take (jumlah barang yang terjual di outlet).';
+      case 'termin': {
+        const viaT = invoice.viaPembayaran === 'transfer' ? 'transfer bank' : 'tunai';
+        const viaB = invoice.viaPembayaran === 'transfer'
+          ? (banks.find((x) => x.id === invoice.viaBankId) || {}) : {};
+        return `Pembayaran tempo <b>${invoice.terminHari || 14} hari</b> via <b>${viaT}</b>`
+          + (viaB.nama ? ` ke <b>${esc(viaB.nama)}</b> No. <b>${esc(viaB.noRekening)}</b>` : '')
+          + ` — jatuh tempo <b>${invoice.jatuhTempo || '-'}</b>.`;
+      }
+      case 'cicilan': return `Pembayaran mengangsur sesuai jadwal angsuran di bawah${invoice.cicilanDP > 0 ? ` (DP ${formatRupiah(invoice.cicilanDP)})` : ''}.`;
+      case 'konsinyasi': return `Konsinyasi ${invoice.konsinyasiHari || 30} hari — penagihan mengikuti hasil stock-take (jumlah barang terjual). Pembayaran via <b>${invoice.viaPembayaran === 'transfer' ? 'transfer bank' : 'tunai'}</b>.`;
       default: return 'Pembayaran tunai saat penyerahan barang.';
     }
   })();
