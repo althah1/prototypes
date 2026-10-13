@@ -137,6 +137,9 @@ export const MASTER_CONFIG = {
     table: 'suppliers',
     addLabel: 'Supplier',
     uniques: ['code'],
+    filterRefs: [
+      { table: 'supervisors', field: 'picId', label: 'PIC' },
+    ],
     refs: [],
     columns: [
       { k: 'code', l: 'Kode' },
@@ -201,6 +204,9 @@ export const MASTER_CONFIG = {
     table: 'sales',
     addLabel: 'Sales',
     uniques: ['nik', 'email'],
+    filterRefs: [
+      { table: 'supervisors', field: 'supervisorId', label: 'Supervisor' },
+    ],
     refs: [
       { table: 'users', field: 'salesId', label: 'akun login' },
       { table: 'tasks', field: 'salesId', label: 'tugas terjadwal' },
@@ -241,6 +247,9 @@ export const MASTER_CONFIG = {
     table: 'supervisors',
     addLabel: 'Supervisor',
     uniques: ['nik', 'email'],
+    filterRefs: [
+      { table: 'areas', field: 'areaId', label: 'Area' },
+    ],
     refs: [
       { table: 'sales', field: 'supervisorId', label: 'sales bawahan' },
       { table: 'users', field: 'email', label: 'akun login', matchSelf: true },
@@ -274,6 +283,9 @@ export const MASTER_CONFIG = {
     table: 'outlets',
     addLabel: 'Outlet',
     uniques: ['code'],
+    filterRefs: [
+      { table: 'areas', field: 'areaId', label: 'Area' },
+    ],
     codeGen: { field: 'code', prefix: 'OUT' },
     refs: [
       { table: 'tasks', field: 'outletId', label: 'tugas terjadwal' },

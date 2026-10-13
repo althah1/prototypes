@@ -132,6 +132,7 @@ function EntityPageInner({ slug }) {
   /* ===== Semua hooks di paling atas — Rules of Hooks ===== */
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [refFilters, setRefFilters] = useState({});
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
@@ -157,10 +158,16 @@ function EntityPageInner({ slug }) {
     let list = rows;
     if (statusFilter === 'active') list = list.filter((r) => (r.status || 'active') === 'active');
     if (statusFilter === 'inactive') list = list.filter((r) => r.status === 'inactive');
+    (cfg.filterRefs || []).forEach(({ field }) => {
+      const val = refFilters[field];
+      if (val && val !== 'all') {
+        list = list.filter((r) => String(r[field]) === String(val));
+      }
+    });
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((r) => (cfg.search || []).some((k) => String(r[k] ?? '').toLowerCase().includes(q)));
     return list;
-  }, [rows, search, statusFilter, cfg.search]);
+  }, [rows, search, statusFilter, refFilters, cfg.search, cfg.filterRefs]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const curPage = Math.min(page, pageCount - 1);
@@ -820,6 +827,23 @@ function EntityPageInner({ slug }) {
             <MenuItem value="active">Aktif</MenuItem>
             <MenuItem value="inactive">Nonaktif</MenuItem>
           </TextField>
+          {(cfg.filterRefs || []).map(({ table, field, label }) => (
+            <TextField
+              size="small"
+              select
+              label={label}
+              value={refFilters[field] || 'all'}
+              onChange={(e) => { setRefFilters((p) => ({ ...p, [field]: e.target.value })); }}
+              sx={{ width: 170 }}
+            >
+              <MenuItem value="all">Semua {label}</MenuItem>
+              {(db[table] || []).map((r) => (
+                <MenuItem key={r.id} value={String(r.id)}>
+                  {r.name}{r.status === 'inactive' ? ' (Nonaktif)' : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          ))}
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Menampilkan {filtered.length} dari {rows.length} data
           </Typography>
