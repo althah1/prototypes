@@ -15,6 +15,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import MobileLayout from './components/layout/MobileLayout';
 import Dashboard from './pages/dashboard/Dashboard';
 import Home from './pages/mobile/Home';
+import ActivityHistory from './pages/mobile/ActivityHistory';
 import Notifications from './pages/mobile/Notifications';
 import Profile from './pages/profile/Profile';
 import EntityPage from './pages/master/EntityPage';
@@ -91,6 +92,7 @@ export default function App() {
               <Route element={<RequireRole roles={['sales']} />}>
                 <Route path="/app" element={<MobileLayout />}>
                   <Route index element={<Home />} />
+                  <Route path="activity" element={<ActivityHistory />} />
                   <Route path="notifications" element={<Notifications />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="tasks" element={<TaskMobile />} />

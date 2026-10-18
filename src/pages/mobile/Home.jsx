@@ -7,7 +7,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -46,10 +45,6 @@ export default function Home() {
   const tasks = useMemo(
     () => db.tasks.filter((t) => t.salesId === user.salesId && t.date === today),
     [db.tasks, user.salesId, today]
-  );
-  const ordersToday = useMemo(
-    () => db.orders.filter((o) => o.salesId === user.salesId && o.date === today),
-    [db.orders, user.salesId, today]
   );
   const recentOrders = useMemo(
     () => [...db.orders].reverse().filter((o) => o.salesId === user.salesId).slice(0, 3),
@@ -200,14 +195,14 @@ export default function Home() {
       {/* ===== Aktivitas Terakhir ===== */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="subtitle1" fontWeight={700}>Aktivitas Terakhir</Typography>
-        <Chip size="small" variant="outlined" label={`${ordersToday.length} order hari ini`} />
+        <Link component={RouterLink} to="/app/activity" variant="body2" underline="hover">Lihat Semua</Link>
       </Stack>
       {recentOrders.length ? recentOrders.map((o) => (
         <Card key={o.id} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{o.no}</Typography>
-              <Typography variant="caption" color="text.secondary">{outletOf(o.outletId).name} • {o.date}</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap display="block">{outletOf(o.outletId).name} • {o.date}</Typography>
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(o.total)}</Typography>

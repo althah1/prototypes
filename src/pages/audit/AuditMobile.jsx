@@ -126,7 +126,7 @@ export default function AuditMobile() {
     readFileAsDataURL(file, async (url, err) => {
       if (err || !url) { setCameraErr(err || 'Gagal membaca berkas.'); return; }
       setCameraErr('');
-      const lastCk = [...(db.checkins || [])].reverse().find((c) => c.outletId === draft.outletId && c.date === todayISO());
+      const lastCk = [...(db.checkins || [])].reverse().find((c) => c.salesId === user.salesId && c.outletId === draft.outletId && c.date === todayISO());
       const coords = lastCk ? `${lastCk.lat.toFixed(5)}, ${lastCk.lng.toFixed(5)}` : `${outlet.lat}, ${outlet.lng}`;
       const marked = await addWatermark(url, [
         `Sales: ${user.name}`,

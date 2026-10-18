@@ -26,6 +26,10 @@ const MAPS = {
     expired: { label: 'Kadaluarsa', color: 'default' },
     converted: { label: 'Jadi Order', color: 'secondary' },
   },
+  audit: {
+    submitted: { label: 'Terkirim', color: 'success' },
+    draft: { label: 'Draft', color: 'default' },
+  },
   active: {
     active: { label: 'Aktif', color: 'success' },
     inactive: { label: 'Nonaktif', color: 'default' },

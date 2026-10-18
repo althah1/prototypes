@@ -516,7 +516,7 @@ export default function ProdukPage() {
             <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *', 'Dipakai transaksi Order & Quotation — angka bulat, minimal 1.')}
               type="number" inputProps={{ min: 1 }} />
 
-            <SectionLabel>4 • Penempatan Stok</SectionLabel>
+            <SectionLabel>4 • ALOKASI STOK AWAL</SectionLabel>
             <Autocomplete
               options={gudangOpts}
               getOptionLabel={(w) => `${w.code} — ${w.name}`}
@@ -528,8 +528,8 @@ export default function ProdukPage() {
                   helperText="Kosongkan (ikon ✕) untuk produk tanpa penempatan dulu." />
               )}
             />
-            <TextField {...fieldProps('stok', 'Stok di gudang terpilih (pcs)',
-              values.gudangId === '' ? 'Pilih gudang dulu untuk mengisi stok.' : 'Gudang yang sama → stok diperbarui jadi nilai ini.')}
+            <TextField {...fieldProps('stok', 'Stok Awal (pcs)',
+              values.gudangId === '' ? 'Pilih gudang penempatan terlebih dahulu.' : 'Jumlah stok fisik awal.')}
               type="number" disabled={values.gudangId === ''} inputProps={{ min: 0 }} />
 
             <SectionLabel>5 • Lainnya</SectionLabel>

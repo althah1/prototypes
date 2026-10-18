@@ -87,7 +87,7 @@ export default function TaskDetail() {
   const lastCk = [...(db.checkins || [])].reverse()
     .find((c) => c.salesId === user.salesId && c.outletId === task.outletId && c.date === today);
   const nextTask = (db.tasks || []).find(
-    (t) => t.salesId === user.salesId && t.date === today
+    (t) => t.id !== task.id && t.salesId === user.salesId && t.date === today
       && (t.status === 'pending' || t.status === 'in_progress')
   );
 
