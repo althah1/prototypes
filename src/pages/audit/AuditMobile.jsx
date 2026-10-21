@@ -191,7 +191,15 @@ export default function AuditMobile() {
             Mulai Audit
           </Button>
         </Stack>
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{
+          mx: { xs: -1.25, sm: 0 },
+          borderRadius: { xs: 0, sm: 2 },
+          borderTop: '1px solid',
+          borderBottom: '1px solid',
+          borderLeft: { xs: 'none', sm: '1px solid' },
+          borderRight: { xs: 'none', sm: '1px solid' },
+          borderColor: 'divider',
+        }}>
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Typography variant="body2" color="text.secondary">
               Formulir digital: checklist kondisi toko, stock-take aktual, dan foto bukti (kamera langsung).
@@ -200,8 +208,16 @@ export default function AuditMobile() {
           </CardContent>
         </Card>
         {myAudits.length ? myAudits.map((a) => (
-          <Card key={a.id} elevation={0} onClick={() => setDetailId(a.id)}
-            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Card key={a.id} elevation={0} onClick={() => setDetailId(a.id)} sx={{
+            cursor: 'pointer',
+            mx: { xs: -1.25, sm: 0 },
+            borderRadius: { xs: 0, sm: 2 },
+            borderTop: '1px solid',
+            borderBottom: '1px solid',
+            borderLeft: { xs: 'none', sm: '1px solid' },
+            borderRight: { xs: 'none', sm: '1px solid' },
+            borderColor: 'divider',
+          }}>
             <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography fontWeight={700} fontSize={14}>{outletName(a.outletId)}</Typography>

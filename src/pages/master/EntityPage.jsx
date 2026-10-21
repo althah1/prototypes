@@ -779,9 +779,12 @@ function EntityPageInner({ slug }) {
                   <ListItem key={r.label} disableGutters sx={{ py: 0.9, borderBottom: '1px dashed', borderColor: 'divider' }}>
                     <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
                     <ListItemText
-                      primary={r.label} secondary={r.value}
+                      primary={r.label}
+                      secondary={r.value}
                       primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
-                      secondaryTypographyProps={{ fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere' }}
+                      secondaryTypographyProps={{
+                        sx: { fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere', wordBreak: 'break-word' },
+                      }}
                     />
                   </ListItem>
                 ))}

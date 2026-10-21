@@ -25,6 +25,7 @@ import Typography from '@mui/material/Typography';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../ui/ToastProvider';
 import { checkLabel } from '../../utils/auditUtils';
+import StatusChip from '../ui/StatusChip';
 
 const KV = ({ label, value }) => (
   <Stack sx={{ py: 0.5 }}>
@@ -91,99 +92,233 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Laporan Audit {audit.no}</DialogTitle>
-        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
-            <KV label="Outlet" value={outlet.name || '-'} />
-            <KV label="Area" value={areaName} />
-            <KV label="Sales" value={salesName} />
-            <KV label="Tanggal" value={audit.date} />
-            <KV label="Skor" value={(
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" sx={{ width: 150 }}>
-                <LinearProgress variant="determinate" value={audit.score} sx={{ flex: 1, height: 7, borderRadius: 99 }} />
-                <Chip size="small" color={scoreColor(audit.score)} variant="outlined" label={`${audit.score}/100`} />
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            m: { xs: 0, sm: 2 },
+            width: { xs: '100%', sm: 'auto' },
+            maxWidth: { xs: '100%', sm: 'sm' },
+            borderRadius: { xs: 0, sm: 2 },
+            borderTop: '1px solid',
+            borderBottom: '1px solid',
+            borderLeft: { xs: 'none', sm: '1px solid' },
+            borderRight: { xs: 'none', sm: '1px solid' },
+            borderColor: 'divider',
+            boxShadow: { xs: 'none', sm: '0 12px 40px rgba(15,23,42,0.1)' },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, px: { xs: 2, sm: 3 } }}>
+          Laporan Audit {audit.no}
+        </DialogTitle>
+        <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 1.5, sm: 3 }, py: 2 }}>
+          {/* Ringkasan Metadata 2 Kolom Bersih */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              gap: 1.25,
+              mb: 2.5,
+              p: 1.5,
+              bgcolor: 'action.hover',
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">Outlet</Typography>
+              <Typography variant="body2" fontWeight={700}>{outlet.name || '-'}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">Area Kerja</Typography>
+              <Typography variant="body2" fontWeight={600}>{areaName}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">Sales Penanggung Jawab</Typography>
+              <Typography variant="body2" fontWeight={600}>{salesName}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">Tanggal Audit</Typography>
+              <Typography variant="body2" fontWeight={600}>{audit.date}</Typography>
+            </Box>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">Skor Kondisi Toko</Typography>
+                <StatusChip
+                  kind="active"
+                  status={audit.score >= 80 ? 'active' : 'inactive'}
+                  label={`${audit.score}/100`}
+                />
               </Stack>
-            )} />
-            {cat && <KV label="Kategori Prospek" value={`${cat.name} • ${audit.prospectStatus || '-'}`} />}
-          </Stack>
+              <LinearProgress
+                variant="determinate"
+                value={audit.score}
+                color={audit.score >= 80 ? 'success' : audit.score >= 60 ? 'warning' : 'error'}
+                sx={{ height: 6, borderRadius: 1 }}
+              />
+            </Box>
+            {cat && (
+              <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+                <Typography variant="caption" color="text.secondary" display="block">Klasifikasi Prospek</Typography>
+                <Typography variant="body2" fontWeight={600}>{cat.name} • {audit.prospectStatus || '-'}</Typography>
+              </Box>
+            )}
+          </Box>
 
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Checklist Kondisi &amp; Kebersihan</Typography>
-          {audit.checklist.map((c) => (
-            <Stack key={c.item} direction="row" justifyContent="space-between" alignItems="center"
-              sx={{ py: 0.6, borderBottom: '1px dashed', borderColor: 'divider' }}>
-              <Typography variant="body2">{c.item}</Typography>
-              <Chip size="small" variant="outlined"
-                color={c.score === 3 ? 'success' : c.score === 2 ? 'warning' : 'error'}
-                label={checkLabel(c.score)} />
-            </Stack>
-          ))}
+          {/* Checklist Kondisi Toko */}
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+            Checklist Kondisi &amp; Kebersihan
+          </Typography>
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+            {audit.checklist.map((c, idx) => (
+              <Stack
+                key={c.item}
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{
+                  px: 1.5,
+                  py: 1,
+                  borderBottom: idx === audit.checklist.length - 1 ? 'none' : '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: idx % 2 === 0 ? 'transparent' : 'action.hover',
+                }}
+              >
+                <Typography variant="body2" fontSize={13}>{c.item}</Typography>
+                <StatusChip
+                  kind={c.score === 3 ? 'active' : 'task'}
+                  status={c.score === 3 ? 'active' : c.score === 2 ? 'pending' : 'failed'}
+                  label={checkLabel(c.score)}
+                />
+              </Stack>
+            ))}
+          </Box>
 
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Evaluasi Stok vs Data Gudang</Typography>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Produk</TableCell><TableCell align="right">Sistem</TableCell>
-                <TableCell align="right">Aktual</TableCell><TableCell align="center">Selisih</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {audit.stocks.map((x) => (
-                <TableRow key={x.productId}>
-                  <TableCell>{x.name}</TableCell>
-                  <TableCell align="right">{x.systemStock}</TableCell>
-                  <TableCell align="right">{x.actualStock}</TableCell>
-                  <TableCell align="center">
-                    {x.diff === 0
-                      ? <Chip size="small" color="success" variant="outlined" label="sesuai" />
-                      : <Chip size="small" color="error" label={`${x.diff > 0 ? '+' : ''}${x.diff}`} />}
-                  </TableCell>
+          {/* Evaluasi Stok */}
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+            Evaluasi Stok vs Data Gudang
+          </Typography>
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden', mb: 2.5 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>Produk</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Sistem</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Aktual</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, fontSize: 12 }}>Selisih</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {audit.stocks.map((x) => (
+                  <TableRow key={x.productId}>
+                    <TableCell sx={{ fontSize: 13 }}>{x.name}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: 13 }}>{x.systemStock}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: 13 }}>{x.actualStock}</TableCell>
+                    <TableCell align="center">
+                      <StatusChip
+                        kind="active"
+                        status={x.diff === 0 ? 'active' : 'task'}
+                        label={x.diff === 0 ? 'Sesuai' : `${x.diff > 0 ? '+' : ''}${x.diff}`}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
 
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Foto Bukti</Typography>
+          {/* Foto Bukti */}
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+            Foto Bukti Dokumentasi
+          </Typography>
           {audit.photos?.length ? (
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
               {audit.photos.map((ph, i) => (
-                <Box key={i} onClick={() => setPhotoIdx(i)}
-                  sx={{ cursor: 'zoom-in', aspectRatio: '1', borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                <Box
+                  key={i}
+                  onClick={() => setPhotoIdx(i)}
+                  sx={{
+                    cursor: 'zoom-in',
+                    aspectRatio: '1',
+                    borderRadius: 1.5,
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
                   <Box component="img" src={ph} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </Box>
               ))}
             </Box>
           ) : (
-            <Typography variant="caption" color="text.secondary">Tidak ada foto bukti pada audit ini.</Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Tidak ada foto bukti pada audit ini.
+            </Typography>
           )}
 
-          {audit.note && <Alert severity="info" sx={{ mt: 2 }}>{audit.note}</Alert>}
+          {audit.note && (
+            <Alert severity="info" sx={{ mt: 2, borderRadius: 1.5 }}>
+              {audit.note}
+            </Alert>
+          )}
 
           {canClassify && (
-            <Card variant="outlined" sx={{ mt: 2.5 }}>
-              <CardHeader title="Klasifikasi Outlet / Prospek" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
-              <CardContent sx={{ pt: 0 }}>
-                <Stack spacing={1.5}>
-                  <TextField select label="Kategori Prospek" value={catId} onChange={(e) => setCatId(e.target.value)}>
-                    {(db.prospectCategories || []).filter((c) => c.status === 'active').map((c) => (
-                      <MenuItem key={c.id} value={String(c.id)}>{c.name} — prioritas {c.priority}</MenuItem>
+            <Card elevation={0} sx={{ mt: 2.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+              <CardContent sx={{ p: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                  Klasifikasi Prospek Outlet
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    select
+                    size="small"
+                    label="Kategori Prospek"
+                    value={catId}
+                    onChange={(e) => setCatId(e.target.value)}
+                  >
+                    <MenuItem value="">Pilih Kategori...</MenuItem>
+                    {(db.prospectCategories || []).map((c) => (
+                      <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                     ))}
                   </TextField>
-                  <TextField select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-                    {['Prospek', 'Negosiasi', 'Disetujui', 'Ditolak'].map((s) => (
+                  <TextField
+                    select
+                    size="small"
+                    label="Status Prospek"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    {['Prospek', 'Follow Up', 'Negosiasi', 'Closing'].map((s) => (
                       <MenuItem key={s} value={s}>{s}</MenuItem>
                     ))}
                   </TextField>
-                  <Button variant="contained" onClick={saveClassification}>Simpan Klasifikasi</Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={saveClassification}
+                    sx={{ borderRadius: 1, fontWeight: 650, textTransform: 'none' }}
+                  >
+                    Simpan Klasifikasi
+                  </Button>
                 </Stack>
               </CardContent>
             </Card>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} variant="contained">Tutup</Button>
+        <DialogActions sx={{ px: { xs: 1.5, sm: 3 }, py: 1.5 }}>
+          <Button
+            onClick={onClose}
+            variant="outlined"
+            color="inherit"
+            sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none' }}
+          >
+            Tutup
+          </Button>
         </DialogActions>
       </Dialog>
 

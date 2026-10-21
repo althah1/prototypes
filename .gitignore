@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Agent / skill config (local support only — not for repo)
+.agents/
+.claude/
+.cursor/
+skills-lock.json
