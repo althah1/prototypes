@@ -39,9 +39,9 @@ export default function Profile() {
   const isMobile = useLocation().pathname.startsWith('/app');
   const [openReset, setOpenReset] = useState(false);
 
-  const sales = user.salesId ? (db.sales || []).find((s) => s.id === user.salesId) : null;
-  const area = sales ? (db.areas || []).find((a) => a.id === sales.areaId) : null;
-  const supervisor = sales ? (db.supervisors || []).find((s) => s.id === sales.supervisorId) : null;
+  const sales = user.salesId ? db.sales.find((s) => s.id === user.salesId) : null;
+  const area = sales ? db.areas.find((a) => a.id === sales.areaId) : null;
+  const supervisor = sales ? db.supervisors.find((s) => s.id === sales.supervisorId) : null;
   const roleLabel = { admin: 'Administrator', supervisor: 'Supervisor', sales: 'Sales Lapangan', finance: 'Finance' }[user.role] || user.role;
 
   const rows = [
@@ -59,51 +59,53 @@ export default function Profile() {
   }
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: isMobile ? 'none' : 560, mx: 'auto', pb: 4 }}>
-      <Typography variant="h6" fontWeight={850} letterSpacing="-0.01em">
-        Profil Pengguna
+    <Stack spacing={2} sx={{ maxWidth: 640, width: '100%', mx: 0, pb: 4, alignItems: 'stretch' }}>
+      <Typography variant="h6" fontWeight={800}>
+        Profil Saya
       </Typography>
 
-      {/* Kartu Profil Utama */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+      {/* Kartu Profil Utama — Mengikuti Standar Master Perusahaan */}
+      <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 2.5 }}>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
             <Avatar
+              variant="rounded"
               sx={{
+                width: 64,
+                height: 64,
+                borderRadius: 2,
                 bgcolor: 'primary.main',
-                width: 60,
-                height: 60,
                 fontSize: 22,
                 fontWeight: 800,
-                borderRadius: 2,
-                boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
               }}
             >
               {initials(user.name)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="h6" fontWeight={800} noWrap sx={{ fontSize: '1.1rem' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, overflowWrap: 'anywhere' }} noWrap>
                 {user.name}
               </Typography>
               <Chip
-                label={roleLabel}
-                color="primary"
                 size="small"
                 variant="outlined"
-                sx={{ mt: 0.5, fontWeight: 700, borderRadius: '6px' }}
+                color="primary"
+                label={roleLabel}
+                sx={{ mt: 0.5, fontWeight: 650 }}
               />
             </Box>
           </Stack>
 
           <List dense disablePadding>
             {rows.map((r) => (
-              <ListItem key={r.label} disableGutters sx={{ py: 1, borderBottom: '1px dashed', borderColor: 'divider' }}>
-                <ListItemIcon sx={{ minWidth: 34, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
+              <ListItem key={r.label} disableGutters sx={{ py: 0.9, borderBottom: '1px dashed', borderColor: 'divider' }}>
+                <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
                 <ListItemText
                   primary={r.label}
                   secondary={r.value}
-                  primaryTypographyProps={{ variant: 'caption', color: 'text.secondary', fontWeight: 650, fontSize: 11 }}
-                  secondaryTypographyProps={{ fontWeight: 650, fontSize: 13.5, color: 'text.primary', mt: 0.25 }}
+                  primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
+                  secondaryTypographyProps={{
+                    sx: { fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere', wordBreak: 'break-word' },
+                  }}
                 />
               </ListItem>
             ))}
@@ -111,28 +113,26 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Kartu Menu: Riwayat Aktivitas (Navigasi Khusus Mobile / Sales) */}
+      {/* Kartu Menu Riwayat Aktivitas (Khusus Mobile Sales) */}
       {isMobile && (
         <Card
           elevation={0}
           onClick={() => navigate('/app/activity')}
           sx={{
+            maxWidth: 640,
             borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
-            bgcolor: 'background.paper',
             cursor: 'pointer',
-            transition: 'all 0.18s ease-in-out',
+            transition: 'all 0.15s ease',
             '&:hover': {
               bgcolor: 'action.hover',
-              borderColor: 'primary.light',
-              boxShadow: '0 4px 14px rgba(37,99,235,0.08)',
-              transform: 'translateY(-1px)',
+              borderColor: 'primary.main',
             },
           }}
         >
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-            <Stack direction="row" alignItems="center" spacing={1.75}>
+            <Stack direction="row" alignItems="center" spacing={2}>
               <Avatar
                 variant="rounded"
                 sx={{
@@ -150,7 +150,7 @@ export default function Profile() {
                 <Typography fontWeight={750} fontSize={14}>
                   Riwayat Aktivitas
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem', mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
                   Timeline kunjungan toko, pesanan &amp; audit lapangan
                 </Typography>
               </Box>
@@ -160,27 +160,29 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* Tombol Logout & Reset */}
-      <Button
-        variant="outlined"
-        color="error"
-        size="large"
-        startIcon={<LogoutRoundedIcon />}
-        onClick={() => logout('Anda telah keluar dari sistem.')}
-        sx={{ borderRadius: 2, py: 1.25, fontWeight: 700 }}
-      >
-        Keluar (Logout)
-      </Button>
+      {/* Tombol Logout & Reset Data */}
+      <Stack spacing={1.5} sx={{ mt: 1 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          size="medium"
+          startIcon={<LogoutRoundedIcon />}
+          onClick={() => logout('Anda telah keluar dari sistem.')}
+          sx={{ borderRadius: 1.5, py: 1, fontWeight: 650, textTransform: 'none' }}
+        >
+          Keluar (Logout)
+        </Button>
 
-      <Button
-        variant="text"
-        size="small"
-        startIcon={<RestartAltRoundedIcon />}
-        onClick={() => setOpenReset(true)}
-        sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
-      >
-        Reset Data Prototype
-      </Button>
+        <Button
+          variant="text"
+          size="small"
+          startIcon={<RestartAltRoundedIcon />}
+          onClick={() => setOpenReset(true)}
+          sx={{ color: 'text.secondary', fontSize: '0.75rem', textTransform: 'none' }}
+        >
+          Reset Data Prototype
+        </Button>
+      </Stack>
 
       <ConfirmDialog
         open={openReset}
@@ -193,9 +195,9 @@ export default function Profile() {
           setOpenReset(false);
           toast('Data prototype dimuat ulang dari seed awal.', 'success');
         }}
-        title="Reset Data Prototype"
-        message="Seluruh data akan dikembalikan ke kondisi awal (seed). Sesi login Anda tetap aktif. Lanjutkan?"
-        confirmLabel="Ya, Reset"
+        title="Reset Data Prototype?"
+        message="Semua transaksi, pesanan, dan perubahan stok yang dibuat pada sesi ini akan dikembalikan ke data awal demo."
+        confirmText="Reset Sekarang"
         confirmColor="warning"
       />
     </Stack>

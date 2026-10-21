@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -31,8 +30,21 @@ import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 
-const CAT_COLOR = { 'Hot Lead': 'error', 'Warm Lead': 'warning', 'Cold Lead': 'info' };
-const STATUS_COLOR = { 'Prospek': 'default', 'Negosiasi': 'info', 'Disetujui': 'success', 'Ditolak': 'error' };
+const CAT_STYLES = {
+  'Hot Lead':  { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  'Warm Lead': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  'Cold Lead': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+};
+
+const STATUS_STYLES = {
+  'Prospek':   { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' },
+  'Follow Up': { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+  'Negosiasi': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  'Disetujui': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  'Closing':   { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  'Ditolak':   { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+};
+
 const STATUS_LIST = ['Prospek', 'Negosiasi', 'Disetujui', 'Ditolak'];
 
 export default function Prospek() {
@@ -67,12 +79,58 @@ export default function Prospek() {
 
   const catChip = (cid) => {
     const c = catOf(cid);
-    const color = CAT_COLOR[c?.name] || 'default';
-    return <Chip size="small" color={color} label={c?.name || '-'} variant={color === 'default' ? 'outlined' : 'filled'} />;
+    const style = CAT_STYLES[c?.name] || { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
+    return (
+      <Box
+        component="span"
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          px: 1,
+          py: 0.35,
+          borderRadius: '4px',
+          bgcolor: style.bg,
+          color: style.color,
+          border: '1px solid',
+          borderColor: style.border,
+          fontSize: '0.725rem',
+          fontWeight: 650,
+          lineHeight: 1.2,
+          letterSpacing: '0.01em',
+          whiteSpace: 'nowrap',
+          userSelect: 'none',
+        }}
+      >
+        {c?.name || '-'}
+      </Box>
+    );
   };
   const statusChip = (s) => {
-    const color = STATUS_COLOR[s] || 'default';
-    return <Chip size="small" color={color} label={s} variant={color === 'default' ? 'outlined' : 'filled'} />;
+    const style = STATUS_STYLES[s] || { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
+    return (
+      <Box
+        component="span"
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          px: 1,
+          py: 0.35,
+          borderRadius: '4px',
+          bgcolor: style.bg,
+          color: style.color,
+          border: '1px solid',
+          borderColor: style.border,
+          fontSize: '0.725rem',
+          fontWeight: 650,
+          lineHeight: 1.2,
+          letterSpacing: '0.01em',
+          whiteSpace: 'nowrap',
+          userSelect: 'none',
+        }}
+      >
+        {s || '-'}
+      </Box>
+    );
   };
 
   const savePic = () => {
@@ -204,8 +262,20 @@ export default function Prospek() {
                 <TableCell>{catChip(p.categoryId)}</TableCell>
                 <TableCell>{statusChip(p.status)}</TableCell>
                 <TableCell align="right">
-                  <Button size="small" variant="outlined" startIcon={<ManageAccountsRoundedIcon />}
-                    onClick={() => { setPicId(p.id); setPicSales(p.salesId ? String(p.salesId) : ''); }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ManageAccountsRoundedIcon fontSize="small" />}
+                    onClick={() => { setPicId(p.id); setPicSales(p.salesId ? String(p.salesId) : ''); }}
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 650,
+                      fontSize: 12,
+                      textTransform: 'none',
+                      px: 1.25,
+                      py: 0.35,
+                    }}
+                  >
                     Atur PIC
                   </Button>
                 </TableCell>
