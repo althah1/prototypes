@@ -136,6 +136,57 @@ function EntityPageInner({ slug }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
+
+  /* ---------- Scroll Restoration & Dialog Lifecycle ---------- */
+  const scrollPosRef = useRef(null);
+  const closingSnapshotRef = useRef(null);
+
+  const captureScrollPos = () => {
+    closingSnapshotRef.current = null;
+    const mainEl = document.querySelector('main');
+    scrollPosRef.current = {
+      x: window.scrollX || document.documentElement.scrollLeft || document.body.scrollLeft || 0,
+      y: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
+      mainX: mainEl ? mainEl.scrollLeft : 0,
+      mainY: mainEl ? mainEl.scrollTop : 0,
+    };
+  };
+
+  const handleCloseForm = () => {
+    if (scrollPosRef.current) {
+      closingSnapshotRef.current = scrollPosRef.current;
+      scrollPosRef.current = null;
+    }
+    setFormOpen(false);
+  };
+
+  const handleUserDismiss = () => {
+    if (saving) return;
+    handleCloseForm();
+  };
+
+  const handleFormExited = () => {
+    if (formOpen) return;
+    const toRestore = closingSnapshotRef.current;
+    closingSnapshotRef.current = null;
+    if (!toRestore) return;
+
+    window.scrollTo(toRestore.x, toRestore.y);
+    if (document.documentElement) {
+      document.documentElement.scrollLeft = toRestore.x;
+      document.documentElement.scrollTop = toRestore.y;
+    }
+    if (document.body) {
+      document.body.scrollLeft = toRestore.x;
+      document.body.scrollTop = toRestore.y;
+    }
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollLeft = toRestore.mainX;
+      mainEl.scrollTop = toRestore.mainY;
+    }
+  };
+
   const [editing, setEditing] = useState(null);
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
@@ -177,16 +228,25 @@ function EntityPageInner({ slug }) {
   const labelOf = (r) => r?.name || r?.code || r?.nik || r?.sku || 'Data';
   const allocField = cfg.fields.find((f) => f.type === 'gudangAlloc');
 
-  const openCreate = () => {
+  const resetForm = () => {
     const init = {};
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc' ? {} : (f.default != null ? String(f.default) : '');
     });
     if (cfg.codeGen) init[cfg.codeGen.field] = suggestCode(rows, cfg.codeGen.prefix);
-    setValues(init); setErrors({}); setEditing(null); setFormOpen(true);
+    setValues(init);
+    setErrors({});
+    setEditing(null);
+  };
+
+  const openCreate = () => {
+    captureScrollPos();
+    resetForm();
+    setFormOpen(true);
   };
 
   const openEdit = (rec) => {
+    captureScrollPos();
     const init = {};
     cfg.fields.forEach((f) => {
       init[f.k] = f.type === 'gudangAlloc'
@@ -325,7 +385,7 @@ function EntityPageInner({ slug }) {
         toast('Data baru berhasil disimpan.', 'success');
       }
       setSaving(false);
-      if (andAgain) openCreate(); else setFormOpen(false);
+      if (andAgain) resetForm(); else handleCloseForm();
     }, 400);
   };
 
@@ -393,26 +453,167 @@ function EntityPageInner({ slug }) {
   /* ---------- Nilai field untuk dialog detail ---------- */
   const renderDetailValue = (f, rec) => {
     const v = rec?.[f.k];
+
+    // 1. Alokasi Stok Gudang: Sub-Tabel Kompak Bergaris Tipis Halus
     if (f.type === 'gudangAlloc') {
       const list = (db.gudangDetails || []).filter((r) => r.productId === rec.id);
-      if (!list.length) return 'Belum ditempatkan';
-      return list.map((r) => {
-        const w = (db.warehouses || []).find((x) => x.id === r.gudangId);
-        return `${w ? w.code : r.gudangId}: ${r.stokTercatat}`;
-      }).join(' • ');
+      if (!list.length) {
+        return (
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            Belum ditempatkan di gudang mana pun
+          </Typography>
+        );
+      }
+      const totalStok = list.reduce((sum, item) => sum + (Number(item.stokTercatat) || 0), 0);
+
+      return (
+        <Box sx={{ width: '100%', mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Gudang</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Kode</TableCell>
+                <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Stok Fisik</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {list.map((r) => {
+                const w = (db.warehouses || []).find((x) => x.id === r.gudangId);
+                return (
+                  <TableRow key={r.id || r.gudangId}>
+                    <TableCell sx={{ fontSize: 12.5, py: 0.75, px: 1.5, fontWeight: 600 }}>{w?.name || '-'}</TableCell>
+                    <TableCell sx={{ fontSize: 12, py: 0.75, px: 1.5, color: 'text.secondary' }}>{w?.code || '-'}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: 12.5, py: 0.75, px: 1.5 }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-block',
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: '4px',
+                          bgcolor: 'action.hover',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        {r.stokTercatat} pcs
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                <TableCell colSpan={2} sx={{ fontSize: 12, fontWeight: 750, py: 0.75, px: 1.5 }}>
+                  Total Akumulasi Stok
+                </TableCell>
+                <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 800, py: 0.75, px: 1.5, color: 'primary.main' }}>
+                  {totalStok} pcs
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Box>
+      );
     }
+
+    // 2. Multi-Select: Kotak Daftar Bergaris Tipis Full-Width yang Dapat Digulir Vertikal
     if (f.type === 'multiSelect') {
       const ids = rec?.[f.k] || [];
-      if (!ids.length) return 'Belum ada item terpilih';
-      return ids.map((id) => {
-        const r2 = (db[f.optionsFrom?.table] || []).find((x) => String(x.id) === String(id));
-        return r2 ? `${r2.sku ? `${r2.sku} — ` : ''}${r2.name}` : `#${id}`;
-      }).join(' • ');
+      if (!ids.length) {
+        return (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 0.5 }}>
+            Belum ada item terpilih
+          </Typography>
+        );
+      }
+      return (
+        <Box sx={{ width: '100%', mt: 0.25 }}>
+          <Box
+            sx={{
+              width: '100%',
+              maxHeight: 160,
+              overflowY: 'auto',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.25,
+              bgcolor: 'background.paper',
+            }}
+          >
+            {ids.map((id, i) => {
+              const r2 = (db[f.optionsFrom?.table] || []).find((x) => String(x.id) === String(id));
+              return (
+                <Box
+                  key={id}
+                  sx={{
+                    px: 1.75,
+                    py: 0.85,
+                    borderBottom: i === ids.length - 1 ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  {r2?.sku && (
+                    <Box
+                      component="span"
+                      sx={{
+                        px: 0.8,
+                        py: 0.25,
+                        borderRadius: '4px',
+                        bgcolor: 'action.hover',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        fontSize: '0.725rem',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        color: 'text.secondary',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {r2.sku}
+                    </Box>
+                  )}
+                  <Typography variant="body2" fontSize={13} fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                    {r2 ? r2.name : `#${id}`}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: 11, textAlign: 'right' }}>
+            {ids.length} produk terdaftar (dapat digulir ke bawah)
+          </Typography>
+        </Box>
+      );
     }
+
     if (v == null || v === '') return '-';
+
+    // 3. Foto / Berkas: Thumbnail Berbingkai Halus
     if (f.type === 'file') {
-      return <Avatar src={v} variant="rounded" sx={{ width: 56, height: 56, borderRadius: 2, border: '1px solid', borderColor: 'divider' }} />;
+      return (
+        <Box sx={{ mt: 0.5 }}>
+          <Avatar
+            src={v}
+            variant="rounded"
+            sx={{
+              width: 72,
+              height: 72,
+              borderRadius: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
+            }}
+          />
+        </Box>
+      );
     }
+
+    // 4. Dropdown Select Relasi
     if (f.type === 'select') {
       if (f.optionsFrom && f.optionsFrom.table !== 'categories') {
         const ref = (db[f.optionsFrom.table] || []).find((x) => String(x.id) === String(v));
@@ -421,6 +622,8 @@ function EntityPageInner({ slug }) {
       const o = resolveOptions(f, db).find((x) => String(x.v) === String(v));
       return o ? o.l : String(v);
     }
+
+    // 5. Format Rupiah
     if (f.fmt === 'rupiah') return formatRupiah(Number(v));
     return String(v);
   };
@@ -603,19 +806,61 @@ function EntityPageInner({ slug }) {
 
   /* ---------- Dialog form ---------- */
   const formDialog = (
-    <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth
-      PaperProps={{ sx: { borderRadius: 1 } }}>
-      <DialogTitle>{editing ? `Ubah — ${cfg.title}` : `Tambah — ${cfg.title}`}</DialogTitle>
-      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
-        {errors._form && <Alert severity="error" sx={{ mb: 2 }}>{errors._form}</Alert>}
+    <Dialog
+      open={formOpen}
+      onClose={handleUserDismiss}
+      TransitionProps={{ onExited: handleFormExited }}
+      maxWidth={false}
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 1.25, // 10px — agak tajam dan selaras dengan card lain
+          border: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
+          m: { xs: 1, sm: 2 },
+          width: { xs: 'calc(100% - 16px)', sm: '100%' },
+          maxWidth: { xs: '100%', sm: 700 },
+        },
+      }}
+    >
+      <DialogTitle sx={{ px: { xs: 2, sm: 3.5 }, pt: 2.5, pb: 1.5, fontWeight: 800, fontSize: 16.5 }}>
+        {editing ? `Ubah — ${cfg.title}` : `Tambah — ${cfg.title}`}
+      </DialogTitle>
+      <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 2, sm: 3.5 }, py: 2.5 }}>
+        {errors._form && <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5 }}>{errors._form}</Alert>}
         <Stack spacing={2}>{cfg.fields.map(renderField)}</Stack>
       </DialogContent>
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={() => setFormOpen(false)}>Batal</Button>
+      <DialogActions
+        sx={{
+          px: { xs: 2, sm: 3.5 },
+          py: 2,
+          flexWrap: 'wrap',
+          gap: 1.25,
+          justifyContent: { xs: 'stretch', sm: 'flex-end' },
+          '& > button': {
+            flex: { xs: '1 1 auto', sm: 'none' },
+          },
+        }}
+      >
+        <Button onClick={handleUserDismiss} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          Batal
+        </Button>
         {!editing && (
-          <Button onClick={() => handleSubmit(true)} disabled={saving}>Simpan &amp; Tambah Lagi</Button>
+          <Button
+            onClick={() => handleSubmit(true)}
+            disabled={saving}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Simpan &amp; Tambah Lagi
+          </Button>
         )}
-        <Button variant="contained" onClick={() => handleSubmit(false)} disabled={saving}>
+        <Button
+          variant="contained"
+          onClick={() => handleSubmit(false)}
+          disabled={saving}
+          sx={{ textTransform: 'none', fontWeight: 650 }}
+        >
           {saving ? 'Menyimpan…' : editing ? 'Simpan Perubahan' : 'Simpan'}
         </Button>
       </DialogActions>
@@ -641,40 +886,138 @@ function EntityPageInner({ slug }) {
     />
   );
 
-  /* ---------- Dialog DETAIL ---------- */
+  /* ---------- Dialog DETAIL (Baris Daftar Bergaris Tipis Halus) ---------- */
   const detailStats = detailRow ? refStats(detailRow) : { total: 0, list: [] };
 
   const detailDialog = (
-    <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="sm" fullWidth
-      PaperProps={{ sx: { borderRadius: 1 } }}>
-      <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
+    <Dialog
+      open={!!detailRow}
+      onClose={() => setDetailRow(null)}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 1.25, // 10px — seragam agak tajam
+          border: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
+          m: { xs: 1, sm: 2 },
+        },
+      }}
+    >
+      <DialogTitle sx={{ fontWeight: 800, fontSize: 16, px: { xs: 2, sm: 3 }, py: 2 }}>
         Detail {cfg.addLabel} — {detailRow ? labelOf(detailRow) : ''}
       </DialogTitle>
-      <DialogContent dividers sx={{ overflowX: 'hidden' }}>
+      <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 2, sm: 3 }, py: 2 }}>
         {detailRow && (
           <>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+            {/* Header Status & Waktu */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
               <StatusChip kind="active" status={detailRow.status || 'active'} />
               <Stack direction="row" spacing={0.75}>
-                {detailRow.createdAt && <Chip size="small" variant="outlined" label={`Dibuat ${detailRow.createdAt}`} />}
-                {detailRow.updatedAt && <Chip size="small" variant="outlined" label={`Diubah ${detailRow.updatedAt}`} />}
+                {detailRow.createdAt && (
+                  <Box
+                    component="span"
+                    sx={{
+                      px: 0.8,
+                      py: 0.3,
+                      borderRadius: '4px',
+                      bgcolor: 'action.hover',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      fontSize: '0.725rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Dibuat {detailRow.createdAt}
+                  </Box>
+                )}
+                {detailRow.updatedAt && (
+                  <Box
+                    component="span"
+                    sx={{
+                      px: 0.8,
+                      py: 0.3,
+                      borderRadius: '4px',
+                      bgcolor: 'action.hover',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      fontSize: '0.725rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Diubah {detailRow.updatedAt}
+                  </Box>
+                )}
               </Stack>
             </Stack>
-            <Stack spacing={0.5}>
-              {cfg.fields.map((f) => (
-                <KVRow key={f.k} label={f.l} value={renderDetailValue(f, detailRow)} />
-              ))}
-            </Stack>
+
+            {/* Daftar Informasi: Baris Horizontal Bergaris Tipis Halus (Tanpa Kotak Abu) */}
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden', mb: 2 }}>
+              {cfg.fields.map((f, idx) => {
+                const val = renderDetailValue(f, detailRow);
+                const isLong = f.type === 'textarea' || f.type === 'gudangAlloc' || f.type === 'multiSelect';
+                return (
+                  <Box
+                    key={f.k}
+                    sx={{
+                      px: 2,
+                      py: 1.25,
+                      borderBottom: idx === cfg.fields.length - 1 ? 'none' : '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      flexDirection: isLong ? 'column' : 'row',
+                      justifyContent: 'space-between',
+                      alignItems: isLong ? 'flex-start' : 'center',
+                      gap: isLong ? 0.5 : 2,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary" fontSize={13} sx={{ minWidth: 140, flexShrink: 0 }}>
+                      {f.l}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      fontWeight={650}
+                      fontSize={13.5}
+                      color="text.primary"
+                      textAlign={isLong ? 'left' : 'right'}
+                      sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word', width: isLong ? '100%' : 'auto' }}
+                    >
+                      {val}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {/* Seksi Penggunaan Data */}
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>Penggunaan Data</Typography>
+              <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.75 }}>
+                Penggunaan Data
+              </Typography>
               {detailStats.total > 0 ? (
                 <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
                   {detailStats.list.map((s) => (
-                    <Chip key={s.label} size="small" color="primary" variant="outlined" label={`${s.n} ${s.label}`} />
+                    <Box
+                      key={s.label}
+                      component="span"
+                      sx={{
+                        px: 1,
+                        py: 0.35,
+                        borderRadius: '4px',
+                        bgcolor: '#eff6ff',
+                        color: '#1d4ed8',
+                        border: '1px solid #bfdbfe',
+                        fontSize: '0.75rem',
+                        fontWeight: 650,
+                      }}
+                    >
+                      {s.n} {s.label}
+                    </Box>
                   ))}
                 </Stack>
               ) : (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" display="block">
                   Belum dipakai transaksi/relasi mana pun — aman untuk dihapus permanen.
                 </Typography>
               )}
@@ -682,11 +1025,23 @@ function EntityPageInner({ slug }) {
           </>
         )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setDetailRow(null)}>Tutup</Button>
+      <DialogActions sx={{ p: { xs: 1.5, sm: 2 }, justifyContent: 'flex-end', gap: 1.25 }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => setDetailRow(null)}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+        >
+          Tutup
+        </Button>
         {detailRow && !readOnly && (
-          <Button variant="contained" startIcon={<EditRoundedIcon />}
-            onClick={() => { const rec = detailRow; setDetailRow(null); openEdit(rec); }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<EditRoundedIcon fontSize="small" />}
+            onClick={() => { const rec = detailRow; setDetailRow(null); openEdit(rec); }}
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 650 }}
+          >
             Ubah Data
           </Button>
         )}
@@ -697,7 +1052,7 @@ function EntityPageInner({ slug }) {
   /* ---------- Dialog HAPUS ---------- */
   const deleteDialog = (
     <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 1 } }}>
+      PaperProps={{ sx: { borderRadius: 1.25 } }}>
       <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
         Hapus {cfg.addLabel} — {confirmDelete ? labelOf(confirmDelete) : ''}
       </DialogTitle>

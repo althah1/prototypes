@@ -11,7 +11,8 @@ export default function ConfirmDialog({
   confirmLabel = 'Ya, Lanjutkan', confirmColor = 'primary',
 }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
+      PaperProps={{ sx: { borderRadius: 1.25, border: '1px solid', borderColor: 'divider' } }}>
       <DialogTitle sx={{ overflowWrap: 'anywhere' }}>{title}</DialogTitle>
       <DialogContent sx={{ overflowX: 'hidden' }}>
         <DialogContentText sx={{ overflowWrap: 'anywhere' }}>{message}</DialogContentText>
