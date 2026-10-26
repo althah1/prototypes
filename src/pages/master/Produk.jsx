@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
@@ -50,20 +50,6 @@ import { nowStamp, formatRupiah } from '../../utils/helpers';
 const ALNUM = /^[A-Za-z0-9-]+$/;
 const CELL = { maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
-/* Baris nilai detail — gaya wadah, sama dengan dialog detail EntityPage */
-const KVRow = ({ label, value }) => (
-  <Stack sx={{ py: 0.5 }}>
-    <Typography variant="caption" color="text.secondary"
-      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4 }}>
-      {label}
-    </Typography>
-    <Typography variant="body2" fontWeight={600}
-      sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.25, py: 0.85, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
-      {value}
-    </Typography>
-  </Stack>
-);
-
 /* Label seksi form — menegaskan alur input dari atas ke bawah */
 const SectionLabel = ({ children }) => (
   <Typography variant="caption" color="text.secondary"
@@ -100,6 +86,61 @@ export default function ProdukPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
+
+  /* ---------- Scroll Restoration & Dialog Lifecycle (selaras EntityPage) ---------- */
+  const scrollPosRef = useRef(null);
+  const closingSnapshotRef = useRef(null);
+
+  const captureScrollPos = () => {
+    closingSnapshotRef.current = null;
+    const mainEl = document.querySelector('main');
+    scrollPosRef.current = {
+      x: window.scrollX || document.documentElement.scrollLeft || document.body.scrollLeft || 0,
+      y: window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0,
+      mainX: mainEl ? mainEl.scrollLeft : 0,
+      mainY: mainEl ? mainEl.scrollTop : 0,
+    };
+  };
+
+  const handleCloseForm = () => {
+    if (scrollPosRef.current) {
+      closingSnapshotRef.current = scrollPosRef.current;
+      scrollPosRef.current = null;
+    }
+    setFormOpen(false);
+  };
+
+  const handleUserDismiss = () => {
+    if (saving) return;
+    handleCloseForm();
+  };
+
+  const handleFormExited = () => {
+    if (formOpen) return;
+    const toRestore = closingSnapshotRef.current;
+    closingSnapshotRef.current = null;
+    if (!toRestore) return;
+
+    window.scrollTo(toRestore.x, toRestore.y);
+    if (document.documentElement) {
+      document.documentElement.scrollLeft = toRestore.x;
+      document.documentElement.scrollTop = toRestore.y;
+    }
+    if (document.body) {
+      document.body.scrollLeft = toRestore.x;
+      document.body.scrollTop = toRestore.y;
+    }
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollLeft = toRestore.mainX;
+      mainEl.scrollTop = toRestore.mainY;
+    }
+  };
+
+  const resetCreateState = () => {
+    setValues({ sku: '', name: '', category: '', unit: 'pcs', hargaJual: '', hargaBeli: '', pcsPerUnit: '1', gudangId: '', stok: '', desc: '' });
+    setErrors({}); setSkuExists(false); setEditing(null);
+  };
 
   const products = db.products || [];
   const gudangs = db.warehouses || [];
@@ -195,11 +236,13 @@ export default function ProdukPage() {
 
   /* ===== Form ===== */
   const openCreate = () => {
-    setValues({ sku: '', name: '', category: '', unit: 'pcs', hargaJual: '', hargaBeli: '', pcsPerUnit: '1', gudangId: '', stok: '', desc: '' });
-    setErrors({}); setSkuExists(false); setEditing(null); setFormOpen(true);
+    captureScrollPos();
+    resetCreateState();
+    setFormOpen(true);
   };
 
   const openEditRow = (r) => {
+    captureScrollPos();
     setValues({
       sku: r.sku, name: r.name, category: r.category, unit: r.unit,
       hargaJual: String(r.hargaJual ?? ''), hargaBeli: String(r.hargaBeli ?? ''),
@@ -299,7 +342,7 @@ export default function ProdukPage() {
       else upsertPlacement(productId, -1, 0); /* resync total tanpa mengubah penempatan */
       toast(msg, 'success');
       setSaving(false);
-      if (andAgain) openCreate(); else setFormOpen(false);
+      if (andAgain) resetCreateState(); else handleCloseForm();
     }, 400);
   };
 
@@ -335,16 +378,99 @@ export default function ProdukPage() {
     setConfirmToggle(null);
   };
 
-  /* ===== Detail ===== */
+  /* ===== Detail (seragam dengan desain baru EntityPage) ===== */
   const detailRefs = detailRow ? productRefs(detailRow) : { total: 0, list: [] };
   const detailProd = detailRow ? products.find((p) => p.id === detailRow.productId) : null;
-  const detailPlacements = detailRow
+  const detailPlacementList = detailRow
     ? placements.filter((r) => r.productId === detailRow.productId)
-      .map((r) => {
-        const w = gudangs.find((x) => x.id === r.gudangId);
-        return `${w ? w.code : r.gudangId}: ${r.stokTercatat}`;
-      }).join(' • ')
-    : '';
+    : [];
+  const detailTotalStok = detailPlacementList.reduce((sum, item) => sum + (Number(item.stokTercatat) || 0), 0);
+
+  const renderAlokasiGudangDetail = () => {
+    if (!detailPlacementList.length) {
+      return (
+        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          Belum ditempatkan di gudang mana pun
+        </Typography>
+      );
+    }
+    return (
+      <Box sx={{ width: '100%', mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'action.hover' }}>
+              <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Gudang</TableCell>
+              <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Kode</TableCell>
+              <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Stok Fisik</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {detailPlacementList.map((pl) => {
+              const w = gudangs.find((x) => x.id === pl.gudangId);
+              return (
+                <TableRow key={pl.id || pl.gudangId}>
+                  <TableCell sx={{ fontSize: 12.5, py: 0.75, px: 1.5, fontWeight: 600 }}>
+                    {w?.name || '-'}
+                    {w?.status === 'inactive' ? ' (Nonaktif)' : ''}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, py: 0.75, px: 1.5, color: 'text.secondary', fontFamily: 'monospace' }}>
+                    {w?.code || `#${pl.gudangId}`}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: 12.5, py: 0.75, px: 1.5 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-block',
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: '4px',
+                        bgcolor: 'action.hover',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {pl.stokTercatat} pcs
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            <TableRow sx={{ bgcolor: 'action.hover' }}>
+              <TableCell colSpan={2} sx={{ fontSize: 12, fontWeight: 750, py: 0.75, px: 1.5 }}>
+                Total Akumulasi Stok
+              </TableCell>
+              <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 800, py: 0.75, px: 1.5, color: 'primary.main', fontVariantNumeric: 'tabular-nums' }}>
+                {detailTotalStok} pcs
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Box>
+    );
+  };
+
+  const detailFields = detailRow
+    ? [
+        { k: 'sku', l: 'Kode SKU', v: detailRow.sku, mono: true },
+        { k: 'name', l: 'Nama Produk', v: detailRow.name },
+        { k: 'category', l: 'Kategori', v: detailRow.category || '-' },
+        {
+          k: 'unit',
+          l: 'Satuan Jual',
+          v: detailRow.unit === 'box' ? 'Box' : detailRow.unit === 'pcs' ? 'Pcs' : (detailRow.unit || '-'),
+        },
+        ...((detailRow.unit === 'box' || (detailRow.pcsPerUnit ?? 1) > 1)
+          ? [{ k: 'konversi', l: 'Konversi Satuan', v: `1 ${detailRow.unit} = ${detailRow.pcsPerUnit ?? 1} pcs` }]
+          : []),
+        { k: 'hargaBeli', l: 'Harga Beli', v: formatRupiah(detailRow.hargaBeli), tabular: true },
+        { k: 'hargaJual', l: 'Harga Jual', v: formatRupiah(detailRow.hargaJual), tabular: true },
+        { k: 'alokasi', l: 'Alokasi Stok Gudang', isLong: true, customNode: renderAlokasiGudangDetail() },
+        { k: 'desc', l: 'Deskripsi', v: detailRow.desc || '-', isLong: true },
+      ]
+    : [];
 
   /* Opsi gudang untuk form: aktif + gudang penempatan saat ini (walau nonaktif) */
   const gudangOpts = gudangs.filter((w) => (w.status || 'active') === 'active'
@@ -418,8 +544,12 @@ export default function ProdukPage() {
                 <TableCell><Box title={r.name} sx={CELL}><Typography variant="body2" fontWeight={600}>{r.name}</Typography></Box></TableCell>
                 <TableCell><Box title={r.category} sx={CELL}>{r.category || '-'}</Box></TableCell>
                 <TableCell>{r.unit}</TableCell>
-                <TableCell align="right">{formatRupiah(r.hargaJual)}</TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>{formatRupiah(r.hargaBeli)}</TableCell>
+                <TableCell align="right" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                  {formatRupiah(r.hargaBeli)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatRupiah(r.hargaJual)}
+                </TableCell>
                 <TableCell>
                   {r.placed ? (
                     <Box title={`${r.gudangCode} — ${r.gudangName}`} sx={CELL}>{r.gudangCode} — {r.gudangName}</Box>
@@ -480,12 +610,31 @@ export default function ProdukPage() {
         permanen selama belum pernah dipakai transaksi.
       </Alert>
 
-      {/* ===== Dialog Form — alur input kerja nyata ===== */}
-      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? `Ubah — ${values.sku || 'Produk'}` : 'Tambah — Produk'}</DialogTitle>
-        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
+      {/* ===== Dialog Form — alur input kerja nyata (desain seragam EntityPage) ===== */}
+      <Dialog
+        open={formOpen}
+        onClose={handleUserDismiss}
+        TransitionProps={{ onExited: handleFormExited }}
+        maxWidth={false}
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 1.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
+            m: { xs: 1, sm: 2 },
+            width: { xs: 'calc(100% - 16px)', sm: '100%' },
+            maxWidth: { xs: '100%', sm: 700 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: { xs: 2, sm: 3.5 }, pt: 2.5, pb: 1.5, fontWeight: 800, fontSize: 16.5 }}>
+          {editing ? `Ubah — ${values.sku || 'Produk'}` : 'Tambah — Produk'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 2, sm: 3.5 }, py: 2.5 }}>
           {skuExists && (
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert severity="info" sx={{ mb: 2, borderRadius: 1.5 }}>
               SKU <b>sudah terdaftar</b> — data produk akan <b>diperbarui</b>. Pilih gudang untuk
               menambah penempatan baru; <b>gudang yang sama → 1 baris</b>, stok diperbarui menjadi nilai baru.
             </Alert>
@@ -496,7 +645,7 @@ export default function ProdukPage() {
               onChange={(e) => onSkuChange(e.target.value)} inputProps={{ maxLength: 30 }} disabled={!!editing} />
             <TextField {...fieldProps('name', 'Nama Produk *', 'Maksimal 100 karakter.')} inputProps={{ maxLength: 100 }} />
 
-            <SectionLabel>2 • Klasifikasi & Satuan</SectionLabel>
+            <SectionLabel>2 • Klasifikasi &amp; Satuan</SectionLabel>
             <TextField select {...fieldProps('category', 'Kategori *')}>
               {(db.categories || []).map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
@@ -504,7 +653,6 @@ export default function ProdukPage() {
               <MenuItem value="pcs">Pcs</MenuItem>
               <MenuItem value="box">Box</MenuItem>
             </TextField>
-            {/* Konversi hanya relevan untuk Box — muncul kondisional */}
             {values.unit === 'box' && (
               <TextField {...fieldProps('pcsPerUnit', 'Isi per Box (pcs) *', 'Contoh: 1 box = 10 pcs.')}
                 type="number" inputProps={{ min: 1 }} />
@@ -516,7 +664,7 @@ export default function ProdukPage() {
             <TextField {...fieldProps('hargaJual', 'Harga Jual (Rp) *', 'Dipakai transaksi Order & Quotation — angka bulat, minimal 1.')}
               type="number" inputProps={{ min: 1 }} />
 
-            <SectionLabel>4 • ALOKASI STOK AWAL</SectionLabel>
+            <SectionLabel>4 • Alokasi Stok Awal</SectionLabel>
             <Autocomplete
               options={gudangOpts}
               getOptionLabel={(w) => `${w.code} — ${w.name}`}
@@ -536,56 +684,174 @@ export default function ProdukPage() {
             <TextField {...fieldProps('desc', 'Deskripsi', 'Maksimal 200 karakter.')} multiline minRows={2} inputProps={{ maxLength: 200 }} />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFormOpen(false)}>Batal</Button>
+        <DialogActions
+          sx={{
+            px: { xs: 2, sm: 3.5 },
+            py: 2,
+            flexWrap: 'wrap',
+            gap: 1.25,
+            justifyContent: { xs: 'stretch', sm: 'flex-end' },
+            '& > button': {
+              flex: { xs: '1 1 auto', sm: 'none' },
+            },
+          }}
+        >
+          <Button onClick={handleUserDismiss} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Batal
+          </Button>
           {!editing && (
-            <Button onClick={() => submit(true)} disabled={saving}>Simpan &amp; Tambah Lagi</Button>
+            <Button onClick={() => submit(true)} disabled={saving} sx={{ textTransform: 'none', fontWeight: 600 }}>
+              Simpan &amp; Tambah Lagi
+            </Button>
           )}
-          <Button variant="contained" onClick={() => submit(false)} disabled={saving}>
+          <Button variant="contained" onClick={() => submit(false)} disabled={saving} sx={{ textTransform: 'none', fontWeight: 650 }}>
             {saving ? 'Menyimpan…' : editing ? 'Simpan Perubahan' : 'Simpan'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ===== Dialog Detail ===== */}
-      <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}>
-        <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
+      {/* ===== Dialog Detail (Baris Daftar Bergaris Tipis Halus — Seragam EntityPage) ===== */}
+      <Dialog
+        open={!!detailRow}
+        onClose={() => setDetailRow(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 1.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
+            m: { xs: 1, sm: 2 },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 16, px: { xs: 2, sm: 3 }, py: 2, overflowWrap: 'anywhere' }}>
           Detail Produk — {detailRow ? detailRow.name : ''}
         </DialogTitle>
-        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
+        <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 2, sm: 3 }, py: 2 }}>
           {detailRow && (
             <>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+              {/* Header Status & Waktu */}
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <StatusChip kind="active" status={detailRow.status || 'active'} />
-                <Stack direction="row" spacing={0.75}>
-                  <Chip size="small" variant="outlined" label={`SKU ${detailRow.sku}`} />
-                  {detailProd?.createdAt && <Chip size="small" variant="outlined" label={`Dibuat ${detailProd.createdAt}`} />}
+                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+                  {detailProd?.createdAt && (
+                    <Box
+                      component="span"
+                      sx={{
+                        px: 0.8,
+                        py: 0.3,
+                        borderRadius: '4px',
+                        bgcolor: 'action.hover',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        fontSize: '0.725rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Dibuat {detailProd.createdAt}
+                    </Box>
+                  )}
+                  {detailProd?.updatedAt && (
+                    <Box
+                      component="span"
+                      sx={{
+                        px: 0.8,
+                        py: 0.3,
+                        borderRadius: '4px',
+                        bgcolor: 'action.hover',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        fontSize: '0.725rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Diubah {detailProd.updatedAt}
+                    </Box>
+                  )}
                 </Stack>
               </Stack>
-              <Stack spacing={0.5}>
-                <KVRow label="Nama Produk" value={detailRow.name} />
-                <KVRow label="Kategori" value={detailRow.category || '-'} />
-                <KVRow label="Satuan" value={detailRow.unit} />
-                {(detailRow.unit === 'box' || (detailRow.pcsPerUnit ?? 1) > 1) && (
-                  <KVRow label="Konversi" value={`1 ${detailRow.unit} = ${detailRow.pcsPerUnit ?? 1} pcs`} />
-                )}
-                <KVRow label="Harga Beli" value={formatRupiah(detailRow.hargaBeli)} />
-                <KVRow label="Harga Jual" value={formatRupiah(detailRow.hargaJual)} />
-                <KVRow label="Penempatan (gudang)" value={detailPlacements || 'Belum ditempatkan'} />
-                <KVRow label="Total Stok" value={`${detailProd?.stock ?? 0} pcs `} />
-                {detailRow.desc && <KVRow label="Deskripsi" value={detailRow.desc} />}
-              </Stack>
+
+              {/* Daftar Informasi: Baris Horizontal Bergaris Tipis Halus (Tanpa Kotak Abu) */}
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden', mb: 2 }}>
+                {detailFields.map((f, idx) => (
+                  <Box
+                    key={f.k}
+                    sx={{
+                      px: 2,
+                      py: 1.25,
+                      borderBottom: idx === detailFields.length - 1 ? 'none' : '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      flexDirection: f.isLong ? 'column' : 'row',
+                      justifyContent: 'space-between',
+                      alignItems: f.isLong ? 'flex-start' : 'center',
+                      gap: f.isLong ? 0.5 : 2,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary" fontSize={13} sx={{ minWidth: 140, flexShrink: 0 }}>
+                      {f.l}
+                    </Typography>
+                    {f.customNode ? (
+                      <Box sx={{ width: '100%' }}>
+                        {f.customNode}
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        fontWeight={650}
+                        fontSize={13.5}
+                        color="text.primary"
+                        textAlign={f.isLong ? 'left' : 'right'}
+                        sx={{
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word',
+                          width: f.isLong ? '100%' : 'auto',
+                          fontFamily: f.mono ? 'monospace' : undefined,
+                          fontVariantNumeric: f.tabular ? 'tabular-nums' : undefined,
+                        }}
+                      >
+                        {f.v}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Seksi Penggunaan Data */}
               <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>Penggunaan Data</Typography>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.75 }}
+                >
+                  Penggunaan Data
+                </Typography>
                 {detailRefs.total > 0 ? (
                   <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
                     {detailRefs.list.map((s) => (
-                      <Chip key={s.label} size="small" color="primary" variant="outlined" label={`${s.n} ${s.label}`} />
+                      <Box
+                        key={s.label}
+                        component="span"
+                        sx={{
+                          px: 1,
+                          py: 0.35,
+                          borderRadius: '4px',
+                          bgcolor: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
+                          fontSize: '0.75rem',
+                          fontWeight: 650,
+                        }}
+                      >
+                        {s.n} {s.label}
+                      </Box>
                     ))}
                   </Stack>
                 ) : (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" display="block">
                     Belum dipakai transaksi/relasi mana pun — aman untuk dihapus permanen.
                   </Typography>
                 )}
@@ -593,11 +859,23 @@ export default function ProdukPage() {
             </>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailRow(null)}>Tutup</Button>
+        <DialogActions sx={{ p: { xs: 1.5, sm: 2 }, justifyContent: 'flex-end', gap: 1.25 }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => setDetailRow(null)}
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+          >
+            Tutup
+          </Button>
           {detailRow && !readOnly && (
-            <Button variant="contained" startIcon={<EditRoundedIcon />}
-              onClick={() => { const r = detailRow; setDetailRow(null); openEditRow(r); }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<EditRoundedIcon fontSize="small" />}
+              onClick={() => { const r = detailRow; setDetailRow(null); openEditRow(r); }}
+              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 650 }}
+            >
               Ubah Data
             </Button>
           )}
@@ -605,8 +883,20 @@ export default function ProdukPage() {
       </Dialog>
 
       {/* ===== Dialog Hapus ===== */}
-      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { borderRadius: 1 } }}>
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 1.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 16px 48px rgba(15,23,42,0.12)',
+          },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
           Hapus — {delRow ? (delRow.placed ? `Penempatan ${delRow.sku} di ${delRow.gudangCode}` : `Produk ${delRow.sku}`) : ''}
         </DialogTitle>

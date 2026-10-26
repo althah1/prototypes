@@ -145,7 +145,9 @@ export default function QuoteDetailDialog({
 
   const maxDisc = maxDiscountOf(quote.items);
   const overLimit = maxDisc > QUOTE_DISCOUNT_LIMIT;
-  const pdfAllowed = ['sent', 'approved', 'converted'].includes(quote.status);
+  const pdfAllowed =
+    ['sent', 'approved', 'converted'].includes(quote.status) ||
+    (quote.status === 'draft' && !overLimit && !isExpired);
 
   const supervisorOfSales = () => {
     const sales = (db.sales || []).find((s) => s.id === quote.salesId);
@@ -174,6 +176,19 @@ export default function QuoteDetailDialog({
       );
     }
     toast('Quotation diajukan ke Supervisor — menunggu persetujuan sebelum dapat dikirim.', 'info');
+  };
+
+  const sendToCustomer = () => {
+    if (isExpired) {
+      toast('Quotation sudah kadaluarsa — tidak dapat dikirim ke pelanggan.', 'error');
+      return;
+    }
+    if (overLimit) {
+      submitForApproval();
+      return;
+    }
+    update('quotations', quote.id, { status: 'sent', sentAt: nowStamp() });
+    toast('Quotation diterbitkan ke pelanggan — siap dicetak PDF dan menunggu keputusan pelanggan.', 'success');
   };
 
   const customerDecision = (ok) => {
@@ -358,8 +373,12 @@ export default function QuoteDetailDialog({
             </Alert>
           )}
           {quote.status === 'draft' && !isExpired && (
-            <Alert severity="info" sx={{ mb: 2.5, borderRadius: 1.5 }}>
-              Quotation masih draft — klik <b>Ajukan ke Supervisor</b> untuk meminta persetujuan.
+            <Alert severity={overLimit ? 'warning' : 'info'} sx={{ mb: 2.5, borderRadius: 1.5 }}>
+              {overLimit ? (
+                <>Diskon <b>{maxDisc}%</b> melebihi batas wewenang {QUOTE_DISCOUNT_LIMIT}% — klik <b>Ajukan ke Supervisor</b> untuk meminta persetujuan.</>
+              ) : (
+                <>Quotation berstatus <b>Draft</b> (diskon dalam wewenang &le; {QUOTE_DISCOUNT_LIMIT}%) — dapat langsung dicetak PDF atau klik <b>Kirim ke Pelanggan</b>.</>
+              )}
             </Alert>
           )}
           {quote.status === 'converted' && (
@@ -571,14 +590,26 @@ export default function QuoteDetailDialog({
           )}
 
           {salesActions && quote.status === 'draft' && (
-            <Button
-              variant="contained"
-              startIcon={<SendRoundedIcon />}
-              onClick={submitForApproval}
-              disabled={isExpired}
-            >
-              {isExpired ? 'Penawaran Kadaluarsa' : 'Ajukan ke Supervisor'}
-            </Button>
+            overLimit ? (
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<SendRoundedIcon />}
+                onClick={submitForApproval}
+                disabled={isExpired}
+              >
+                {isExpired ? 'Penawaran Kadaluarsa' : 'Ajukan ke Supervisor'}
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                startIcon={<SendRoundedIcon />}
+                onClick={sendToCustomer}
+                disabled={isExpired}
+              >
+                {isExpired ? 'Penawaran Kadaluarsa' : 'Kirim ke Pelanggan'}
+              </Button>
+            )
           )}
 
           {salesActions && quote.status === 'sent' && !isExpired && (

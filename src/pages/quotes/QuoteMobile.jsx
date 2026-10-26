@@ -32,6 +32,7 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
@@ -43,7 +44,7 @@ import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, formatRupiah, TAX_RATE, QUOTE_DISCOUNT_LIMIT } from '../../utils/helpers';
-import { expireQuotes } from '../../utils/quoteUtils';
+import { expireQuotes, quoteStatusForDiscount, maxDiscountOf } from '../../utils/quoteUtils';
 
 /* Tanggal + N hari (perhitungan lokal, aman timezone) */
 const addDays = (iso, n) => {
@@ -162,6 +163,7 @@ export default function QuoteMobile() {
   const [submitting, setSubmitting] = useState(false);
   const [successQuote, setSuccessQuote] = useState(null);
   const [detailId, setDetailId] = useState(null);
+  const [discontinuedOpen, setDiscontinuedOpen] = useState(false);
 
   /* auto-expire saat halaman dibuka (sekali) */
   const initRef = useRef(false);
@@ -202,8 +204,7 @@ export default function QuoteMobile() {
     let gross = 0, after = 0;
     (draft?.items || []).forEach((i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
-      if (!p) return;
+      if (!p || p.status === 'inactive') return;
       const g = p.hargaJual * i.qty;
       gross += g;
       after += Math.round(g * (1 - (i.disc || 0) / 100));
@@ -256,18 +257,50 @@ export default function QuoteMobile() {
   };
   const genVerCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
+  const syncDiscontinuedCatalog = () => {
+    setDiscontinuedOpen(false);
+    setDraft((d) => {
+      if (!d) return d;
+      const validItems = d.items.filter((i) => {
+        const p = (db.products || []).find((x) => x.id === i.productId);
+        return Boolean(p && p.status === 'active');
+      });
+      return { ...d, step: 'items', items: validItems };
+    });
+    toast('Katalog diperbarui — produk yang tidak tersedia telah dikeluarkan dari keranjang.', 'info');
+  };
+
   const submitQuote = () => {
     if (submitting || !draft?.items.length || !validUntil) return;
     if (validUntil < addDays(today, 1) || validUntil > addDays(today, 30)) return toast('Masa berlaku harus antara besok sampai 30 hari ke depan.', 'warning');
     if (metode === 'transfer' && !bankId) {
       return toast('Pilih rekening bank tujuan untuk pembayaran transfer.', 'warning');
     }
+
+    const hasConflictNow = draft.items.some((i) => {
+      const p = (db.products || []).find((x) => x.id === i.productId);
+      return !p || p.status === 'inactive';
+    });
+    if (hasConflictNow) {
+      setDiscontinuedOpen(true);
+      return;
+    }
+
     setSubmitting(true);
     setTimeout(() => { /* simulasi latency API */
-      /* Snapshot harga master saat disimpan (price freeze) */
-      const items = draft.items.filter((i) => (db.products || []).some((x) => x.id === i.productId)).map((i) => {
+      const hasConflictLate = draft.items.some((i) => {
         const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
+        return !p || p.status === 'inactive';
+      });
+      if (hasConflictLate) {
+        setSubmitting(false);
+        setDiscontinuedOpen(true);
+        return;
+      }
+
+      /* Snapshot harga master saat disimpan (price freeze) */
+      const items = draft.items.map((i) => {
+        const p = (db.products || []).find((x) => x.id === i.productId);
         return {
           productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
           price: p.hargaJual, disc: i.disc || 0,
@@ -275,12 +308,13 @@ export default function QuoteMobile() {
           pcsPerUnit: p.pcsPerUnit || 1,
         };
       });
-        if (items.length === 0) { setSubmitting(false); return toast('Produk penawaran sudah tidak tersedia di Master Data — buat ulang quotation.', 'warning'); }
+
       const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
       const after = items.reduce((s, i) => s + i.line, 0);
       const discTotal = subtotal - after;
       const tax = Math.round(after * TAX_RATE);
-      const status = 'draft';
+      const maxDisc = maxDiscountOf(items);
+      const status = quoteStatusForDiscount(items);
 
       const rec = insert('quotations', {
         no: genQuoteNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
@@ -292,7 +326,7 @@ export default function QuoteMobile() {
         terminHari: metode === 'termin' ? Number(terminHari) : null,
       });
 
-      /* diskon melebihi wewenang → notifikasi Supervisor */
+      /* BR-QUO-002: diskon melebihi wewenang → notifikasi Supervisor */
       if (status === 'pending_approval') {
         const sales = (db.sales || []).find((s) => s.id === user.salesId);
         const spv = (db.supervisors || []).find((s) => s.id === sales?.supervisorId);
@@ -558,10 +592,22 @@ export default function QuoteMobile() {
         <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
           <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>{outlet.address}</Typography>
-          {/* Rincian item — gaya keranjang */}
+          {/* Rincian item — gaya keranjang (aman jika produk dihapus/discontinued) */}
           <Stack spacing={1}>
             {draft.items.map((i) => {
               const p = (db.products || []).find((x) => x.id === i.productId);
+              if (!p || p.status === 'inactive') {
+                return (
+                  <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                    <Typography fontWeight={700} fontSize={13} color="error.main" noWrap sx={{ mb: 0.25 }}>
+                      {p ? `${p.name} (Tidak Tersedia / Discontinued)` : `Produk #${i.productId} (Dihapus / Discontinued)`}
+                    </Typography>
+                    <Typography variant="caption" color="error.main">
+                      Qty {i.qty} — produk sudah tidak aktif di Master Data.
+                    </Typography>
+                  </Box>
+                );
+              }
               const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
               return (
                 <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
@@ -687,6 +733,30 @@ export default function QuoteMobile() {
 
       <BottomBar itemCount={itemCount} total={totals.total} actionLabel="Simpan Quotation"
         onClick={submitQuote} disabled={!itemCount || !validUntil} loading={submitting} />
+
+      {/* Pop-up Modal Merah — Data Master Conflict (FSD Tabel 21) */}
+      <Dialog
+        open={discontinuedOpen}
+        onClose={syncDiscontinuedCatalog}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2, borderTop: '4px solid', borderColor: 'error.main' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ErrorOutlineRoundedIcon color="error" />
+          Produk Tidak Tersedia
+        </DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>
+            Sistem gagal memproses karena terdapat produk yang sudah tidak tersedia (Discontinued). Sistem akan memperbarui katalog Anda.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="contained" color="error" fullWidth onClick={syncDiscontinuedCatalog}>
+            Perbarui Katalog
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

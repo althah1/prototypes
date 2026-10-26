@@ -29,6 +29,7 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
@@ -124,6 +125,7 @@ export default function OrderMobile() {
   const [submitting, setSubmitting] = useState(false);
   const [successOrder, setSuccessOrder] = useState(null);
   const [detailId, setDetailId] = useState(null);
+  const [discontinuedOpen, setDiscontinuedOpen] = useState(false);
 
   /* ===== Derived data ===== */
   const outlet = (db.outlets || []).find((o) => o.id === draft?.outletId);
@@ -148,8 +150,8 @@ export default function OrderMobile() {
   const draftTotals = (() => {
     const subtotal = (draft?.items || []).reduce((s, i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
-      return s + (p ? p.hargaJual * i.qty : 0);
+      if (!p || p.status === 'inactive') return s;
+      return s + p.hargaJual * i.qty;
     }, 0);
     const tax = Math.round(subtotal * TAX_RATE);
     return { subtotal, tax, total: subtotal + tax };
@@ -180,23 +182,47 @@ export default function OrderMobile() {
     return `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
   };
 
+  const syncDiscontinuedCatalog = () => {
+    setDiscontinuedOpen(false);
+    setDraft((d) => {
+      if (!d) return d;
+      const validItems = d.items.filter((i) => {
+        const p = (db.products || []).find((x) => x.id === i.productId);
+        return Boolean(p && p.status === 'active');
+      });
+      return { ...d, step: 'items', items: validItems };
+    });
+    toast('Katalog diperbarui — produk yang tidak tersedia telah dikeluarkan dari keranjang.', 'info');
+  };
+
   const submitOrder = () => {
     if (submitting || !draft?.items.length) return; /* anti-duplikat klik ganda */
+
+    /* FSD Tabel 21 (Data Master Conflict): batalkan insert jika ada produk dihapus / nonaktif */
+    const hasDiscontinued = draft.items.some((i) => {
+      const p = (db.products || []).find((x) => x.id === i.productId);
+      return !p || p.status === 'inactive';
+    });
+    if (hasDiscontinued) {
+      setDiscontinuedOpen(true);
+      return;
+    }
+
     setSubmitting(true);
 
-    const items = draft.items.filter((i) => (db.products || []).some((x) => x.id === i.productId)).map((i) => {
+    const items = draft.items.map((i) => {
       const p = (db.products || []).find((x) => x.id === i.productId);
-                if (!p) return null; /* F-34: produk dihapus saat draft — baris dilewati */
       return {
         productId: p.id, sku: p.sku, name: p.name, unit: p.unit, qty: i.qty,
         price: p.hargaJual, disc: 0, line: p.hargaJual * i.qty, pcsPerUnit: p.pcsPerUnit || 1,
       };
     });
-    if (items.length === 0) { setSubmitting(false); return toast('Produk pesanan sudah tidak tersedia di Master Data — buat ulang pesanan.', 'warning'); }
+    const subtotal = items.reduce((s, i) => s + i.line, 0);
+    const tax = Math.round(subtotal * TAX_RATE);
     const order = {
       no: genOrderNo(), date: todayISO(), salesId: user.salesId, outletId: draft.outletId,
-      items, subtotal: draftTotals.subtotal, taxRate: TAX_RATE, tax: draftTotals.tax,
-      total: draftTotals.total, status: 'submitted', note: note.trim(), paid: false,
+      items, subtotal, taxRate: TAX_RATE, tax,
+      total: subtotal + tax, status: 'submitted', note: note.trim(), paid: false,
     };
 
     /* Mode luring: simpan lokal → kirim ulang otomatis saat online, tanpa input ulang */
@@ -421,10 +447,22 @@ export default function OrderMobile() {
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             {outlet.address}
           </Typography>
-          {/* Rincian item — gaya keranjang */}
+          {/* Rincian item — gaya keranjang (aman jika produk dihapus/discontinued) */}
           <Stack spacing={1}>
             {draft.items.map((i) => {
               const p = (db.products || []).find((x) => x.id === i.productId);
+              if (!p || p.status === 'inactive') {
+                return (
+                  <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                    <Typography fontWeight={700} fontSize={13} color="error.main" noWrap sx={{ mb: 0.25 }}>
+                      {p ? `${p.name} (Tidak Tersedia / Discontinued)` : `Produk #${i.productId} (Dihapus / Discontinued)`}
+                    </Typography>
+                    <Typography variant="caption" color="error.main">
+                      Qty {i.qty} — produk sudah tidak aktif di Master Data.
+                    </Typography>
+                  </Box>
+                );
+              }
               return (
                 <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
                   <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25 }}>
@@ -478,6 +516,30 @@ export default function OrderMobile() {
         disabled={!itemCount}
         loading={submitting}
       />
+
+      {/* Pop-up Modal Merah — Data Master Conflict (FSD Tabel 21) */}
+      <Dialog
+        open={discontinuedOpen}
+        onClose={syncDiscontinuedCatalog}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2, borderTop: '4px solid', borderColor: 'error.main' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ErrorOutlineRoundedIcon color="error" />
+          Produk Tidak Tersedia
+        </DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="error" sx={{ borderRadius: 1.5 }}>
+            Sistem gagal memproses karena terdapat produk yang sudah tidak tersedia (Discontinued). Sistem akan memperbarui katalog Anda.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="contained" color="error" fullWidth onClick={syncDiscontinuedCatalog}>
+            Perbarui Katalog
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
