@@ -17,7 +17,7 @@ const PHONE = /^[0-9]{10,15}$/;
 /* Validasi Perusahaan */
 const NPWP_RE = /^\d{2}\.\d{3}\.\d{3}\.\d-\d{3}\.\d{3}$/; /* 15 digit, 2 titik, 1 strip */
 const TELP_RE = /^[0-9]{2,4}-?[0-9]{6,10}$/;              /* 0274-555123 / 081234567890 */
-const REK_RE = /^[0-9]{8,16}$/;                             /* rekening bank: angka murni */
+const REK_RE = /^[0-9]{5,50}$/;                             /* rekening bank: 5–50 digit angka murni (BR-MD-BNK-002) */
 
 /* Nama bank umum — statis dulu; kalau jadi Master Data Bank,
    ganti field ini menjadi optionsFrom { table: 'banks' }. */
@@ -28,6 +28,7 @@ const BANKS = ['Bank BRI', 'Bank BCA', 'Bank Mandiri', 'Bank BNI', 'Bank Syariah
 const areaName = (r, db) => (db.areas.find((a) => a.id === r.areaId) || {}).name || '-';
 const spvName = (r, db) => (db.supervisors.find((s) => s.id === r.supervisorId) || {}).name || '-';
 const spvPic = (r, db) => (db.supervisors.find((s) => s.id === r.picId) || {}).name || '-';
+const bankKategori = (r) => (r.kategori === 'supplier' ? 'Rekening Supplier' : 'Rekening Perusahaan');
 /* Tabel daftar supplier: hanya SKU (ringkas). Detail menampilkan SKU — Nama. */
 const supProducts = (r, db) => {
   const ids = r.productIds || [];
@@ -66,29 +67,45 @@ export const MASTER_CONFIG = {
     search: ['name', 'npwp'],
   },
 
-    /* 2 — BANK (daftar rekening perusahaan — dipakai Quotation/Order & Billing).
+    /* 2 — BANK (daftar rekening perusahaan & supplier — BR-MD-BNK-002).
      Kode rekening = kode sistem (BNK-001, …) — dibuat otomatis saat tambah, tidak
      tampil di form/tabel/detail. Pencegahan data ganda: kombinasi Nama + No. Rekening. */
   bank: {
     title: 'Master Data — Bank',
-    sub: 'Daftar rekening bank perusahaan — sumber pilihan pembayaran transfer.',
+    sub: 'Daftar rekening bank perusahaan & supplier — referensi pembayaran transfer dan tagihan.',
     table: 'banks',
     addLabel: 'Rekening Bank',
     autoGen: { field: 'kode', prefix: 'BNK' },
     refs: [
       { table: 'quotations', field: 'bankId', label: 'quotation' },
       { table: 'orders', field: 'bankId', label: 'order' },
+      { table: 'orders', field: 'viaBankId', label: 'order (via transfer)' },
+      { table: 'invoices', field: 'bankId', label: 'invoice' },
+      { table: 'invoices', field: 'viaBankId', label: 'invoice (via transfer)' },
     ],
     columns: [
+      { k: 'kategori', l: 'Kategori', render: bankKategori },
       { k: 'nama', l: 'Nama Bank' },
       { k: 'noRekening', l: 'No. Rekening' },
       { k: 'atasNama', l: 'Atas Nama' },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
-      { k: 'nama', l: 'Nama Bank', type: 'text', required: true, max: 60, hint: 'Nama resmi bank, mis. Bank Central Asia (BCA).' },
-      { k: 'noRekening', l: 'No. Rekening', type: 'text', required: true, max: 16, pattern: /^[0-9]{8,16}$/, patternMsg: 'No. Rekening harus 8–16 digit angka, tanpa spasi.' },
-      { k: 'atasNama', l: 'Atas Nama', type: 'text', required: true, max: 100, hint: 'Biasanya nama perusahaan.' },
+      {
+        k: 'kategori',
+        l: 'Kategori Rekening',
+        type: 'select',
+        required: true,
+        default: 'perusahaan',
+        options: [
+          { v: 'perusahaan', l: 'Rekening Perusahaan' },
+          { v: 'supplier', l: 'Rekening Supplier' },
+        ],
+        hint: 'Rekening Perusahaan dipakai untuk tujuan transfer pelanggan (Quotation/Order/Invoice).',
+      },
+      { k: 'nama', l: 'Nama Bank', type: 'text', required: true, max: 100, hint: 'Nama resmi bank (maks. 100 karakter), mis. Bank Central Asia (BCA).' },
+      { k: 'noRekening', l: 'No. Rekening', type: 'text', required: true, max: 50, pattern: REK_RE, patternMsg: 'No. Rekening harus 5–50 digit angka, tanpa spasi.' },
+      { k: 'atasNama', l: 'Atas Nama', type: 'text', required: true, max: 100, hint: 'Nama pemilik rekening resmi (perusahaan atau supplier).' },
     ],
     validate: (v, db, editing) => {
       const nama = String(v.nama || '').trim().toLowerCase();
@@ -100,7 +117,7 @@ export const MASTER_CONFIG = {
         (!editing || b.id !== editing.id));
       return dup ? { noRekening: 'Nama Bank dengan No. Rekening ini sudah terdaftar.' } : null;
     },
-    search: ['nama', 'noRekening'],
+    search: ['nama', 'noRekening', 'atasNama', 'kategori'],
   },
 
   /* 2 — GUDANG (kode, nama, alamat + status saat pembuatan) */
@@ -130,7 +147,7 @@ export const MASTER_CONFIG = {
     search: ['code', 'name'],
   },
 
-  /* 3 — SUPPLIER */
+  /* 3 — SUPPLIER (BR-MD-SUP-003) */
   supplier: {
     title: 'Master Data — Supplier',
     sub: 'Vendor pemasok barang ke gudang.',
@@ -140,13 +157,18 @@ export const MASTER_CONFIG = {
     filterRefs: [
       { table: 'supervisors', field: 'picId', label: 'PIC' },
     ],
-    refs: [],
+    refs: [
+      { table: 'products', selfField: 'productIds', label: 'produk dipasok' },
+      { table: 'gudangDetails', viaSelfField: 'productIds', field: 'productId', label: 'penempatan stok gudang' },
+      { table: 'orders', viaSelfItems: 'productIds', field: 'items', label: 'order terkait' },
+      { table: 'quotations', viaSelfItems: 'productIds', field: 'items', label: 'quotation terkait' },
+    ],
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Supplier' },
       { k: 'picId', l: 'PIC', render: spvPic },
       { k: 'phone', l: 'Telepon' },
-      { k: 'productIds', l: 'Produk Dipasok', render: supProducts },
+      { k: 'productIds', l: 'Daftar Produk Dipasok', render: supProducts },
       { k: 'status', l: 'Status', fmt: 'status' },
     ],
     fields: [
@@ -155,8 +177,8 @@ export const MASTER_CONFIG = {
       { k: 'picId', l: 'Nama PIC (Supervisor)', type: 'select', required: true, optionsFrom: { table: 'supervisors', onlyActive: true } },
       { k: 'phone', l: 'No. Telepon', type: 'text', required: true, pattern: PHONE, patternMsg: '10–15 digit angka.' },
       { k: 'address', l: 'Alamat', type: 'textarea', max: 200 },
-      { k: 'productIds', l: 'Produk Dipasok', type: 'multiSelect', optionsFrom: { table: 'products', onlyActive: true },
-        hint: 'Pilih dari katalog produk — boleh dikosongkan, bisa dilengkapi nanti lewat Ubah.' },
+      { k: 'productIds', l: 'Daftar Produk Dipasok', type: 'multiSelect', required: true, optionsFrom: { table: 'products', onlyActive: true },
+        hint: 'Wajib pilih minimal 1 produk aktif dari katalog produk (BR-MD-SUP-003).' },
     ],
     search: ['code', 'name'],
   },
@@ -279,7 +301,7 @@ export const MASTER_CONFIG = {
   /* 7 — OUTLET */
   outlet: {
     title: 'Master Data — Outlet',
-    sub: 'Toko/pelanggan ritel lengkap dengan koordinat GPS (wajib valid, bukan 0,0).',
+    sub: 'Toko/pelanggan ritel lengkap dengan titik peta GPS & alamat otomatis (bukan pasangan 0,0).',
     table: 'outlets',
     addLabel: 'Outlet',
     uniques: ['code'],
@@ -287,6 +309,7 @@ export const MASTER_CONFIG = {
       { table: 'areas', field: 'areaId', label: 'Area' },
     ],
     codeGen: { field: 'code', prefix: 'OUT' },
+    mapPicker: { latField: 'lat', lngField: 'lng', addressField: 'address', areaField: 'areaId' },
     refs: [
       { table: 'tasks', field: 'outletId', label: 'tugas terjadwal' },
       { table: 'orders', field: 'outletId', label: 'order' },
@@ -299,8 +322,6 @@ export const MASTER_CONFIG = {
     columns: [
       { k: 'code', l: 'Kode' },
       { k: 'name', l: 'Nama Outlet' },
-      { k: 'owner', l: 'Pemilik' },
-      { k: 'address', l: 'Alamat' },
       { k: '_coords', l: 'Koordinat GPS', fmt: 'coords' },
       { k: 'areaId', l: 'Area', render: areaName },
       { k: 'status', l: 'Status', fmt: 'status' },
@@ -310,20 +331,35 @@ export const MASTER_CONFIG = {
         hint: 'Otomatis terisi saran kode berikutnya — boleh dihapus dan diketik ulang.' },
       { k: 'name', l: 'Nama Outlet', type: 'text', required: true, max: 100 },
       { k: 'owner', l: 'Nama Pemilik', type: 'text', max: 100 },
-      { k: 'address', l: 'Alamat', type: 'text', required: true, max: 200 },
-      { k: 'lat', l: 'Latitude (-90 s.d 90)', type: 'number', required: true, min: -90, max: 90, step: 0.000001, notZero: true, hint: 'Wajib koordinat valid — nilai 0 tidak diterima.' },
-      { k: 'lng', l: 'Longitude (-180 s.d 180)', type: 'number', required: true, min: -180, max: 180, step: 0.000001, notZero: true },
+      { k: 'areaId', l: 'Area Kerja', type: 'select', required: true, optionsFrom: { table: 'areas', onlyActive: true },
+        hint: 'Pilih Area Kerja agar tampilan peta fokus ke zona wilayah terkait.' },
+      { k: 'lat', l: 'Latitude (-90 s.d 90)', type: 'number', required: true, min: -90, max: 90, step: 0.000001,
+        hint: 'Klik/geser pin di peta atau ketik koordinat. Nilai 0 (khatulistiwa) valid selama bukan pasangan (0, 0).' },
+      { k: 'lng', l: 'Longitude (-180 s.d 180)', type: 'number', required: true, min: -180, max: 180, step: 0.000001,
+        hint: 'Terisi otomatis dari peta — boleh disesuaikan manual.' },
+      { k: 'address', l: 'Alamat', type: 'textarea', required: true, max: 200,
+        hint: 'Terisi otomatis dari titik peta (Nominatim Reverse Geocoding) dan tetap dapat disunting manual.' },
       { k: 'phone', l: 'Telepon', type: 'text', max: 15, pattern: PHONE, patternMsg: 'Nomor telepon harus 10–15 digit angka.' },
-      { k: 'areaId', l: 'Area Kerja', type: 'select', required: true, optionsFrom: { table: 'areas', onlyActive: true } },
       { k: 'category', l: 'Kategori Outlet', type: 'select', options: [
         { v: 'Retail', l: 'Retail' }, { v: 'Warung', l: 'Warung' },
         { v: 'Minimarket', l: 'Minimarket' }, { v: 'Grosir', l: 'Grosir' },
       ] },
     ],
-    validate: (v) =>
-      Number(v.lat) === 0 && Number(v.lng) === 0
-        ? { _form: 'Koordinat GPS tidak valid — nilai 0,0 tidak diterima.' }
-        : null,
+    validate: (v) => {
+      const rawLat = String(v.lat ?? '').trim();
+      const rawLng = String(v.lng ?? '').trim();
+      if (rawLat === '' || rawLng === '') return null;
+      const lat = Number(rawLat);
+      const lng = Number(rawLng);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng) && lat === 0 && lng === 0) {
+        return {
+          lat: 'Pasangan koordinat (0, 0) tidak diterima.',
+          lng: 'Pasangan koordinat (0, 0) tidak diterima.',
+          _form: 'Koordinat GPS tidak valid — pasangan titik (0, 0) tidak diterima.',
+        };
+      }
+      return null;
+    },
     search: ['code', 'name', 'owner', 'address'],
   },
 

@@ -60,8 +60,11 @@ function CreateScheduleDialog({ open, onClose }) {
   const areas = db.areas || [];
 
   /* BR-TASK-001: Supervisor hanya menjadwalkan SALES BAWAHANNYA */
-  const spv = (db.supervisors || []).find((s) => s.email === user.email);
-  const teamSales = (db.sales || []).filter((s) => s.status === 'active' && (!spv || s.supervisorId === spv.id));
+  const spv = (db.supervisors || []).find(
+    (s) => (user.supervisorId && s.id === user.supervisorId) ||
+           String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
+  );
+  const teamSales = (db.sales || []).filter((s) => s.status === 'active' && spv && s.supervisorId === spv.id);
 
   const [salesId, setSalesId] = useState('');
   const [date, setDate] = useState(todayISO());
@@ -240,7 +243,22 @@ export default function TaskDesktop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const allForDate = (db.tasks || []).filter((t) => t.date === dateFilter);
+  /* BR-MD-SPV-001: Supervisor hanya memantau tugas milik Sales bawahannya */
+  const spv = isSupervisor
+    ? (db.supervisors || []).find(
+        (s) => (user.supervisorId && s.id === user.supervisorId) ||
+               String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
+      )
+    : null;
+  const teamSalesAll = isSupervisor
+    ? (db.sales || []).filter((s) => spv && s.supervisorId === spv.id)
+    : (db.sales || []);
+  const teamSalesIds = new Set(teamSalesAll.map((s) => s.id));
+  const teamActiveSales = teamSalesAll.filter((s) => s.status === 'active');
+
+  const allForDate = (db.tasks || []).filter(
+    (t) => t.date === dateFilter && (!isSupervisor || teamSalesIds.has(t.salesId))
+  );
   const rows = statusFilter === 'all' ? allForDate : allForDate.filter((t) => t.status === statusFilter);
   const cnt = (s) => allForDate.filter((t) => t.status === s).length;
 
@@ -360,20 +378,24 @@ export default function TaskDesktop() {
       <Card sx={{ mt: 2 }}>
         <CardHeader title={`Progres per Sales (${dateFilter})`} titleTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
         <CardContent>
-          {(db.sales || []).filter((s) => s.status === 'active').map((s) => {
-            const list = allForDate.filter((t) => t.salesId === s.id);
-            const done = list.filter((t) => t.status === 'done').length;
-            const pct = list.length ? Math.round((done / list.length) * 100) : 0;
-            return (
-              <Box key={s.id} sx={{ mb: 1.75, '&:last-child': { mb: 0 } }}>
-                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography variant="body2" fontWeight={700}>{s.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{done}/{list.length} • {pct}%</Typography>
-                </Stack>
-                <LinearProgress variant="determinate" value={pct} sx={{ height: 8, borderRadius: 99 }} />
-              </Box>
-            );
-          })}
+          {teamActiveSales.length ? (
+            teamActiveSales.map((s) => {
+              const list = allForDate.filter((t) => t.salesId === s.id);
+              const done = list.filter((t) => t.status === 'done').length;
+              const pct = list.length ? Math.round((done / list.length) * 100) : 0;
+              return (
+                <Box key={s.id} sx={{ mb: 1.75, '&:last-child': { mb: 0 } }}>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                    <Typography variant="body2" fontWeight={700}>{s.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{done}/{list.length} • {pct}%</Typography>
+                  </Stack>
+                  <LinearProgress variant="determinate" value={pct} sx={{ height: 8, borderRadius: 99 }} />
+                </Box>
+              );
+            })
+          ) : (
+            <EmptyState message="Belum ada sales aktif di bawah pengawasan Anda." />
+          )}
         </CardContent>
       </Card>
 

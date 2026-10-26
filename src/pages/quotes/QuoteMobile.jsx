@@ -190,7 +190,9 @@ export default function QuoteMobile() {
     const q = productSearch.trim().toLowerCase();
     return p.status === 'active' && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
   });
-  const banks = (db.banks || []).filter((b) => (b.status || 'active') === 'active');
+  const banks = (db.banks || []).filter(
+    (b) => (b.status || 'active') === 'active' && (b.kategori || 'perusahaan') === 'perusahaan'
+  );
 
   const myQuotes = (db.quotations || []).filter((q) => q.salesId === user.salesId).slice().reverse();
   const quoteList = filter === 'all' ? myQuotes : myQuotes.filter((q) => q.status === filter);

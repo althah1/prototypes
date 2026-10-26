@@ -41,7 +41,21 @@ export default function OrderDesktop() {
   const [q, setQ] = useState('');
   const [detailId, setDetailId] = useState(null);
 
-  const orders = [...(db.orders || [])].reverse();
+/* BR-MD-SPV-001: Supervisor hanya memantau & menyetujui order dari Sales bawahannya */
+  const isSupervisor = user.role === 'supervisor';
+  const spv = isSupervisor
+    ? (db.supervisors || []).find(
+        (s) => (user.supervisorId && s.id === user.supervisorId) ||
+               String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
+      )
+    : null;
+  const teamSalesIds = new Set(
+    (db.sales || []).filter((s) => spv && s.supervisorId === spv.id).map((s) => s.id)
+  );
+
+  const orders = [...(db.orders || [])]
+    .filter((o) => !isSupervisor || teamSalesIds.has(o.salesId))
+    .reverse();
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
   const salesName = (id) => (db.sales || []).find((s) => s.id === id)?.name || '-';
   const today = todayISO();
@@ -62,10 +76,10 @@ export default function OrderDesktop() {
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
-        <StatCard icon={<ReceiptLongRoundedIcon />} value={(db.orders || []).filter((o) => o.date === today).length} label="Order hari ini" />
-        <StatCard icon={<ScheduleRoundedIcon />} value={(db.orders || []).filter((o) => o.status === 'submitted').length} label="Menunggu approval" color="warning" />
-        <StatCard icon={<CheckCircleRoundedIcon />} value={(db.orders || []).filter((o) => o.status === 'approved').length} label="Disetujui" color="success" />
-        <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah((db.orders || []).filter((o) => o.date === today).reduce((s, o) => s + o.total, 0))} label="Nilai order hari ini" />
+        <StatCard icon={<ReceiptLongRoundedIcon />} value={orders.filter((o) => o.date === today).length} label="Order hari ini" />
+        <StatCard icon={<ScheduleRoundedIcon />} value={orders.filter((o) => o.status === 'submitted').length} label="Menunggu approval" color="warning" />
+        <StatCard icon={<CheckCircleRoundedIcon />} value={orders.filter((o) => o.status === 'approved').length} label="Disetujui" color="success" />
+        <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(orders.filter((o) => o.date === today).reduce((s, o) => s + o.total, 0))} label="Nilai order hari ini" />
       </Box>
 
       {/* ============ Toolbar Filter: Tanggal + Status + Pencarian ============ */}

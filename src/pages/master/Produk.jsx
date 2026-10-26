@@ -452,6 +452,48 @@ export default function ProdukPage() {
     );
   };
 
+  const detailSupplierList = detailRow
+    ? (db.suppliers || []).filter((s) => (s.productIds || []).some((id) => String(id) === String(detailRow.productId)))
+    : [];
+
+  const renderSupplierPemasokDetail = () => {
+    if (!detailSupplierList.length) {
+      return (
+        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          Belum terhubung dengan supplier pemasok mana pun
+        </Typography>
+      );
+    }
+    return (
+      <Box sx={{ width: '100%', mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'action.hover' }}>
+              <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary', width: 105 }}>Kode</TableCell>
+              <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>Nama Supplier</TableCell>
+              <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary', width: 100 }}>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {detailSupplierList.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell sx={{ fontSize: 12, py: 0.75, px: 1.5, color: 'text.secondary', fontFamily: 'monospace' }}>
+                  {s.code}
+                </TableCell>
+                <TableCell sx={{ fontSize: 12.5, py: 0.75, px: 1.5, fontWeight: 600, overflowWrap: 'anywhere' }}>
+                  {s.name}
+                </TableCell>
+                <TableCell align="right" sx={{ py: 0.75, px: 1.5 }}>
+                  <StatusChip kind="active" status={s.status || 'active'} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Box>
+    );
+  };
+
   const detailFields = detailRow
     ? [
         { k: 'sku', l: 'Kode SKU', v: detailRow.sku, mono: true },
@@ -468,6 +510,7 @@ export default function ProdukPage() {
         { k: 'hargaBeli', l: 'Harga Beli', v: formatRupiah(detailRow.hargaBeli), tabular: true },
         { k: 'hargaJual', l: 'Harga Jual', v: formatRupiah(detailRow.hargaJual), tabular: true },
         { k: 'alokasi', l: 'Alokasi Stok Gudang', isLong: true, customNode: renderAlokasiGudangDetail() },
+        { k: 'suppliers', l: 'Daftar Supplier Pemasok', isLong: true, customNode: renderSupplierPemasokDetail() },
         { k: 'desc', l: 'Deskripsi', v: detailRow.desc || '-', isLong: true },
       ]
     : [];

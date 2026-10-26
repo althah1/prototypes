@@ -52,17 +52,28 @@ export default function GpsDesktop() {
 }
 
 function GpsMonitor() {
+  const { user } = useAuth();
   const { db } = useDb();
   const { toast } = useToast();
 
+  const isSupervisor = user.role === 'supervisor';
+  const spv = isSupervisor
+    ? (db.supervisors || []).find(
+        (s) => (user.supervisorId && s.id === user.supervisorId) ||
+               String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
+      )
+    : null;
+  const salesList = (db.sales || []).filter(
+    (s) => s.status === 'active' && (!isSupervisor || (spv && s.supervisorId === spv.id))
+  );
+
   /* Semua hooks di atas */
-  const [salesId, setSalesId] = useState(() => (db.sales || []).find((s) => s.status === 'active')?.id || 1);
+  const [salesId, setSalesId] = useState(() => salesList[0]?.id || 0);
   const [date, setDate] = useState(todayISO());
   const [liveOn, setLiveOn] = useState(false);
   const [liveIdx, setLiveIdx] = useState(0);
 
-  const salesList = (db.sales || []).filter((s) => s.status === 'active');
-  const sales = salesList.find((s) => s.id === salesId) || salesList[0];
+  const sales = salesList.find((s) => s.id === salesId) || salesList[0] || null;
 
   const tasksForDate = (db.tasks || []).filter(
     (t) => t.salesId === sales?.id && t.date === date && t.status !== 'failed'
@@ -107,7 +118,9 @@ function GpsMonitor() {
     ? { lat: livePath[liveIdx][0], lng: livePath[liveIdx][1] }
     : basePos;
 
-  const violations = (db.violations || []).filter((v) => v.salesId === sales?.id).slice().reverse();
+  const violations = sales
+    ? (db.violations || []).filter((v) => v.salesId === sales.id).slice().reverse()
+    : [];
   const doneTasks = tasksForDate.filter((t) => t.status === 'done').length;
 
   const circles = (db.areas || []).map((a) => ({
@@ -116,7 +129,7 @@ function GpsMonitor() {
     label: `Area: ${a.name} (radius ${a.radiusKm} km)`,
   }));
   const markers = [
-    { lat: livePos.lat, lng: livePos.lng, kind: 'me', tooltip: `${sales?.name || 'Sales'} — ${liveOn ? 'LIVE' : basePos.label}` },
+    ...(sales ? [{ lat: livePos.lat, lng: livePos.lng, kind: 'me', tooltip: `${sales.name} — ${liveOn ? 'LIVE' : basePos.label}` }] : []),
     ...(db.outlets || []).filter((o) => o.status === 'active').map((o) => ({
       lat: o.lat, lng: o.lng, kind: 'outlet', tooltip: o.name,
     })),
@@ -163,13 +176,15 @@ function GpsMonitor() {
       size="small"
       select
       label="Sales"
-      value={String(salesId)}
+      value={sales ? String(sales.id) : ''}
       onChange={(e) => setSalesId(Number(e.target.value))}
       sx={{ width: 210 }}
     >
-      {salesList.map((s) => (
+      {salesList.length ? salesList.map((s) => (
         <MenuItem key={s.id} value={String(s.id)}>{s.name} — {(db.areas || []).find((a) => a.id === s.areaId)?.name || ''}</MenuItem>
-      ))}
+      )) : (
+        <MenuItem value="" disabled>Tidak ada sales bawahan aktif</MenuItem>
+      )}
     </TextField>
 
     <TextField

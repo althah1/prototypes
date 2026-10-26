@@ -39,31 +39,32 @@ import { initials, dateID, todayISO } from '../../utils/helpers';
 
 const ALL = ['admin', 'supervisor', 'finance'];
 
-/* Sidebar = alur kerja per peran. Finance: fokus di Billing (rumah kerja),
-   kelola Bank (rekening perusahaan), profil. Tanpa menu acuan yang memenuhi
-   sidebar — data acuan tampil otomatis di detail invoice. */
+/* Sidebar = alur kerja per peran (FSD Bab 3.2 Tabel 1 & BR-MD-BNK-001).
+   Finance: Billing (CRUD penuh) + akses Read-Only (R) pada referensi Master Data
+   penagihan (Perusahaan, Bank, Sales, Outlet, Produk, Supplier) & Entry Order;
+   pengelolaan CRUD Master Bank tetap eksklusif milik Admin. */
 const GROUPS = [
   { label: 'Utama', items: [
     { path: '/dashboard', label: 'Dashboard', icon: DashboardRoundedIcon, roles: ['admin', 'supervisor'] },
   ]},
-  { label: 'Master Data', financeOrder: 2, items: [
-    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ['admin', 'supervisor', 'finance'] },
+  { label: 'Master Data', financeLabel: 'Master Data (Lihat)', financeOrder: 2, items: [
+    { path: '/dashboard/master/perusahaan',       label: 'Perusahaan',       icon: DomainRoundedIcon,           roles: ALL },
+    { path: '/dashboard/master/bank',             label: 'Bank',             icon: AccountBalanceRoundedIcon,   roles: ALL },
     { path: '/dashboard/master/area-kerja',       label: 'Area Kerja',       icon: MapRoundedIcon,               roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/supervisor',       label: 'Supervisor',       icon: SupervisorAccountRoundedIcon, roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/sales',            label: 'Sales',            icon: DirectionsRunRoundedIcon,     roles: ALL },
+    { path: '/dashboard/master/outlet',           label: 'Outlet',           icon: StorefrontRoundedIcon,        roles: ALL },
     { path: '/dashboard/master/gudang',           label: 'Gudang',           icon: WarehouseRoundedIcon,         roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/master/supplier',         label: 'Supplier',         icon: LocalShippingRoundedIcon,     roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/master/produk',           label: 'Produk',           icon: Inventory2RoundedIcon,        roles: ALL },
+    { path: '/dashboard/master/supplier',         label: 'Supplier',         icon: LocalShippingRoundedIcon,     roles: ALL },
     { path: '/dashboard/master/kategori-prospek', label: 'Kategori Prospek', icon: TrackChangesRoundedIcon,      roles: ['admin', 'supervisor'] },
     { path: '/dashboard/master/tugas',            label: 'Jenis Tugas',      icon: AssignmentRoundedIcon,        roles: ['admin', 'supervisor'] },
   ]},
   { label: 'Operasional', financeLabel: 'Referensi (Lihat)', financeOrder: 3, items: [
-    { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor'] },
+    { path: '/dashboard/tasks',      label: 'Otomatisasi Tugas',     icon: EventAvailableRoundedIcon, roles: ['supervisor', 'admin'] },
     { path: '/dashboard/quotations', label: 'Quotation',             icon: DescriptionRoundedIcon,    roles: ['supervisor', 'admin'] },
     { path: '/dashboard/orders',     label: 'Entry Order',           icon: ReceiptLongRoundedIcon,    roles: ['supervisor', 'admin', 'finance'] },
-    { path: '/dashboard/audit',      label: 'Audit & Survey',        icon: FactCheckRoundedIcon,      roles: ['supervisor'] },
+    { path: '/dashboard/audit',      label: 'Audit & Survey',        icon: FactCheckRoundedIcon,      roles: ['supervisor', 'admin'] },
     { path: '/dashboard/prospek',    label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
     { path: '/dashboard/gps',        label: 'GPS Monitoring',        icon: LocationOnRoundedIcon,     roles: ['supervisor', 'admin'] },
   ]},

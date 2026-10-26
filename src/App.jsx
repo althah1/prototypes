@@ -17,6 +17,8 @@ import Dashboard from './pages/dashboard/Dashboard';
 import Home from './pages/mobile/Home';
 import ActivityHistory from './pages/mobile/ActivityHistory';
 import Notifications from './pages/mobile/Notifications';
+import CatalogMobile from './pages/mobile/CatalogMobile';
+import BillingMobile from './pages/mobile/BillingMobile';
 import Profile from './pages/profile/Profile';
 import EntityPage from './pages/master/EntityPage';
 import GudangDetail from './pages/master/GudangDetail';
@@ -58,28 +60,27 @@ export default function App() {
               <Route element={<RequireRole roles={['admin', 'supervisor', 'finance']} />}>
                 <Route path="/dashboard" element={<DashboardLayout />}>
 
-                  {/* Finance: Billing (rumah kerja), Bank (read-only), Profile */}
+                  {/* Akses bersama Admin, Supervisor & Finance (Master Data otomatis Read-Only bagi Finance) */}
                   <Route path="billing" element={<Billing />} />
-                  <Route path="master/bank" element={<EntityPage key="bank" slug="bank" />} />
                   <Route path="orders" element={<OrderDesktop />} />
                   <Route path="profile" element={<Profile />} />
+                  <Route path="master/perusahaan" element={<EntityPage key="perusahaan" slug="perusahaan" />} />
+                  <Route path="master/bank" element={<EntityPage key="bank" slug="bank" />} />
+                  <Route path="master/area-kerja" element={<EntityPage key="area-kerja" slug="area-kerja" />} />
+                  <Route path="master/supervisor" element={<EntityPage key="supervisor" slug="supervisor" />} />
+                  <Route path="master/sales" element={<EntityPage key="sales" slug="sales" />} />
+                  <Route path="master/outlet" element={<EntityPage key="outlet" slug="outlet" />} />
+                  <Route path="master/gudang" element={<EntityPage key="gudang" slug="gudang" />} />
+                  <Route path="master/gudang/:id" element={<GudangDetail />} />
+                  <Route path="master/produk" element={<EntityPage key="produk" slug="produk" />} />
+                  <Route path="master/supplier" element={<EntityPage key="supplier" slug="supplier" />} />
+                  <Route path="master/kategori-prospek" element={<EntityPage key="kategori-prospek" slug="kategori-prospek" />} />
+                  <Route path="master/tugas" element={<EntityPage key="tugas" slug="tugas" />} />
 
                   {/* Khusus Admin & Supervisor */}
                   <Route element={<RequireRole roles={['admin', 'supervisor']} />}>
                     <Route index element={<Dashboard />} />
-                    <Route path="master/perusahaan" element={<EntityPage key="perusahaan" slug="perusahaan" />} />
-                    <Route path="master/area-kerja" element={<EntityPage key="area-kerja" slug="area-kerja" />} />
-                    <Route path="master/supervisor" element={<EntityPage key="supervisor" slug="supervisor" />} />
-                    <Route path="master/sales" element={<EntityPage key="sales" slug="sales" />} />
-                    <Route path="master/outlet" element={<EntityPage key="outlet" slug="outlet" />} />
-                    <Route path="master/gudang" element={<EntityPage key="gudang" slug="gudang" />} />
-                    <Route path="master/gudang/:id" element={<GudangDetail />} />
-                    <Route path="master/produk" element={<EntityPage key="produk" slug="produk" />} />
-                    <Route path="master/supplier" element={<EntityPage key="supplier" slug="supplier" />} />
-                    <Route path="master/kategori-prospek" element={<EntityPage key="kategori-prospek" slug="kategori-prospek" />} />
-                    <Route path="master/tugas" element={<EntityPage key="tugas" slug="tugas" />} />
                     <Route path="tasks" element={<TaskDesktop />} />
-                    <Route path="orders" element={<OrderDesktop />} />
                     <Route path="quotations" element={<QuoteDesktop />} />
                     <Route path="audit" element={<AuditDesktop />} />
                     <Route path="prospek" element={<Prospek />} />
@@ -92,6 +93,8 @@ export default function App() {
               <Route element={<RequireRole roles={['sales']} />}>
                 <Route path="/app" element={<MobileLayout />}>
                   <Route index element={<Home />} />
+                  <Route path="catalog" element={<CatalogMobile />} />
+                  <Route path="billing" element={<BillingMobile />} />
                   <Route path="activity" element={<ActivityHistory />} />
                   <Route path="notifications" element={<Notifications />} />
                   <Route path="profile" element={<Profile />} />

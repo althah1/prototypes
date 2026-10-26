@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import CloudSyncRoundedIcon from '@mui/icons-material/CloudSyncRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import NoteRoundedIcon from '@mui/icons-material/NoteRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
@@ -22,7 +23,7 @@ import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, dateID, TASK_TYPE_LABEL } from '../../utils/helpers';
-import { expireTasks, ensureTodayTasks } from '../../utils/taskUtils';
+import { expireTasks } from '../../utils/taskUtils';
 
 /* Ikon + warna per jenis tugas — memudahkan scan visual */
 const TYPE_META = {
@@ -33,21 +34,43 @@ const TYPE_META = {
 };
 
 /* Kartu tugas — didefinisikan DI LUAR komponen agar tidak dibuat ulang tiap render */
-function TaskCard({ t, outlet, onOpen }) {
+function TaskCard({ t, outlet, isQueuedOffline, onOpen }) {
   const meta = TYPE_META[t.type] || TYPE_META.order;
   const Icon = meta.icon;
   return (
-    <Card elevation={0} onClick={onOpen}
-      sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+    <Card
+      elevation={0}
+      onClick={onOpen}
+      sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+    >
       <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
-        <Avatar variant="rounded"
-          sx={{ bgcolor: `${meta.color}.main`, color: 'common.white', width: 42, height: 42, borderRadius: 2, flexShrink: 0 }}>
+        <Avatar
+          variant="rounded"
+          sx={{
+            bgcolor: `${meta.color}.main`,
+            color: 'common.white',
+            width: 42,
+            height: 42,
+            borderRadius: 2,
+            flexShrink: 0,
+          }}
+        >
           <Icon fontSize="small" />
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
             <Typography fontWeight={700} fontSize={13} noWrap>{outlet.name || '-'}</Typography>
-            <StatusChip kind="task" status={t.status} />
+            {isQueuedOffline ? (
+              <Chip
+                size="small"
+                color="warning"
+                icon={<CloudSyncRoundedIcon />}
+                label="Antrean Offline"
+                sx={{ height: 22, fontSize: 11, fontWeight: 700 }}
+              />
+            ) : (
+              <StatusChip kind="task" status={t.status} />
+            )}
           </Stack>
           <Typography variant="caption" color="text.secondary" noWrap display="block">
             {TASK_TYPE_LABEL[t.type]} • {outlet.address || ''}
@@ -65,7 +88,7 @@ function TaskCard({ t, outlet, onOpen }) {
   );
 }
 
-function Section({ title, count, color, list, outletOf, onOpen }) {
+function Section({ title, count, color, list, outletOf, queuedTaskIds, onOpen }) {
   if (!list.length) return null;
   return (
     <Box>
@@ -75,7 +98,13 @@ function Section({ title, count, color, list, outletOf, onOpen }) {
       </Stack>
       <Stack spacing={1.25}>
         {list.map((t) => (
-          <TaskCard key={t.id} t={t} outlet={outletOf(t.outletId)} onOpen={() => onOpen(t.id)} />
+          <TaskCard
+            key={t.id}
+            t={t}
+            outlet={outletOf(t.outletId)}
+            isQueuedOffline={queuedTaskIds.has(t.id)}
+            onOpen={() => onOpen(t.id)}
+          />
         ))}
       </Stack>
     </Box>
@@ -84,29 +113,36 @@ function Section({ title, count, color, list, outletOf, onOpen }) {
 
 export default function TaskMobile() {
   const { user } = useAuth();
-  const { db, insert, mutate } = useDb();
+  const { db, mutate } = useDb();
   const { toast } = useToast();
   const navigate = useNavigate();
   const today = todayISO();
 
-  /* Kedaluwarsa harian + sinkronisasi jadwal pagi (sekali) */
+  /* BR-TASK-004: Kedaluwarsa harian otomatis (TANPA men-generate jadwal dari sisi Sales sesuai BR-TASK-001) */
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireTasks(db, mutate);
     if (n) toast(`${n} tugas kemarin yang belum selesai ditandai Gagal (hangus di akhir hari).`, 'info');
-    if (ensureTodayTasks(db, insert, user.salesId)) {
-      toast('Jadwal tugas hari ini telah tersinkronisasi.', 'info');
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Keringanan: filter hanya dihitung ulang saat tabel tasks berubah */
   const mine = useMemo(
     () => (db.tasks || []).filter((t) => t.salesId === user.salesId && t.date === today),
     [db.tasks, user.salesId, today]
   );
+
+  const queuedTaskIds = useMemo(() => {
+    const ids = new Set();
+    (db.syncQueue || []).forEach((q) => {
+      if ((q.kind === 'display_photo' || q.kind === 'billing_collection') && q.payload?.taskId) {
+        ids.add(q.payload.taskId);
+      }
+    });
+    return ids;
+  }, [db.syncQueue]);
+
   const openTasks = mine.filter((t) => ['pending', 'in_progress'].includes(t.status));
   const doneTasks = mine.filter((t) => t.status === 'done');
   const closedTasks = mine.filter((t) => ['failed', 'cancelled'].includes(t.status));
@@ -135,12 +171,36 @@ export default function TaskMobile() {
       )}
 
       {!mine.length ? (
-        <EmptyState message="Tidak ada tugas hari ini. Nikmati harimu!" />
+        <EmptyState message="Belum ada jadwal tugas hari ini yang didistribusikan oleh Supervisor." />
       ) : (
         <>
-          <Section title="Belum Selesai" count={openTasks.length} color="warning" list={openTasks} outletOf={outletOf} onOpen={openTask} />
-          <Section title="Selesai" count={doneTasks.length} color="success" list={doneTasks} outletOf={outletOf} onOpen={openTask} />
-          <Section title="Gagal / Dibatalkan" count={closedTasks.length} color="default" list={closedTasks} outletOf={outletOf} onOpen={openTask} />
+          <Section
+            title="Belum Selesai"
+            count={openTasks.length}
+            color="warning"
+            list={openTasks}
+            outletOf={outletOf}
+            queuedTaskIds={queuedTaskIds}
+            onOpen={openTask}
+          />
+          <Section
+            title="Selesai"
+            count={doneTasks.length}
+            color="success"
+            list={doneTasks}
+            outletOf={outletOf}
+            queuedTaskIds={queuedTaskIds}
+            onOpen={openTask}
+          />
+          <Section
+            title="Gagal / Dibatalkan"
+            count={closedTasks.length}
+            color="default"
+            list={closedTasks}
+            outletOf={outletOf}
+            queuedTaskIds={queuedTaskIds}
+            onOpen={openTask}
+          />
         </>
       )}
     </Stack>

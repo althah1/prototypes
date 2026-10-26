@@ -24,7 +24,7 @@ import Typography from '@mui/material/Typography';
 
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../ui/ToastProvider';
-import { checkLabel } from '../../utils/auditUtils';
+import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer } from '../../utils/auditUtils';
 import StatusChip from '../ui/StatusChip';
 
 const KV = ({ label, value }) => (
@@ -147,6 +147,15 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
               <Typography variant="body2" fontWeight={600}>{audit.date}</Typography>
             </Box>
             <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+              <Typography variant="caption" color="text.secondary" display="block">Template Kuesioner</Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25, flexWrap: 'wrap' }}>
+                <Typography variant="body2" fontWeight={600}>
+                  {audit.templateName || DEFAULT_AUDIT_TEMPLATE.name}
+                </Typography>
+                <Chip size="small" color="primary" variant="outlined" label={`v${audit.templateVersion || 1}`} sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
+              </Stack>
+            </Box>
+            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">Skor Kondisi Toko</Typography>
                 <StatusChip
@@ -170,33 +179,50 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
             )}
           </Box>
 
-          {/* Checklist Kondisi Toko */}
+          {/* Checklist Kondisi Toko (Dinamis per Versi Form) */}
           <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
-            Checklist Kondisi &amp; Kebersihan
+            Jawaban Kuesioner Audit (v{audit.templateVersion || 1})
           </Typography>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
-            {audit.checklist.map((c, idx) => (
-              <Stack
-                key={c.item}
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{
-                  px: 1.5,
-                  py: 1,
-                  borderBottom: idx === audit.checklist.length - 1 ? 'none' : '1px solid',
-                  borderColor: 'divider',
-                  bgcolor: idx % 2 === 0 ? 'transparent' : 'action.hover',
-                }}
-              >
-                <Typography variant="body2" fontSize={13}>{c.item}</Typography>
-                <StatusChip
-                  kind={c.score === 3 ? 'active' : 'task'}
-                  status={c.score === 3 ? 'active' : c.score === 2 ? 'pending' : 'failed'}
-                  label={checkLabel(c.score)}
-                />
-              </Stack>
-            ))}
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden', mb: 2.5 }}>
+            {(audit.checklist || []).map((c, idx) => {
+              const type = c.type || 'scale_3';
+              const maxS = Number(c.maxScore) || 3;
+              const ratio = maxS > 0 ? (Number(c.score) || 0) / maxS : 1;
+              return (
+                <Stack
+                  key={c.questionId || `${c.item}_${idx}`}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  spacing={0.75}
+                  sx={{
+                    px: 1.5,
+                    py: 1,
+                    borderBottom: idx === audit.checklist.length - 1 ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: idx % 2 === 0 ? 'transparent' : 'action.hover',
+                  }}
+                >
+                  <Box sx={{ pr: 1 }}>
+                    <Typography variant="body2" fontSize={13} fontWeight={500}>{c.item}</Typography>
+                    {Number(c.weight) > 1 && (
+                      <Typography variant="caption" color="text.secondary">Bobot penilaian: {c.weight}x</Typography>
+                    )}
+                  </Box>
+                  {type === 'text' ? (
+                    <Typography variant="caption" fontWeight={600} sx={{ bgcolor: 'background.paper', px: 1, py: 0.4, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                      {formatChecklistAnswer(c)}
+                    </Typography>
+                  ) : (
+                    <StatusChip
+                      kind={ratio >= 0.8 ? 'active' : 'task'}
+                      status={ratio >= 0.8 ? 'active' : ratio >= 0.5 ? 'pending' : 'failed'}
+                      label={formatChecklistAnswer(c)}
+                    />
+                  )}
+                </Stack>
+              );
+            })}
           </Box>
 
           {/* Evaluasi Stok */}
@@ -282,9 +308,11 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
                     onChange={(e) => setCatId(e.target.value)}
                   >
                     <MenuItem value="">Pilih Kategori...</MenuItem>
-                    {(db.prospectCategories || []).map((c) => (
-                      <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
-                    ))}
+                    {(db.prospectCategories || [])
+                      .filter((c) => (c.status || 'active') === 'active' || String(c.id) === String(catId))
+                      .map((c) => (
+                        <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                      ))}
                   </TextField>
                   <TextField
                     select

@@ -40,6 +40,7 @@ import { useToast } from '../../components/ui/ToastProvider';
 import { useSync } from '../../store/SyncContext';
 import { nowStamp, formatRupiah, todayISO } from '../../utils/helpers';
 import { openInvoicePdf, shareInvoiceWhatsApp } from '../../utils/invoicePdf';
+import { completeTaskAuto } from '../../utils/taskUtils';
 
 /* Komponen KV Minimalis & Rapi — Seragam di Seluruh Sistem */
 const KV = ({ label, value }) => (
@@ -77,7 +78,7 @@ const KV = ({ label, value }) => (
 
 export default function Billing() {
   const { user } = useAuth();
-  const { db, update } = useDb();
+  const { db, update, mutate } = useDb();
   const { toast } = useToast();
   const { notify } = useSync();
   const isFinance = user.role === 'finance';
@@ -187,6 +188,7 @@ export default function Billing() {
     const lunas = totalPaid >= inv.total;
     update('invoices', inv.id, { payments, status: lunas ? 'lunas' : 'belum_lunas', paidAt: lunas ? nowStamp() : null });
     if (lunas) update('orders', inv.orderId, { paid: true, paidAt: nowStamp(), paidMethod: method });
+    completeTaskAuto(db, mutate, { outletId: inv.outletId, type: 'billing', salesId: inv.salesId });
     const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === inv.salesId);
     if (salesUser) notify(salesUser.id, 'Pembayaran Diterima',
       `Invoice ${inv.no}: ${formatRupiah(amt)} diterima (${method})${lunas ? ' — LUNAS' : ` — sisa ${formatRupiah(Math.max(0, inv.total - totalPaid))}`}.`);
@@ -202,6 +204,7 @@ export default function Billing() {
     const allPaid = installments.every((a) => a.status === 'lunas');
     update('invoices', inv.id, { installments, payments, status: allPaid ? 'lunas' : 'belum_lunas', paidAt: allPaid ? nowStamp() : null });
     if (allPaid) update('orders', inv.orderId, { paid: true, paidAt: nowStamp(), paidMethod: 'Transfer Bank' });
+    completeTaskAuto(db, mutate, { outletId: inv.outletId, type: 'billing', salesId: inv.salesId });
     const salesUser = (db.users || []).find((u) => u.role === 'sales' && u.salesId === inv.salesId);
     if (salesUser) notify(salesUser.id, 'Angsuran Diterima',
       `Invoice ${inv.no}: angsuran ${ke} lunas${allPaid ? ' — SEMUA ANGSURAN LUNAS' : ''}.`);

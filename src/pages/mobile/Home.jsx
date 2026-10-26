@@ -15,8 +15,10 @@ import Typography from '@mui/material/Typography';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import MapRoundedIcon from '@mui/icons-material/MapRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
@@ -32,6 +34,11 @@ const QUICK = [
   { path: '/app/quotes', label: 'Quotation',   desc: 'Penawaran PDF',       icon: DescriptionRoundedIcon,  color: 'info' },
   { path: '/app/audit',  label: 'Audit',       desc: 'Survey & stok',       icon: FactCheckRoundedIcon,    color: 'success' },
   { path: '/app/gps',    label: 'Rute GPS',    desc: 'Optimasi & check-in', icon: MapRoundedIcon,          color: 'warning' },
+];
+
+const HOME_REFS = [
+  { path: '/app/catalog', label: 'Katalog Produk',    desc: 'Harga jual & stok',     icon: Inventory2RoundedIcon, color: 'secondary' },
+  { path: '/app/billing', label: 'Billing Pelanggan', desc: 'Tagihan & piutang area', icon: PaymentsRoundedIcon,   color: 'error' },
 ];
 
 export default function Home() {
@@ -171,6 +178,25 @@ export default function Home() {
           </Card>
         ))}
       </Box>
+
+      {/* ===== Referensi Informasi (Read-Only) ===== */}
+      <Stack spacing={1}>
+        <Typography variant="subtitle1" fontWeight={700}>Informasi &amp; Referensi</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+          {HOME_REFS.map((r) => (
+            <Card key={r.path} elevation={0} onClick={() => navigate(r.path)}
+              sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                <Avatar variant="rounded" sx={{ bgcolor: `${r.color}.main`, borderRadius: 2, width: 40, height: 40 }}>
+                  <r.icon sx={{ color: 'common.white' }} fontSize="small" />
+                </Avatar>
+                <Typography fontWeight={700} fontSize={14} sx={{ mt: 1 }}>{r.label}</Typography>
+                <Typography variant="caption" color="text.secondary">{r.desc}</Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      </Stack>
 
       {/* ===== Tugas Hari Ini ===== */}
       <Stack direction="row" justifyContent="space-between" alignItems="center">

@@ -1,88 +1,165 @@
 import { createContext, useContext, useState } from 'react';
 import { useDb } from './DbContext';
 import { useToast } from '../components/ui/ToastProvider';
-import { nowStamp } from '../utils/helpers';
-import { applyStockReduction } from '../utils/gudangUtils';
+import { nowStamp, todayISO } from '../utils/helpers';
+import { applyBillingPaymentInDraft } from '../utils/taskUtils';
 
-const KEY = 'sfa_react_online';
+const ONLINE_KEY = 'sfa_react_online';
 const SyncContext = createContext(null);
 
 /*
  * Pemakaian:
- *  - const { online, toggleOnline, queueCount } = useSync();  → indikator & toggle
- *  - enqueue('order', payload) / enqueue('audit', payload)    → simpan offline (dipakai modul Order & Audit)
- *  - notify(userId, title, body)                              → kirim notifikasi ke pengguna
+ *  - const { online, toggleOnline, flushQueue, queueCount } = useSync();  → indikator & toggle
+ *  - enqueue('order', payload) / enqueue('audit', payload) / enqueue('prospect', payload)
+ *      / enqueue('display_photo', payload) / enqueue('billing_collection', payload) → simpan offline
+ *  - notify(userId, title, body)                                         → kirim notifikasi ke pengguna
  */
 export function SyncProvider({ children }) {
-  const { db, mutate } = useDb();
+  const { db, insert, mutate } = useDb();
   const { toast } = useToast();
-  const [online, setOnline] = useState(() => localStorage.getItem(KEY) !== '0');
 
-  /* Terapkan seluruh antrean offline ke database (dipakai waktu koneksi pulih) */
-  const processQueue = () => {
-    const count = mutate((d) => {
-      let n = 0;
+  const [online, setOnline] = useState(() => {
+    try {
+      const raw = localStorage.getItem(ONLINE_KEY);
+      return raw == null ? true : JSON.parse(raw);
+    } catch {
+      return true;
+    }
+  });
+
+  const queue = db.syncQueue || [];
+  const queueCount = queue.length;
+
+  const notify = (userId, title, body) => {
+    if (!userId) return;
+    insert('notifications', {
+      userId,
+      title,
+      body,
+      read: false,
+      createdAt: nowStamp(),
+    });
+  };
+
+  const enqueue = (kind, payload) => {
+    mutate((d) => {
+      if (!Array.isArray(d.syncQueue)) d.syncQueue = [];
+      d.syncQueue.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        kind,
+        payload,
+        queuedAt: nowStamp(),
+      });
+    });
+  };
+
+  const flushQueue = () => {
+    const pending = db.syncQueue || [];
+    if (!pending.length) return 0;
+    const count = pending.length;
+    const syncTime = nowStamp();
+
+    mutate((d) => {
       (d.syncQueue || []).forEach((item) => {
-        if (item.kind === 'order') {
-          const id = d.orders.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-          d.orders.push({ ...item.payload, id, createdAt: item.ts });
-          applyStockReduction(d, item.payload.items);
-          /* Auto-complete tugas terkait (BR-TASK-003) — pakai waktu pengerjaan asli */
-          const t = d.tasks.find((x) =>
-            x.date === item.payload.date && x.outletId === item.payload.outletId &&
-            x.type === 'order' && x.salesId === item.payload.salesId && x.status === 'in_progress');
-          if (t) { t.status = 'done'; t.completedAt = item.ts; }
-          n++;
-        } else if (item.kind === 'audit') {
-          const id = d.audits.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-          d.audits.push({ ...item.payload, id, createdAt: item.ts });
-          const t = d.tasks.find((x) =>
-            x.date === item.payload.date && x.outletId === item.payload.outletId &&
-            x.type === 'audit' && x.salesId === item.payload.salesId && x.status === 'in_progress');
-          if (t) { t.status = 'done'; t.completedAt = item.ts; }
-          n++;
+        const p = item.payload || {};
+        const originalTs = p.completedAt || p.createdAt || item.queuedAt || syncTime;
+
+        /* 1. BR-TASK-006: Sinkronisasi tugas Foto Display dengan timestamp asli pengerjaan */
+        if (item.kind === 'display_photo') {
+          const t = (d.tasks || []).find((x) => x.id === p.taskId);
+          if (t) {
+            t.status = 'done';
+            t.photos = p.photos || [];
+            t.completedAt = originalTs;
+            t.syncedAt = syncTime;
+          }
+          return;
+        }
+
+        /* 2. BR-TASK-003 & BR-TASK-006: Sinkronisasi Transaksi Penagihan Lapangan + Auto-Complete Tugas Billing */
+        if (item.kind === 'billing_collection') {
+          const updatedInv = applyBillingPaymentInDraft(d, { ...p, completedAt: originalTs });
+          if (updatedInv) {
+            const t = (d.tasks || []).find(
+              (x) =>
+                (p.taskId ? x.id === p.taskId : x.outletId === p.outletId && x.type === 'billing' && x.date === (p.date || todayISO())) &&
+                x.salesId === p.salesId &&
+                x.status !== 'done'
+            );
+            if (t) {
+              t.status = 'done';
+              t.completedAt = originalTs;
+              t.syncedAt = syncTime;
+              t.billingRef = {
+                invoiceNo: updatedInv.no,
+                nominal: p.nominal,
+                metode: p.metode,
+              };
+              if (p.proofPhoto) t.photos = [p.proofPhoto];
+            }
+          }
+          return;
+        }
+
+        /* 3. Sinkronisasi entitas standar: Order, Audit, dan Prospek Baru */
+        const target =
+          item.kind === 'order'
+            ? 'orders'
+            : item.kind === 'audit'
+              ? 'audits'
+              : item.kind === 'prospect'
+                ? 'prospects'
+                : null;
+        if (!target) return;
+
+        if (!Array.isArray(d[target])) d[target] = [];
+        const nextId = d[target].reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
+        d[target].push({
+          ...p,
+          id: nextId,
+          syncedAt: syncTime,
+          createdAt: originalTs,
+        });
+
+        /* Auto-complete tugas Order / Audit yang dikerjakan saat offline beserta timestamp asli (BR-TASK-003 & BR-TASK-006) */
+        if (item.kind === 'order' || item.kind === 'audit') {
+          const t = (d.tasks || []).find(
+            (x) =>
+              x.date === (p.date || todayISO()) &&
+              x.outletId === p.outletId &&
+              x.type === item.kind &&
+              x.salesId === p.salesId &&
+              x.status === 'in_progress'
+          );
+          if (t) {
+            t.status = 'done';
+            t.completedAt = originalTs;
+            t.syncedAt = syncTime;
+          }
         }
       });
+
       d.syncQueue = [];
-      return n;
     });
-    if (count > 0) toast(`Sinkronisasi otomatis: ${count} data terkirim ke server pusat.`, 'success');
+
+    toast(`${count} data tertunda berhasil disinkronkan ke server.`, 'success');
+    return count;
   };
 
   const toggleOnline = () => {
     const next = !online;
     setOnline(next);
-    localStorage.setItem(KEY, next ? '1' : '0');
+    localStorage.setItem(ONLINE_KEY, JSON.stringify(next));
     if (next) {
-      toast('Koneksi pulih — sinkronisasi latar belakang aktif (protokol offline-sync, simulasi instan).', 'info');
-      setTimeout(() => processQueue(), 900); /* retry berkala disimulasikan instan */
+      const synced = flushQueue();
+      if (!synced) toast('Koneksi kembali Online.', 'success');
     } else {
-      toast('Mode offline aktif. Data transaksi akan disimpan sementara di penyimpanan lokal perangkat.', 'warning', 5000);
+      toast('Mode Offline aktif — transaksi baru akan disimpan ke antrean lokal.', 'warning');
     }
   };
 
-  /* Simpan payload ke antrean lokal (dipanggil modul transaksi saat offline) */
-  const enqueue = (kind, payload) => {
-    mutate((d) => {
-      if (!d.syncQueue) d.syncQueue = [];
-      const id = d.syncQueue.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-      d.syncQueue.push({ id, kind, payload, ts: nowStamp() });
-    });
-  };
-
-  /* Notifikasi in-app (simulasi push notification) */
-  const notify = (userId, title, body) => {
-    mutate((d) => {
-      if (!d.notifications) d.notifications = [];
-      const id = d.notifications.reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
-      d.notifications.push({ id, userId, title, body, read: false, createdAt: nowStamp() });
-    });
-  };
-
-  const queueCount = db.syncQueue?.length || 0;
-
   return (
-    <SyncContext.Provider value={{ online, toggleOnline, enqueue, processQueue, notify, queueCount }}>
+    <SyncContext.Provider value={{ online, toggleOnline, enqueue, flushQueue, queueCount, notify }}>
       {children}
     </SyncContext.Provider>
   );

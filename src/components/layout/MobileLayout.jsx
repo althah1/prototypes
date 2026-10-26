@@ -13,6 +13,7 @@ import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
+import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
@@ -37,11 +38,12 @@ const NAV_ITEMS = [
   { path: '/app/profile', label: 'Profil',  icon: PersonRoundedIcon },
 ];
 
-/* Aksi Input Baru — Murni 3 Transaksi Lapangan (tanpa Riwayat Aktivitas) */
+/* Aksi Input Baru — Murni 3 Transaksi Lapangan */
 const CREATE_ACTIONS = [
-  { path: '/app/order',  label: 'Entry Order',       desc: 'Pesanan produk di outlet',     icon: ShoppingCartRoundedIcon, color: 'primary' },
-  { path: '/app/quotes', label: 'Quotation',         desc: 'Penawaran harga resmi (PDF)', icon: DescriptionRoundedIcon,  color: 'info' },
-  { path: '/app/audit',  label: 'Audit & Survey',    desc: 'Checklist toko, stok & foto',  icon: FactCheckRoundedIcon,    color: 'success' },
+  { path: '/app/order',                   label: 'Entry Order',       desc: 'Pesanan produk di outlet',        icon: ShoppingCartRoundedIcon, color: 'primary' },
+  { path: '/app/quotes',                  label: 'Quotation',         desc: 'Penawaran harga resmi (PDF)',     icon: DescriptionRoundedIcon,  color: 'info' },
+  { path: '/app/audit',                   label: 'Audit & Survey',    desc: 'Checklist toko, stok & foto',     icon: FactCheckRoundedIcon,    color: 'success' },
+  { path: '/app/audit?tab=prospect&new=1', label: 'Prospek Baru',     desc: 'Akuisisi calon toko di lapangan', icon: AddBusinessRoundedIcon,  color: 'warning' },
 ];
 
 function NavBtn({ item, active, onClick }) {

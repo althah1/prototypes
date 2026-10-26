@@ -58,7 +58,21 @@ export default function QuoteDesktop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const quotes = [...(db.quotations || [])].reverse();
+  /* BR-MD-SPV-001: Supervisor hanya memantau & menyetujui quotation dari Sales bawahannya */
+  const isSupervisor = user.role === 'supervisor';
+  const spv = isSupervisor
+    ? (db.supervisors || []).find(
+        (s) => (user.supervisorId && s.id === user.supervisorId) ||
+               String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
+      )
+    : null;
+  const teamSalesIds = new Set(
+    (db.sales || []).filter((s) => spv && s.supervisorId === spv.id).map((s) => s.id)
+  );
+
+  const quotes = [...(db.quotations || [])]
+    .filter((qt) => !isSupervisor || teamSalesIds.has(qt.salesId))
+    .reverse();
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
   const salesName = (id) => (db.sales || []).find((s) => s.id === id)?.name || '-';
 

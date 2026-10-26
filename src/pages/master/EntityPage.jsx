@@ -8,6 +8,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -45,8 +46,11 @@ import MailRoundedIcon from '@mui/icons-material/MailRounded';
 import MapRoundedIcon from '@mui/icons-material/MapRounded';
 import PhoneRoundedIcon from '@mui/icons-material/PhoneRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import MyLocationRoundedIcon from '@mui/icons-material/MyLocationRounded';
+import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded';
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import L from 'leaflet';
 
 import { MASTER_CONFIG } from './masterConfig';
 import ProdukPage from './Produk';
@@ -114,6 +118,321 @@ function nextAutoCode(rows, field, prefix) {
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
 }
 
+/* Pemilih Titik Peta Interaktif (Leaflet) + Nominatim Reverse Geocoding (FSD Bab 4.2.8 & Bab 5.2) */
+function OutletPinPicker({ latVal, lngVal, areaId, areas, onPickCoords, onFillAddress }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const circlesRef = useRef([]);
+  const abortRef = useRef(null);
+  const internalPickRef = useRef(false);
+
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoInfo, setGeoInfo] = useState('');
+  const [geoError, setGeoError] = useState('');
+
+  const parsedCoords = useMemo(() => {
+    const rawLat = String(latVal ?? '').trim();
+    const rawLng = String(lngVal ?? '').trim();
+    if (rawLat === '' || rawLng === '') return null;
+    const lat = Number(rawLat);
+    const lng = Number(rawLng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  }, [latVal, lngVal]);
+
+  const pinIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: 'outlet-pin-marker',
+        html: `<svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 6px rgba(15,23,42,0.35))">
+          <path d="M16 0C7.163 0 0 7.163 0 16C0 27.25 14.2 40.55 15.15 41.42C15.63 41.86 16.37 41.86 16.85 41.42C17.8 40.55 32 27.25 32 16C32 7.163 24.837 0 16 0Z" fill="#dc2626"/>
+          <circle cx="16" cy="15.5" r="6" fill="#ffffff"/>
+        </svg>`,
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
+      }),
+    []
+  );
+
+  /* Reverse Geocoding via OpenStreetMap Nominatim */
+  const fetchReverseGeocode = async (lat, lng) => {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setGeoLoading(true);
+    setGeoError('');
+    setGeoInfo('');
+
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
+        lat
+      )}&lon=${encodeURIComponent(lng)}&accept-language=id`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const addr = String(data?.display_name || '').trim();
+      if (addr) {
+        const clipped = addr.slice(0, 200).trim();
+        onFillAddress(clipped);
+        setGeoInfo('Alamat otomatis berhasil diisi dari titik peta.');
+      } else {
+        setGeoError('Titik tersimpan, namun detail alamat tidak ditemukan — silakan isi alamat manual.');
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError' && abortRef.current !== controller) return;
+      setGeoError('Koordinat tersimpan. Layanan alamat otomatis sedang tidak terjangkau (offline) — silakan isi alamat manual.');
+    } finally {
+      clearTimeout(timer);
+      if (abortRef.current === controller) setGeoLoading(false);
+    }
+  };
+
+  const applyPickedPoint = (lat, lng, shouldGeocode = true) => {
+    const cleanLat = Number(lat.toFixed(6));
+    const cleanLng = Number(lng.toFixed(6));
+    if (cleanLat === 0 && cleanLng === 0) {
+      setGeoError('Pasangan titik (0, 0) tidak diizinkan — silakan pilih titik lokasi yang valid.');
+      return;
+    }
+    internalPickRef.current = true;
+    onPickCoords(cleanLat.toFixed(6), cleanLng.toFixed(6));
+    if (shouldGeocode) fetchReverseGeocode(cleanLat, cleanLng);
+  };
+
+  /* Inisialisasi peta Leaflet di dalam Dialog MUI */
+  useEffect(() => {
+    if (!containerRef.current) return undefined;
+
+    const activeAreas = (areas || []).filter((a) => (a.status || 'active') === 'active');
+    const selectedArea = activeAreas.find((a) => String(a.id) === String(areaId));
+    const fallbackArea = selectedArea || activeAreas[0];
+    const initCenter = parsedCoords
+      ? [parsedCoords.lat, parsedCoords.lng]
+      : fallbackArea
+        ? [Number(fallbackArea.lat) || -7.7956, Number(fallbackArea.lng) || 110.3695]
+        : [-6.2, 106.8166];
+    const initZoom = parsedCoords ? 16 : 13;
+
+    const map = L.map(containerRef.current, { zoomControl: true }).setView(initCenter, initZoom);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+
+    map.on('click', (e) => {
+      applyPickedPoint(e.latlng.lat, e.latlng.lng, true);
+    });
+
+    mapRef.current = map;
+
+    /* Pastikan ukuran tile utuh setelah animasi buka Dialog MUI */
+    const t1 = setTimeout(() => map.invalidateSize(), 120);
+    const t2 = setTimeout(() => map.invalidateSize(), 360);
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => map.invalidateSize());
+      ro.observe(containerRef.current);
+    }
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (ro) ro.disconnect();
+      if (abortRef.current) abortRef.current.abort();
+      try { map.remove(); } catch (e) { /* ignore */ }
+      mapRef.current = null;
+      markerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Gambar lingkaran referensi Area Kerja & arahkan peta saat Area dipilih (jika pin belum diisi) */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    circlesRef.current.forEach((c) => { try { c.remove(); } catch (e) { /* ignore */ } });
+    circlesRef.current = [];
+
+    const activeAreas = (areas || []).filter((a) => (a.status || 'active') === 'active');
+    activeAreas.forEach((a) => {
+      const isSelected = String(a.id) === String(areaId);
+      if (a.lat == null || a.lng == null) return;
+      const circle = L.circle([Number(a.lat), Number(a.lng)], {
+        radius: (Number(a.radiusKm) || 5) * 1000,
+        color: isSelected ? '#2563eb' : '#16a34a',
+        weight: isSelected ? 1.75 : 1,
+        dashArray: isSelected ? undefined : '4 4',
+        fillColor: isSelected ? '#2563eb' : '#16a34a',
+        fillOpacity: isSelected ? 0.08 : 0.04,
+      }).addTo(map);
+      circle.bindTooltip(`Area: ${a.name} (${a.radiusKm || 5} km)`);
+      circlesRef.current.push(circle);
+    });
+
+    if (!parsedCoords && areaId) {
+      const target = activeAreas.find((a) => String(a.id) === String(areaId));
+      if (target && target.lat != null && target.lng != null) {
+        map.setView([Number(target.lat), Number(target.lng)], 13);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaId, areas]);
+
+  /* Sinkronisasi dua arah antara input angka (lat/lng) dengan marker pin di peta */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!parsedCoords) {
+      if (markerRef.current) {
+        try { markerRef.current.remove(); } catch (e) { /* ignore */ }
+        markerRef.current = null;
+      }
+      return;
+    }
+
+    const pos = [parsedCoords.lat, parsedCoords.lng];
+    if (!markerRef.current) {
+      const m = L.marker(pos, { draggable: true, icon: pinIcon }).addTo(map);
+      m.bindTooltip('Geser pin untuk menyesuaikan titik lokasi outlet');
+      m.on('dragend', () => {
+        const p = m.getLatLng();
+        applyPickedPoint(p.lat, p.lng, true);
+      });
+      markerRef.current = m;
+    } else {
+      markerRef.current.setLatLng(pos);
+    }
+
+    if (!internalPickRef.current) {
+      map.setView(pos, Math.max(map.getZoom(), 15));
+    }
+    internalPickRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsedCoords?.lat, parsedCoords?.lng]);
+
+  const handleUseCurrentGps = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Browser tidak mendukung fitur GPS Geolocation.');
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (mapRef.current) mapRef.current.setView([latitude, longitude], 16);
+        applyPickedPoint(latitude, longitude, true);
+      },
+      () => {
+        setGeoLoading(false);
+        setGeoError('Gagal mengakses lokasi perangkat — izinkan akses lokasi atau klik langsung di peta.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1.5,
+        p: 1.5,
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}
+      >
+        <Box>
+          <Typography variant="subtitle2" fontWeight={750} fontSize={13.5}>
+            Pilih Titik Lokasi di Peta (Pin Picker) *
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Klik pada peta atau geser pin merah untuk mengisi koordinat &amp; alamat secara otomatis.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<MyLocationRoundedIcon fontSize="small" />}
+            onClick={handleUseCurrentGps}
+            disabled={geoLoading}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Lokasi Saat Ini
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<PlaceRoundedIcon fontSize="small" />}
+            onClick={() => parsedCoords && fetchReverseGeocode(parsedCoords.lat, parsedCoords.lng)}
+            disabled={!parsedCoords || geoLoading}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12 }}
+          >
+            Ambil Alamat
+          </Button>
+        </Stack>
+      </Stack>
+
+      <Box
+        ref={containerRef}
+        sx={{
+          height: 250,
+          width: '100%',
+          borderRadius: 1.25,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+          zIndex: 1,
+          '& .outlet-pin-marker': { background: 'transparent', border: 'none' },
+        }}
+      />
+
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.85, minHeight: 20 }}>
+        {geoLoading && (
+          <>
+            <CircularProgress size={13} thickness={5} />
+            <Typography variant="caption" color="primary.main" fontWeight={600}>
+              Mengambil alamat otomatis dari koordinat (Nominatim)…
+            </Typography>
+          </>
+        )}
+        {!geoLoading && geoInfo && (
+          <Typography variant="caption" color="success.main" fontWeight={600}>
+            {geoInfo}
+          </Typography>
+        )}
+        {!geoLoading && geoError && (
+          <Typography variant="caption" color="warning.main" fontWeight={600}>
+            {geoError}
+          </Typography>
+        )}
+        {!geoLoading && !geoInfo && !geoError && (
+          <Typography variant="caption" color="text.secondary">
+            {parsedCoords
+              ? `Titik aktif: ${parsedCoords.lat.toFixed(6)}, ${parsedCoords.lng.toFixed(6)}`
+              : 'Belum ada pin dipilih — klik area peta untuk menempatkan pin outlet.'}
+    </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
 /* Produk = halaman kustom (baris = 1 produk × 1 gudang). Wrapper memisahkan
    komponen supaya Rules of Hooks aman. */
 export default function EntityPage({ slug }) {
@@ -124,7 +443,8 @@ export default function EntityPage({ slug }) {
 function EntityPageInner({ slug }) {
   const cfg = MASTER_CONFIG[slug];
   const { user } = useAuth();
-  const readOnly = user?.role === 'finance'; /* Finance: seluruh Master Data = lihat saja (keputusan tim) */
+  /* Finance: seluruh Master Data = lihat saja; Master Sales & Master Bank eksklusif Admin */
+  const readOnly = user?.role === 'finance' || ((slug === 'sales' || slug === 'bank') && user?.role !== 'admin');
   const { db, insert, update, mutate, remove } = useDb();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -225,13 +545,17 @@ function EntityPageInner({ slug }) {
   const paginated = filtered.slice(curPage * rowsPerPage, curPage * rowsPerPage + rowsPerPage);
 
   /* ---------- Helper ---------- */
-  const labelOf = (r) => r?.name || r?.code || r?.nik || r?.sku || 'Data';
+  const labelOf = (r) => r?.name || r?.nama || r?.code || r?.kode || r?.nik || r?.sku || 'Data';
   const allocField = cfg.fields.find((f) => f.type === 'gudangAlloc');
 
   const resetForm = () => {
     const init = {};
     cfg.fields.forEach((f) => {
-      init[f.k] = f.type === 'gudangAlloc' ? {} : (f.default != null ? String(f.default) : '');
+      init[f.k] = f.type === 'gudangAlloc'
+        ? {}
+        : f.type === 'multiSelect'
+          ? []
+          : (f.default != null ? String(f.default) : '');
     });
     if (cfg.codeGen) init[cfg.codeGen.field] = suggestCode(rows, cfg.codeGen.prefix);
     setValues(init);
@@ -240,12 +564,14 @@ function EntityPageInner({ slug }) {
   };
 
   const openCreate = () => {
+    if (readOnly) return;
     captureScrollPos();
     resetForm();
     setFormOpen(true);
   };
 
   const openEdit = (rec) => {
+    if (readOnly) return;
     captureScrollPos();
     const init = {};
     cfg.fields.forEach((f) => {
@@ -253,7 +579,7 @@ function EntityPageInner({ slug }) {
         ? allocMapOf(db, rec.id)
         : f.type === 'multiSelect'
           ? [...(Array.isArray(rec[f.k]) ? rec[f.k] : [])]
-          : (rec[f.k] == null ? '' : String(rec[f.k]));
+          : (rec[f.k] == null ? (f.default != null ? String(f.default) : '') : String(rec[f.k]));
     });
     setValues(init); setErrors({}); setEditing(rec); setFormOpen(true);
   };
@@ -267,9 +593,23 @@ function EntityPageInner({ slug }) {
   const refStats = (rec) => {
     if (!rec) return { total: 0, list: [] };
     const list = [];
-    (cfg.refs || []).forEach(({ table, field, label, matchSelf }) => {
-      const want = matchSelf ? rec[field] : rec.id;
-      const n = (db[table] || []).filter((x) => x[field] === want).length;
+    (cfg.refs || []).forEach(({ table, field, label, matchSelf, selfField, viaSelfField, viaSelfItems }) => {
+      let n = 0;
+      if (selfField) {
+        const ids = (rec[selfField] || []).map(String);
+        n = ids.length ? (db[table] || []).filter((x) => ids.includes(String(x.id))).length : 0;
+      } else if (viaSelfField) {
+        const ids = (rec[viaSelfField] || []).map(String);
+        n = ids.length ? (db[table] || []).filter((x) => ids.includes(String(x[field]))).length : 0;
+      } else if (viaSelfItems) {
+        const ids = (rec[viaSelfItems] || []).map(String);
+        n = ids.length
+          ? (db[table] || []).filter((r) => (r[field] || []).some((it) => ids.includes(String(it.productId)))).length
+          : 0;
+      } else {
+        const want = matchSelf ? rec[field] : rec.id;
+        n = (db[table] || []).filter((x) => x[field] === want).length;
+      }
       if (n) list.push({ label, n });
     });
     (cfg.refsItems || []).forEach(({ table, field, label }) => {
@@ -309,7 +649,7 @@ function EntityPageInner({ slug }) {
     const errs = {};
     cfg.fields.forEach((f) => {
       if (f.type === 'multiSelect') {
-        if (f.required && !(values[f.k] || []).length) errs[f.k] = `${f.l}: pilih minimal satu.`;
+        if (f.required && !(values[f.k] || []).length) errs[f.k] = `${f.l} wajib dipilih minimal 1 produk.`;
         return;
       }
       if (f.type === 'gudangAlloc') {
@@ -452,7 +792,7 @@ function EntityPageInner({ slug }) {
 
   /* ---------- Nilai field untuk dialog detail ---------- */
   const renderDetailValue = (f, rec) => {
-    const v = rec?.[f.k];
+    const v = rec?.[f.k] ?? f.default;
 
     // 1. Alokasi Stok Gudang: Sub-Tabel Kompak Bergaris Tipis Halus
     if (f.type === 'gudangAlloc') {
@@ -518,75 +858,87 @@ function EntityPageInner({ slug }) {
       );
     }
 
-    // 2. Multi-Select: Kotak Daftar Bergaris Tipis Full-Width yang Dapat Digulir Vertikal
+    // 2. Multi-Select: Sub-Tabel Baris Penuh Vertikal ke Bawah (Full-Width, Selaras Dialog Detail Produk)
     if (f.type === 'multiSelect') {
       const ids = rec?.[f.k] || [];
       if (!ids.length) {
         return (
-          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 0.5 }}>
-            Belum ada item terpilih
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            Belum ada produk yang terdaftar
           </Typography>
         );
       }
+      const isProductTable = f.optionsFrom?.table === 'products';
       return (
-        <Box sx={{ width: '100%', mt: 0.25 }}>
-          <Box
-            sx={{
-              width: '100%',
-              maxHeight: 160,
-              overflowY: 'auto',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1.25,
-              bgcolor: 'background.paper',
-            }}
-          >
-            {ids.map((id, i) => {
-              const r2 = (db[f.optionsFrom?.table] || []).find((x) => String(x.id) === String(id));
-              return (
-                <Box
-                  key={id}
-                  sx={{
-                    px: 1.75,
-                    py: 0.85,
-                    borderBottom: i === ids.length - 1 ? 'none' : '1px solid',
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  {r2?.sku && (
-                    <Box
-                      component="span"
-                      sx={{
-                        px: 0.8,
-                        py: 0.25,
-                        borderRadius: '4px',
-                        bgcolor: 'action.hover',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        fontSize: '0.725rem',
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                        color: 'text.secondary',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {r2.sku}
-                    </Box>
-                  )}
-                  <Typography variant="body2" fontSize={13} fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
-                    {r2 ? r2.name : `#${id}`}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: 11, textAlign: 'right' }}>
-            {ids.length} produk terdaftar (dapat digulir ke bawah)
-          </Typography>
+        <Box sx={{ width: '100%', mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                {isProductTable && (
+                  <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary', width: 105 }}>
+                    Kode SKU
+                  </TableCell>
+                )}
+                <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary' }}>
+                  {isProductTable ? 'Nama Produk' : 'Item'}
+                </TableCell>
+                {isProductTable && (
+                  <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, px: 1.5, color: 'text.secondary', width: 90 }}>
+                    Satuan
+                  </TableCell>
+                )}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {ids.map((id) => {
+                const r2 = (db[f.optionsFrom?.table] || []).find((x) => String(x.id) === String(id));
+                const inactive = r2?.status === 'inactive';
+                return (
+                  <TableRow key={id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                    {isProductTable && (
+                      <TableCell sx={{ fontSize: 12, py: 0.75, px: 1.5, color: 'text.secondary', fontFamily: 'monospace', verticalAlign: 'top' }}>
+                        {r2?.sku || `#${id}`}
+                      </TableCell>
+                    )}
+                    <TableCell sx={{ fontSize: 12.5, py: 0.75, px: 1.5, fontWeight: 600, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                      {r2 ? r2.name : `Produk #${id} (Tidak ditemukan)`}
+                      {inactive ? ' (Nonaktif)' : ''}
+                    </TableCell>
+                    {isProductTable && (
+                      <TableCell align="right" sx={{ fontSize: 12, py: 0.75, px: 1.5, verticalAlign: 'top' }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'inline-block',
+                            px: 1,
+                            py: 0.2,
+                            borderRadius: '4px',
+                            bgcolor: 'action.hover',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            fontWeight: 700,
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r2?.unit || '-'}
+                        </Box>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+              <TableRow sx={{ bgcolor: 'action.hover' }}>
+                <TableCell colSpan={isProductTable ? 2 : 1} sx={{ fontSize: 12, fontWeight: 750, py: 0.75, px: 1.5 }}>
+                  Total {f.l}
+                </TableCell>
+                {isProductTable && (
+                  <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 800, py: 0.75, px: 1.5, color: 'primary.main', fontVariantNumeric: 'tabular-nums' }}>
+                    {ids.length} produk
+                  </TableCell>
+                )}
+              </TableRow>
+            </TableBody>
+          </Table>
         </Box>
       );
     }
@@ -724,7 +1076,7 @@ function EntityPageInner({ slug }) {
       );
       return (
         <Box key={f.k}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography variant="caption" color={errors[f.k] ? 'error' : 'text.secondary'} fontWeight={errors[f.k] ? 700 : 400} sx={{ display: 'block', mb: 0.5 }}>
             {f.l}{f.required ? ' *' : ''} — {cur.length} item dipilih
           </Typography>
           <TextField size="small" fullWidth placeholder="Cari item (SKU / nama)…"
@@ -733,7 +1085,7 @@ function EntityPageInner({ slug }) {
             InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }}
             sx={{ mb: 1 }} />
           <Stack spacing={0.25}
-            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 0.75, maxHeight: 240, overflowY: 'auto' }}>
+            sx={{ border: '1px solid', borderColor: errors[f.k] ? 'error.main' : 'divider', borderRadius: 2, p: 0.75, maxHeight: 240, overflowY: 'auto' }}>
             {shown.length ? shown.map((r) => (
               <Stack key={r.id} direction="row" alignItems="center" spacing={0.75}
                 onClick={() => toggle(r.id)}
@@ -777,10 +1129,35 @@ function EntityPageInner({ slug }) {
       return <TextField key={f.k} multiline minRows={2} {...fieldProps(f)} inputProps={{ maxLength: f.max }} />;
     }
     if (f.type === 'number') {
-      return (
+      const numInput = (
         <TextField key={f.k} type="number" {...fieldProps(f)}
           inputProps={{ min: f.min, max: f.max, step: f.step || 1 }} />
       );
+      if (cfg.mapPicker && f.k === cfg.mapPicker.latField) {
+        const mp = cfg.mapPicker;
+        return (
+          <Stack key={f.k} spacing={2}>
+            <OutletPinPicker
+              latVal={values[mp.latField]}
+              lngVal={values[mp.lngField]}
+              areaId={values[mp.areaField]}
+              areas={db.areas || []}
+              onPickCoords={(newLat, newLng) => {
+                setValues((p) => ({ ...p, [mp.latField]: newLat, [mp.lngField]: newLng }));
+                setErrors((p) => ({ ...p, [mp.latField]: '', [mp.lngField]: '', _form: '' }));
+              }}
+              onFillAddress={(addr) => {
+                if (mp.addressField) {
+                  setValues((p) => ({ ...p, [mp.addressField]: addr }));
+                  setErrors((p) => ({ ...p, [mp.addressField]: '' }));
+                }
+              }}
+            />
+            {numInput}
+          </Stack>
+        );
+      }
+      return numInput;
     }
     if (f.type === 'file') {
       return (
@@ -956,7 +1333,8 @@ function EntityPageInner({ slug }) {
             <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.25, overflow: 'hidden', mb: 2 }}>
               {cfg.fields.map((f, idx) => {
                 const val = renderDetailValue(f, detailRow);
-                const isLong = f.type === 'textarea' || f.type === 'gudangAlloc' || f.type === 'multiSelect';
+                const isBlockNode = f.type === 'gudangAlloc' || f.type === 'multiSelect' || f.type === 'file';
+                const isLong = f.type === 'textarea' || isBlockNode;
                 return (
                   <Box
                     key={f.k}
@@ -975,16 +1353,22 @@ function EntityPageInner({ slug }) {
                     <Typography variant="body2" color="text.secondary" fontSize={13} sx={{ minWidth: 140, flexShrink: 0 }}>
                       {f.l}
                     </Typography>
-                    <Typography
-                      variant="body2"
-                      fontWeight={650}
-                      fontSize={13.5}
-                      color="text.primary"
-                      textAlign={isLong ? 'left' : 'right'}
-                      sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word', width: isLong ? '100%' : 'auto' }}
-                    >
-                      {val}
-                    </Typography>
+                    {isBlockNode ? (
+                      <Box sx={{ width: '100%' }}>
+                        {val}
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        fontWeight={650}
+                        fontSize={13.5}
+                        color="text.primary"
+                        textAlign={isLong ? 'left' : 'right'}
+                        sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word', width: isLong ? '100%' : 'auto' }}
+                      >
+                        {val}
+                      </Typography>
+                    )}
                   </Box>
                 );
               })}
@@ -1161,7 +1545,11 @@ function EntityPageInner({ slug }) {
     <Box>
       <PageHeader
         title={cfg.title}
-        subtitle={cfg.sub}
+        subtitle={readOnly && (slug === 'sales' || slug === 'bank')
+          ? `${cfg.sub} (Akses Lihat Saja — pengelolaan khusus Administrator)`
+          : readOnly
+            ? `${cfg.sub} (Akses Lihat Saja)`
+            : cfg.sub}
         action={!readOnly && (
           <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
             Tambah {cfg.addLabel}
@@ -1270,10 +1658,20 @@ function EntityPageInner({ slug }) {
           sx={{ borderTop: '1px solid', borderColor: 'divider' }} />
       </TableContainer>
 
-      <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
-        <b>Hapus</b>: data yang belum dipakai transaksi akan dihapus permanen; yang sudah dipakai
-        hanya bisa <b>dinonaktifkan</b> (riwayatnya tetap tersimpan). Data bawahan mengikuti status induknya.
-      </Alert>
+      {readOnly && (slug === 'sales' || slug === 'bank') ? (
+        <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
+          Pengelolaan data utama <b>{slug === 'bank' ? 'Master Bank' : 'Master Sales'}</b> (Tambah, Ubah, Nonaktifkan/Hapus) dilakukan secara eksklusif oleh <b>Administrator</b>.
+        </Alert>
+      ) : readOnly ? (
+        <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
+          Akses <b>Lihat Saja (Read-Only)</b> — referensi Master Data untuk verifikasi penagihan dan transaksi.
+        </Alert>
+      ) : (
+        <Alert severity="info" sx={{ mt: 1.5 }} icon={<InfoRoundedIcon fontSize="small" />}>
+          <b>Hapus</b>: data yang belum dipakai transaksi akan dihapus permanen; yang sudah dipakai
+          hanya bisa <b>dinonaktifkan</b> (riwayatnya tetap tersimpan). Data bawahan mengikuti status induknya.
+        </Alert>
+      )}
 
       {formDialog}
       {confirmDialog}
