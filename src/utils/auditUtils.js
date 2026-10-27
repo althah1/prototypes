@@ -189,6 +189,73 @@ export function findSubmittedAudit(db, outletId, date = todayISO()) {
   return (db?.audits || []).find((a) => a.outletId === outletId && a.date === date);
 }
 
+/* Hitung acuan riwayat stok produk KHUSUS di outlet terkait (bukan stok gudang pusat) */
+export function getOutletProductRefStock(db, outletId, productId) {
+  if (!outletId || !productId) return null;
+  const product = (db.products || []).find((p) => Number(p.id) === Number(productId));
+  const pcsPerUnit = product?.pcsPerUnit || 1;
+
+  const prevAudits = (db.audits || [])
+    .filter((a) => Number(a.outletId) === Number(outletId) && Array.isArray(a.stocks))
+    .slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.id || 0) - (a.id || 0));
+
+  let lastAuditDate = null;
+  let baseFromAudit = null;
+  for (const aud of prevAudits) {
+    const found = aud.stocks.find((s) => Number(s.productId) === Number(productId));
+    if (found && found.actualStock != null) {
+      baseFromAudit = Number(found.actualStock);
+      lastAuditDate = aud.date || null;
+      break;
+    }
+  }
+
+  const deliveredOrders = (db.orders || []).filter(
+    (o) =>
+      Number(o.outletId) === Number(outletId) &&
+      (o.status === 'approved' || o.status === 'completed') &&
+      (!lastAuditDate || String(o.date || '') > String(lastAuditDate))
+  );
+
+  let orderedPcs = 0;
+  let hasOrderHistory = false;
+  for (const ord of deliveredOrders) {
+    for (const it of ord.items || []) {
+      if (Number(it.productId) === Number(productId)) {
+        hasOrderHistory = true;
+        const qtyPcs = it.baseQty != null
+          ? Number(it.baseQty)
+          : Number(it.qty || 0) * (it.uom === 'box' || (it.unit && it.unit !== 'pcs') ? pcsPerUnit : 1);
+        orderedPcs += qtyPcs;
+      }
+    }
+  }
+
+  if (baseFromAudit === null && !hasOrderHistory) return null;
+  return (baseFromAudit ?? 0) + orderedPcs;
+}
+
+/* Evaluasi kesehatan stok di rak toko (Out-of-Stock / Low Stock detection) */
+export function getOutletStockHealth(actualStock) {
+  const n = Number(actualStock ?? 0);
+  if (n <= 0) return { key: 'empty', label: 'Habis (0)', color: 'error' };
+  if (n <= 10) return { key: 'low', label: 'Menipis', color: 'warning' };
+  return { key: 'ok', label: 'Aman', color: 'success' };
+}
+
+/* Format keterangan pergerakan stok toko (Sell-Out / perubahan dari riwayat toko) */
+export function formatStockMovement(stockRow) {
+  if (!stockRow) return '-';
+  const ref = stockRow.systemStock;
+  const actual = Number(stockRow.actualStock ?? 0);
+  if (ref === null || ref === undefined) return 'Stok Awal';
+  const diff = actual - Number(ref);
+  if (diff === 0) return 'Tetap (0)';
+  if (diff < 0) return `Terjual ${Math.abs(diff)} pcs`;
+  return `+${diff} pcs`;
+}
+
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
 const xmlEsc = (v) =>
@@ -210,13 +277,13 @@ export function exportAuditsCsv(db, rowsOverride = null) {
 
   const header = [
     'No Audit', 'Tanggal', 'Versi Form', 'Nama Template', 'Sales', 'Outlet', 'Area',
-    'Skor', 'Jumlah Foto', 'Total Selisih Stok', 'Kategori Prospek', 'Status Prospek',
+    'Skor', 'Jumlah Foto', 'Temuan Stok Kritis/Habis', 'Kategori Prospek', 'Status Prospek',
     'Ringkasan Kuesioner', 'Catatan',
   ];
 
   const lines = rows.map((a) => {
     const o = outletOf(a.outletId);
-    const dev = (a.stocks || []).reduce((s, x) => s + Math.abs(x.diff || 0), 0);
+    const dev = (a.stocks || []).filter((x) => Number(x.actualStock) <= 10).length;
     const ver = `v${a.templateVersion || 1}`;
     const tplName = a.templateName || DEFAULT_AUDIT_TEMPLATE.name;
     const summary = (a.checklist || [])
@@ -267,12 +334,12 @@ export function exportAuditsExcel(db, rowsOverride = null) {
 
   const summaryHeader = [
     'No Audit', 'Tanggal', 'Versi Form', 'Nama Template', 'Sales', 'Outlet', 'Area',
-    'Skor (/100)', 'Jumlah Foto', 'Total Selisih Stok (Unit)', 'Kategori Prospek', 'Status Prospek', 'Catatan',
+    'Skor (/100)', 'Jumlah Foto', 'Temuan Stok Kritis/Habis (Unit)', 'Kategori Prospek', 'Status Prospek', 'Catatan',
   ].map((h) => cellStr(h, 'sHead')).join('');
 
   const summaryRows = rows.map((a) => {
     const o = outletOf(a.outletId);
-    const dev = (a.stocks || []).reduce((s, x) => s + Math.abs(x.diff || 0), 0);
+    const dev = (a.stocks || []).filter((x) => Number(x.actualStock) <= 10).length;
     return `<Row>${[
       cellStr(a.no),
       cellStr(a.date),

@@ -725,8 +725,8 @@ export default function AuditDesktop() {
   const avgScore = filtered.length
     ? Math.round(filtered.reduce((s, a) => s + (a.score || 0), 0) / filtered.length)
     : 0;
-  const totalDev = filtered.reduce(
-    (s, a) => s + (a.stocks || []).reduce((x, y) => x + Math.abs(y.diff || 0), 0),
+  const totalKritis = filtered.reduce(
+    (s, a) => s + (a.stocks || []).filter((x) => Number(x.actualStock) <= 10).length,
     0
   );
 
@@ -766,7 +766,7 @@ export default function AuditDesktop() {
         <StatCard icon={<FactCheckRoundedIcon />} value={audits.filter((a) => a.date === today).length} label="Audit hari ini" />
         <StatCard icon={<GradeRoundedIcon />} value={`${avgScore}/100`} label="Skor rata-rata" color="success" />
         <StatCard icon={<TrackChangesRoundedIcon />} value={teamProspects.length} label="Prospek terdata" color="secondary" />
-        <StatCard icon={<Inventory2RoundedIcon />} value={`${totalDev} unit`} label="Total selisih stok" color="warning" />
+        <StatCard icon={<Inventory2RoundedIcon />} value={totalKritis} label="Temuan stok menipis/habis" color="warning" />
       </Box>
 
       {/* Navigasi Sub-Modul Audit */}
@@ -854,14 +854,15 @@ export default function AuditDesktop() {
                     <TableCell>Outlet</TableCell>
                     <TableCell>Skor</TableCell>
                     <TableCell align="center">Foto</TableCell>
-                    <TableCell align="center">Selisih Stok</TableCell>
+                    <TableCell align="center">Status Stok Toko</TableCell>
                     <TableCell>Kategori</TableCell>
                     <TableCell align="right">Aksi</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filtered.length ? filtered.map((a) => {
-                    const dev = (a.stocks || []).reduce((s, x) => s + Math.abs(x.diff || 0), 0);
+                    const emptyCount = (a.stocks || []).filter((x) => Number(x.actualStock) <= 0).length;
+                    const lowCount = (a.stocks || []).filter((x) => Number(x.actualStock) > 0 && Number(x.actualStock) <= 10).length;
                     const cat = catOf(a.categoryId);
                     return (
                       <TableRow key={a.id} sx={{ cursor: 'pointer' }} onClick={() => setDetailId(a.id)}>
@@ -893,9 +894,11 @@ export default function AuditDesktop() {
                         </TableCell>
                         <TableCell align="center">{a.photos?.length || 0}</TableCell>
                         <TableCell align="center">
-                          {dev > 0
-                            ? <Chip size="small" color="error" label={`${dev} unit`} />
-                            : <Chip size="small" color="success" variant="outlined" label="sesuai" />}
+                          {emptyCount > 0
+                            ? <Chip size="small" color="error" label={`${emptyCount} habis`} />
+                            : lowCount > 0
+                              ? <Chip size="small" color="warning" label={`${lowCount} menipis`} />
+                              : <Chip size="small" color="success" variant="outlined" label="Stok aman" />}
                         </TableCell>
                         <TableCell>
                           {cat

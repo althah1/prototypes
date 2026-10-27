@@ -24,7 +24,7 @@ import Typography from '@mui/material/Typography';
 
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../ui/ToastProvider';
-import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer } from '../../utils/auditUtils';
+import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer, getOutletStockHealth, formatStockMovement } from '../../utils/auditUtils';
 import StatusChip from '../ui/StatusChip';
 
 const KV = ({ label, value }) => (
@@ -225,35 +225,43 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
             })}
           </Box>
 
-          {/* Evaluasi Stok */}
+          {/* Hasil Stock-Take */}
           <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
-            Evaluasi Stok vs Data Gudang
+            Hasil Stock-Take Produk di Outlet
           </Typography>
           <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden', mb: 2.5 }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>Produk</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Sistem</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Aktual</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, fontSize: 12 }}>Selisih</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Riwayat Toko</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: 12 }}>Aktual Toko</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, fontSize: 12 }}>Status &amp; Pergerakan</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {audit.stocks.map((x) => (
-                  <TableRow key={x.productId}>
-                    <TableCell sx={{ fontSize: 13 }}>{x.name}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 13 }}>{x.systemStock}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: 13 }}>{x.actualStock}</TableCell>
-                    <TableCell align="center">
-                      <StatusChip
-                        kind="active"
-                        status={x.diff === 0 ? 'active' : 'task'}
-                        label={x.diff === 0 ? 'Sesuai' : `${x.diff > 0 ? '+' : ''}${x.diff}`}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {audit.stocks.map((x) => {
+                  const legacyBad = x.systemStock != null && x.systemStock >= 100 && x.actualStock <= 50 && x.stockStatus === undefined;
+                  const ref = legacyBad ? null : x.systemStock;
+                  const actual = Number(x.actualStock ?? 0);
+                  const health = getOutletStockHealth(actual);
+                  const movement = formatStockMovement({ systemStock: ref, actualStock: actual });
+                  return (
+                    <TableRow key={x.productId}>
+                      <TableCell sx={{ fontSize: 13 }}>{x.name}</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 13 }}>{ref != null ? `${ref} pcs` : '-'}</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 13 }}>{actual} pcs</TableCell>
+                      <TableCell align="center" sx={{ fontSize: 12 }}>
+                        <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                          <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} />
+                          <Typography variant="caption" color="text.secondary" fontSize={10.5} sx={{ whiteSpace: 'nowrap' }}>
+                            {movement}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Box>

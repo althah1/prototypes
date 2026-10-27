@@ -170,7 +170,7 @@ export function seed() {
           { item: 'Ketersediaan materi promosi (POSM)', score: 1 },
         ],
         score: 73,
-        stocks: [{ productId: 1, name: 'Teh Kotak 250ml', systemStock: 1200, actualStock: 1150, diff: -50 }],
+        stocks: [{ productId: 1, name: 'Teh Kotak 250ml', systemStock: 24, actualStock: 8, diff: -16, stockStatus: 'low' }],
         photos: [], note: 'POSM sudah usai, perlu penggantian.',
         status: 'submitted', categoryId: 2, prospectStatus: 'Prospek', createdAt: nowStamp() },
     ],

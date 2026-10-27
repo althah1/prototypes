@@ -46,6 +46,9 @@ import {
   buildChecklistSnapshot,
   findSubmittedAudit,
   getActiveAuditTemplate,
+  getOutletProductRefStock,
+  getOutletStockHealth,
+  formatStockMovement,
 } from '../../utils/auditUtils';
 import { readFileAsDataURL } from '../../utils/files';
 import { addWatermark } from '../../utils/watermark';
@@ -244,7 +247,17 @@ export default function AuditMobile() {
     const stocks = Object.entries(draft.stocks).map(([pid, actual]) => {
       const p = (db.products || []).find((x) => x.id === Number(pid));
       if (!p) return null;
-      return { productId: p.id, name: p.name, systemStock: p.stock, actualStock: actual, diff: actual - p.stock };
+      const refStock = getOutletProductRefStock(db, draft.outletId, p.id);
+      const actualNum = Number(actual);
+      const health = getOutletStockHealth(actualNum);
+      return {
+        productId: p.id,
+        name: p.name,
+        systemStock: refStock,
+        actualStock: actualNum,
+        diff: refStock === null ? 0 : actualNum - refStock,
+        stockStatus: health.key,
+      };
     }).filter(Boolean);
 
     const t = todayISO();
@@ -966,7 +979,7 @@ export default function AuditMobile() {
         <CardHeader title="2 · Stock-Take (Stok Aktual di Toko)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Bandingkan dengan data gudang/master. Wajib isi minimal 1 produk. Terisi: {stockCount} produk.
+            Hitung fisik sisa produk kita di rak/etalase toko ini (dalam pcs). Wajib isi minimal 1 produk. Terisi: {stockCount} produk.
           </Typography>
           <TextField
             label="Cari produk / SKU…"
@@ -977,13 +990,15 @@ export default function AuditMobile() {
           />
           {products.length ? products.map((p) => {
             const actual = draft.stocks[p.id] ?? '';
-            const diff = actual === '' ? null : Number(actual) - p.stock;
+            const refStock = getOutletProductRefStock(db, draft.outletId, p.id);
+            const actualNum = actual === '' ? null : Number(actual);
+            const health = actualNum !== null ? getOutletStockHealth(actualNum) : null;
             return (
               <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75, borderBottom: '1px dashed', borderColor: 'divider' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="body2" fontWeight={600} noWrap>{p.name}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Sistem (gudang): {p.stock} pcs{p.pcsPerUnit > 1 ? ` • 1 ${p.unit} = ${p.pcsPerUnit} pcs` : ''}
+                    {refStock !== null ? `Riwayat toko: ${refStock} pcs` : 'Riwayat toko: Belum ada (Stok Awal)'} • Gudang kita: {p.stock} pcs{p.pcsPerUnit > 1 ? ` • 1 ${p.unit} = ${p.pcsPerUnit} pcs` : ''}
                   </Typography>
                 </Box>
                 <TextField
@@ -999,9 +1014,12 @@ export default function AuditMobile() {
                   })}
                   inputProps={{ min: 0, style: { textAlign: 'center' } }}
                 />
-                {diff !== null && (diff === 0
-                  ? <Chip size="small" color="success" variant="outlined" label="sesuai" />
-                  : <Chip size="small" color="error" label={`${diff > 0 ? '+' : ''}${diff}`} />)}
+                {actualNum !== null && health && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>
+                    <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} />
+                    {refStock !== null && <Typography variant="caption" color="text.secondary" fontSize={11} sx={{ textAlign: 'right' }}>{formatStockMovement({ systemStock: refStock, actualStock: actualNum })}</Typography>}
+                  </Box>
+                )}
               </Box>
             );
           }) : (
