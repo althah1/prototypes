@@ -168,12 +168,16 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
   };
 
   const cancelOrder = () => {
+    if (!canApprove || !['submitted', 'approved'].includes(order.status)) {
+      setConfirmCancel(false);
+      return;
+    }
     update('orders', order.id, { status: 'cancelled', cancelledBy: user.name, cancelledAt: nowStamp() });
     restoreStockByOrder(mutate, order.items);
     const inv = findInvoiceByOrder(db, order.id);
     if (inv) update('invoices', inv.id, { status: 'dibatalkan', cancelledAt: nowStamp() });
     if (salesUser) notify(salesUser.id, 'Order Dibatalkan', `${order.no} dibatalkan oleh Supervisor.`);
-    toast('Order dibatalkan (hanya Supervisor, status Submitted/Approved).', 'warning');
+    toast('Order dibatalkan dan stok gudang telah dipulihkan.', 'warning');
     setConfirmCancel(false);
   };
 
@@ -317,6 +321,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                       {i.qty} {i.unit} × {formatRupiah(i.price)}
+                      {(i.pcsPerUnit || 1) > 1 ? ` (baseQty: ${i.baseQty || i.qty * (i.pcsPerUnit || 1)} pcs)` : ''}
                     </Typography>
                     {(i.disc || 0) > 0 && (
                       <Chip
@@ -348,7 +353,14 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
                       <Typography variant="body2" fontWeight={650}>{i.name}</Typography>
                       <Typography variant="caption" color="text.secondary">{i.sku}</Typography>
                     </TableCell>
-                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{i.qty} {i.unit}</TableCell>
+                    <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {i.qty} {i.unit}
+                      {(i.pcsPerUnit || 1) > 1 && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Setara {i.baseQty || i.qty * (i.pcsPerUnit || 1)} pcs
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{formatRupiah(i.price)}</TableCell>
                     <TableCell align="center">{i.disc || 0}%</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -364,7 +376,10 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: (order.discTotal || 0) > 0 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+              },
               gap: 1.5,
               p: 1.5,
               borderRadius: 1.5,
@@ -374,6 +389,14 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
               mb: 2,
             }}
           >
+            {(order.discTotal || 0) > 0 && (
+              <Box>
+                <Typography variant="caption" color="warning.dark" fontWeight={700} display="block">TOTAL DISKON</Typography>
+                <Typography variant="body2" fontWeight={700} color="warning.dark" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                  -{formatRupiah(order.discTotal)}
+                </Typography>
+              </Box>
+            )}
             <Box>
               <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">SUBTOTAL</Typography>
               <Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>{formatRupiah(order.subtotal)}</Typography>
@@ -407,6 +430,16 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
         >
           {!isMobile && <Button onClick={onClose}>Tutup</Button>}
 
+          {canApprove && (order.status === 'submitted' || order.status === 'approved') && (
+            <Button
+              color="error"
+              variant="outlined"
+              startIcon={<BlockRoundedIcon />}
+              onClick={() => setConfirmCancel(true)}
+            >
+              Batalkan
+            </Button>
+          )}
           {canApprove && order.status === 'submitted' && (
             <>
               <Button
@@ -422,14 +455,9 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             </>
           )}
           {canApprove && order.status === 'approved' && (
-            <>
-              <Button color="error" startIcon={<BlockRoundedIcon />} onClick={() => setConfirmCancel(true)}>
-                Batalkan
-              </Button>
-              <Button variant="contained" startIcon={<AutorenewRoundedIcon />} onClick={() => advance('processing')}>
-                Proses Order
-              </Button>
-            </>
+            <Button variant="contained" startIcon={<AutorenewRoundedIcon />} onClick={() => advance('processing')}>
+              Proses Order
+            </Button>
           )}
           {canApprove && order.status === 'processing' && (
             <Button variant="contained" startIcon={<LocalShippingRoundedIcon />} onClick={() => advance('shipped')}>

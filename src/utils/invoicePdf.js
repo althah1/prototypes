@@ -1,44 +1,62 @@
 import { formatRupiah, todayISO } from './helpers';
+import { getActiveCompanyBanks, resolveInvoiceBankIds } from './invoiceUtils';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
-/* BR-INV: dokumen invoice (cetak → "Simpan sebagai PDF" pada dialog print browser) */
+/* BR-INV & BR-INV-006: Dokumen cetak/PDF invoice dengan multi-rekening perusahaan & jatuh tempo */
 export function openInvoicePdf(invoice, db) {
   const comp = (db.companies || [])[0] || {};
   const outlet = (db.outlets || []).find((o) => o.id === invoice.outletId) || {};
   const sales = (db.sales || []).find((s) => s.id === invoice.salesId) || {};
-  const banks = (db.banks || []).filter((b) => b.status === 'active');
+
+  const companyBanks = getActiveCompanyBanks(db);
+  const selectedIds = resolveInvoiceBankIds(invoice, db);
+  const selectedBanks = companyBanks.filter((b) =>
+    selectedIds.some((id) => String(id) === String(b.id))
+  );
+
+  const dueDate = invoice.jatuhTempo || invoice.due_date || null;
 
   /* Syarat pembayaran */
   const syaratText = (() => {
     switch (invoice.metodePembayaran) {
       case 'transfer': {
-        const b = banks.find((x) => x.id === invoice.bankId);
-        return b ? `Transfer ke <b>${esc(b.nama)}</b>, No. Rekening <b>${esc(b.noRekening)}</b> a.n. <b>${esc(b.atasNama)}</b>.` : 'Transfer bank.';
+        if (selectedBanks.length === 1) {
+          const b = selectedBanks[0];
+          return `Transfer ke <b>${esc(b.nama)}</b>, No. Rekening <b>${esc(b.noRekening)}</b> a.n. <b>${esc(b.atasNama)}</b>.`;
+        }
+        if (selectedBanks.length > 1) {
+          return `Transfer ke salah satu <b>Rekening Pembayaran Perusahaan</b> yang tercantum di bawah dokumen ini.`;
+        }
+        return 'Transfer bank.';
       }
       case 'termin': {
         const viaT = invoice.viaPembayaran === 'transfer' ? 'transfer bank' : 'tunai';
         const viaB = invoice.viaPembayaran === 'transfer'
-          ? (banks.find((x) => x.id === invoice.viaBankId) || {}) : {};
+          ? (companyBanks.find((x) => x.id === invoice.viaBankId) || {}) : {};
         return `Pembayaran tempo <b>${invoice.terminHari || 14} hari</b> via <b>${viaT}</b>`
           + (viaB.nama ? ` ke <b>${esc(viaB.nama)}</b> No. <b>${esc(viaB.noRekening)}</b>` : '')
-          + ` — jatuh tempo <b>${invoice.jatuhTempo || '-'}</b>.`;
+          + ` — jatuh tempo <b>${esc(dueDate || '-')}</b>.`;
       }
-      case 'cicilan': return `Pembayaran mengangsur sesuai jadwal angsuran di bawah${invoice.cicilanDP > 0 ? ` (DP ${formatRupiah(invoice.cicilanDP)})` : ''}.`;
-      case 'konsinyasi': return `Konsinyasi ${invoice.konsinyasiHari || 30} hari — penagihan mengikuti hasil stock-take (jumlah barang terjual). Pembayaran via <b>${invoice.viaPembayaran === 'transfer' ? 'transfer bank' : 'tunai'}</b>.`;
-      default: return 'Pembayaran tunai saat penyerahan barang.';
+      case 'cicilan':
+        return `Pembayaran mengangsur sesuai jadwal angsuran di bawah${invoice.cicilanDP > 0 ? ` (DP ${formatRupiah(invoice.cicilanDP)})` : ''}.`;
+      case 'konsinyasi':
+        return `Konsinyasi ${invoice.konsinyasiHari || 30} hari — penagihan mengikuti hasil stock-take (jumlah barang terjual). Pembayaran via <b>${invoice.viaPembayaran === 'transfer' ? 'transfer bank' : 'tunai'}</b>.`;
+      default:
+        return 'Pembayaran tunai saat penyerahan barang.';
     }
   })();
 
   /* Status stamp */
-  const statusText = invoice.status === 'lunas' ? 'LUNAS' :
-    invoice.status === 'dibatalkan' ? 'DIBATALKAN' :
-    (invoice.jatuhTempo && invoice.jatuhTempo < todayISO() ? 'JATUH TEMPO' : 'BELUM LUNAS');
-  const statusColor = invoice.status === 'lunas' ? '#16a34a' :
-    invoice.status === 'dibatalkan' ? '#64748b' :
-    (invoice.jatuhTempo && invoice.jatuhTempo < todayISO() ? '#dc2626' : '#f59e0b');
+  const isOverdue = invoice.status === 'belum_lunas' && dueDate && dueDate < todayISO();
+  const statusText = invoice.status === 'lunas' ? 'LUNAS'
+    : invoice.status === 'dibatalkan' ? 'DIBATALKAN'
+      : (isOverdue ? 'JATUH TEMPO' : 'BELUM LUNAS');
+  const statusColor = invoice.status === 'lunas' ? '#16a34a'
+    : invoice.status === 'dibatalkan' ? '#64748b'
+      : (isOverdue ? '#dc2626' : '#f59e0b');
 
   /* Baris item */
   const rows = (invoice.items || []).map((it, ix) => `
@@ -54,39 +72,58 @@ export function openInvoicePdf(invoice, db) {
   const installmentTable = invoice.installments ? `
     <h3>Jadwal Angsuran</h3>
     <table>
-      <thead><tr><th>Angsuran</th><th class="r">Nominal</th><th class="c">Jatuh Tempo</th><th class="c">Status</th></tr></thead>
+      <thead><tr><th>Angsuran</th><th class="r">Nominal</th><th class="c">Jatuh Tempo</th><th class="c">Metode / Petugas</th><th class="c">Status</th></tr></thead>
       <tbody>
         ${invoice.installments.map((a) => `
           <tr>
             <td>Angsuran ${a.ke}</td>
             <td class="r">${formatRupiah(a.nominal)}</td>
-            <td class="c">${a.jatuhTempo}</td>
+            <td class="c">${esc(a.jatuhTempo)}</td>
+            <td class="c">${a.status === 'lunas' ? `${esc(a.paidMethod || '-')}${a.petugasNama ? ` (${esc(a.petugasNama)})` : ''}` : '-'}</td>
             <td class="c">${a.status === 'lunas' ? '<b style="color:#16a34a">LUNAS</b>' : 'Belum Bayar'}</td>
           </tr>`).join('')}
       </tbody>
     </table>` : '';
 
-  /* Riwayat pembayaran */
+  /* Riwayat pembayaran lengkap dengan Petugas Finance & Catatan */
   const paymentTable = (invoice.payments || []).length ? `
     <h3>Riwayat Pembayaran</h3>
     <table>
-      <thead><tr><th class="c">Tanggal</th><th>Keterangan</th><th class="c">Metode</th><th class="r">Nominal</th></tr></thead>
+      <thead>
+        <tr>
+          <th class="c">Waktu</th>
+          <th>Keterangan &amp; Catatan</th>
+          <th class="c">Metode</th>
+          <th class="c">Petugas Finance</th>
+          <th class="r">Nominal</th>
+        </tr>
+      </thead>
       <tbody>
-        ${invoice.payments.map((p) => `
+        ${invoice.payments.map((p) => {
+          const note = p.catatan_pembayaran || p.catatanPembayaran || '';
+          const resi = p.noResi ? `Resi: ${esc(p.noResi)}` : '';
+          const buktiTag = p.bukti_pembayaran ? '[Bukti Terlampir]' : '';
+          const subInfo = [resi, note ? esc(note) : '', buktiTag].filter(Boolean).join(' • ');
+          return `
           <tr>
-            <td class="c">${p.ts}</td>
-            <td>${esc(p.keterangan || 'Pembayaran')}</td>
+            <td class="c">${esc(p.ts)}</td>
+            <td>
+              <b>${esc(p.keterangan || 'Pembayaran')}</b>
+              ${subInfo ? `<br/><small style="color:#475569">${subInfo}</small>` : ''}
+            </td>
             <td class="c">${esc(p.metode)}</td>
+            <td class="c">${esc(p.petugasNama || p.recordedBy || '-')}</td>
             <td class="r">${formatRupiah(p.nominal)}</td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>` : '';
 
-  /* BR-INV-006: rekening bank di footer */
-  const bankFooter = banks.length ? `
+  /* BR-INV-006: Daftar multi-rekening aktif milik perusahaan sesuai pilihan pada invoice */
+  const bankFooter = selectedBanks.length ? `
     <div class="banks">
-      <b>Rekening Pembayaran Perusahaan:</b><br/>
-      ${banks.map((b) => `${esc(b.nama)} — ${esc(b.noRekening)} a.n. ${esc(b.atasNama)}`).join('<br/>')}
+      <b>Rekening Pembayaran Resmi Perusahaan:</b><br/>
+      ${selectedBanks.map((b) => `• <b>${esc(b.nama)}</b> — No. Rek: <b>${esc(b.noRekening)}</b> a.n. ${esc(b.atasNama)}`).join('<br/>')}
     </div>` : '';
 
   const html = `<!doctype html>
@@ -109,7 +146,7 @@ export function openInvoicePdf(invoice, db) {
   .totals div{display:flex;justify-content:space-between;padding:4px 0}
   .grand{font-weight:800;font-size:15px;color:#dc2626;border-top:2px solid #dc2626;margin-top:4px;padding-top:6px}
   .stamp{display:inline-block;padding:6px 18px;border:3px solid ${statusColor};color:${statusColor};border-radius:8px;font-size:18px;font-weight:800;letter-spacing:2px;margin:10px 0}
-  .banks{margin-top:14px;padding:10px 14px;background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;font-size:11px}
+  .banks{margin-top:14px;padding:10px 14px;background:#f8fafc;border:1px dashed #94a3b8;border-radius:8px;font-size:11px;line-height:1.6}
   .tnc{margin-top:16px;font-size:11px;color:#334155}
   .sign{display:flex;justify-content:space-between;margin-top:56px;text-align:center;font-size:11.5px}
   .foot{margin-top:28px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:10px;color:#94a3b8;text-align:center}
@@ -127,7 +164,8 @@ export function openInvoicePdf(invoice, db) {
       <h1>INVOICE</h1>
       <div class="meta">
         No: <b>${esc(invoice.no)}</b><br/>
-        Tanggal: ${esc(invoice.date)}<br/>
+        Tanggal Terbit: ${esc(invoice.date)}<br/>
+        Jatuh Tempo: <b>${esc(dueDate || '-')}</b><br/>
         Order: <b>${esc(invoice.orderNo || '-')}</b>
       </div>
     </div>
@@ -154,7 +192,8 @@ export function openInvoicePdf(invoice, db) {
 
   <div class="tnc">
     <b>Syarat Pembayaran:</b> ${syaratText}<br/>
-    ${invoice.status === 'lunas' ? `<b>Pembayaran telah diterima — ${esc(invoice.paidAt || '')} (${esc(invoice.paidMethod || '')}).</b>` : ''}
+    ${dueDate ? `<b>Batas Jatuh Tempo Pembayaran:</b> ${esc(dueDate)}<br/>` : ''}
+    ${invoice.status === 'lunas' ? `<b>Pembayaran telah diterima lunas — ${esc(invoice.paidAt || '')}${invoice.paidMethod ? ` (${esc(invoice.paidMethod)})` : ''}.</b>` : ''}
   </div>
 
   ${installmentTable}
@@ -178,15 +217,28 @@ export function openInvoicePdf(invoice, db) {
   return true;
 }
 
-/* Bagikan ringkasan invoice ke WhatsApp */
+/* Bagikan ringkasan invoice ke WhatsApp (menyertakan jatuh tempo & rekening perusahaan terpilih) */
 export function shareInvoiceWhatsApp(invoice, db) {
   const outlet = (db.outlets || []).find((o) => o.id === invoice.outletId) || {};
+  const companyBanks = getActiveCompanyBanks(db);
+  const selectedIds = resolveInvoiceBankIds(invoice, db);
+  const selectedBanks = companyBanks.filter((b) =>
+    selectedIds.some((id) => String(id) === String(b.id))
+  );
+  const dueDate = invoice.jatuhTempo || invoice.due_date || null;
+
+  const bankLines = selectedBanks.length
+    ? ['*Rekening Pembayaran:*', ...selectedBanks.map((b) => `- ${b.nama}: ${b.noRekening} (a.n. ${b.atasNama})`)]
+    : [];
+
   const msg = [
     `*INVOICE ${invoice.no}*`,
     `Kepada: ${outlet.name || '-'}`,
+    `Tanggal Terbit: ${invoice.date}`,
+    dueDate ? `Jatuh Tempo: *${dueDate}*` : '',
     `Total: *${formatRupiah(invoice.total)}*`,
     `Status: ${invoice.status === 'lunas' ? 'LUNAS' : 'Belum Lunas'}`,
-    invoice.jatuhTempo ? `Jatuh tempo: ${invoice.jatuhTempo}` : '',
+    ...bankLines,
     '',
     '(Dokumen PDF lengkap dapat diunduh dari aplikasi SFA)',
   ].filter(Boolean).join('\n');

@@ -36,6 +36,7 @@ import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { formatRupiah } from '../../utils/helpers';
 import { expireQuotes, maxDiscountOf } from '../../utils/quoteUtils';
+import { resolveQuoteTarget } from '../../utils/quotePdf';
 
 export default function QuoteDesktop() {
   const { user } = useAuth();
@@ -73,7 +74,10 @@ export default function QuoteDesktop() {
   const quotes = [...(db.quotations || [])]
     .filter((qt) => !isSupervisor || teamSalesIds.has(qt.salesId))
     .reverse();
-  const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
+  const targetLabel = (qt) => {
+    const t = resolveQuoteTarget(qt, db);
+    return t.isProspect && t.name !== '-' ? `${t.name} (Prospek)` : t.name;
+  };
   const salesName = (id) => (db.sales || []).find((s) => s.id === id)?.name || '-';
 
   const filtered = quotes.filter((qt) =>
@@ -81,7 +85,7 @@ export default function QuoteDesktop() {
     (!dateFilter || qt.date === dateFilter) &&
     (!q.trim() ||
       qt.no.toLowerCase().includes(q.trim().toLowerCase()) ||
-      outletName(qt.outletId).toLowerCase().includes(q.trim().toLowerCase()))
+      targetLabel(qt).toLowerCase().includes(q.trim().toLowerCase()))
   );
 
   return (
@@ -171,7 +175,7 @@ export default function QuoteDesktop() {
                   <Box title={salesName(qt.salesId)} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{salesName(qt.salesId)}</Box>
                 </TableCell>
                 <TableCell>
-                  <Box title={outletName(qt.outletId)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{outletName(qt.outletId)}</Box>
+                  <Box title={targetLabel(qt)} sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{targetLabel(qt)}</Box>
                 </TableCell>
                   <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{qt.validUntil}</TableCell>
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
