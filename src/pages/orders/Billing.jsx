@@ -424,7 +424,13 @@ export default function Billing() {
   const configInvoice = invoices.find((i) => i.id === configId);
 
   const sisaBayar = payInvoice ? Math.max(0, payInvoice.total - paidOf(payInvoice)) : 0;
-  const mismatch = payInvoice && Number(amount) > 0 && Number(amount) < sisaBayar;
+  const rawAmountStr = String(amount ?? '').trim();
+  const numericAmount = rawAmountStr === '' ? NaN : Number(amount);
+  const isOverpayment = Boolean(payInvoice) && !Number.isNaN(numericAmount) && numericAmount > sisaBayar;
+  const isPartialPayment = Boolean(payInvoice) && !Number.isNaN(numericAmount) && numericAmount > 0 && numericAmount < sisaBayar;
+  const overpayMsg = isOverpayment
+    ? `Nominal pembayaran tidak boleh melebihi sisa tagihan aktif (${formatRupiah(sisaBayar)}).`
+    : '';
 
   /* Reset state saat Dialog Catat Pembayaran dibuka */
   useEffect(() => {
@@ -530,11 +536,11 @@ export default function Billing() {
     let hasError = false;
     const amt = Number(amount);
 
-    if (!amt || amt <= 0) {
-      setErr('Nominal diterima wajib diisi lebih dari Rp 0.');
+    if (String(amount ?? '').trim() === '' || Number.isNaN(amt) || amt <= 0) {
+      setErr('Nominal pembayaran wajib diisi dan harus lebih dari Rp 0.');
       hasError = true;
     } else if (amt > sisaBayar) {
-      setErr(`Nominal tidak boleh melebihi sisa tagihan (${formatRupiah(sisaBayar)}).`);
+      setErr(`Nominal pembayaran tidak boleh melebihi sisa tagihan aktif (${formatRupiah(sisaBayar)}).`);
       hasError = true;
     }
 
@@ -1241,18 +1247,18 @@ export default function Billing() {
 
                 <TextField
                   type="number"
-                  label="Nominal Diterima (Rp)"
+                  label="Nominal Diterima (Rp) *"
                   value={amount}
                   onChange={(e) => { setAmount(e.target.value); setErr(''); }}
-                  error={Boolean(err)}
-                  helperText={err || `Maksimal sebesar sisa tagihan: ${formatRupiah(sisaBayar)}`}
+                  error={Boolean(overpayMsg || err)}
+                  helperText={overpayMsg || err || `Maksimal sebesar sisa tagihan: ${formatRupiah(sisaBayar)}`}
                   inputProps={{ min: 1, max: sisaBayar }}
                 />
               </Box>
 
-              {mismatch && (
+              {isPartialPayment && (
                 <Alert severity="warning" sx={{ borderRadius: 1.5 }}>
-                  Nominal lebih kecil dari sisa tagihan — akan tercatat sebagai <b>pembayaran parsial</b>.
+                  Nominal lebih kecil dari sisa tagihan — akan tercatat sebagai <b>pembayaran parsial</b> (Sisa setelah bayar: {formatRupiah(sisaBayar - numericAmount)}).
                 </Alert>
               )}
 
@@ -1298,7 +1304,7 @@ export default function Billing() {
         {payInvoice?.metodePembayaran !== 'cicilan' ? (
           <DialogActions sx={{ p: 2, gap: 1 }}>
             <Button onClick={() => setPayId(null)}>Batal</Button>
-            <Button variant="contained" color="success" onClick={submitPay}>
+            <Button variant="contained" color="success" onClick={submitPay} disabled={isOverpayment}>
               Simpan Pembayaran
             </Button>
           </DialogActions>

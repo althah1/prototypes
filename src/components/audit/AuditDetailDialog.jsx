@@ -24,7 +24,7 @@ import Typography from '@mui/material/Typography';
 
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../ui/ToastProvider';
-import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer, getOutletStockHealth, formatStockMovement } from '../../utils/auditUtils';
+import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer, getOutletStockHealth, formatStockMovement, PROSPECT_STATUSES, normalizeProspectStatus } from '../../utils/auditUtils';
 import StatusChip from '../ui/StatusChip';
 
 const KV = ({ label, value }) => (
@@ -57,34 +57,59 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
 
   const audit = (db.audits || []).find((a) => a.id === auditId);
 
+  /* Proses terkait secara aman: hindari cocokkan undefined === undefined. */
+  const linkedProspect = audit
+    ? (db.prospects || []).find(
+        (p) =>
+          (audit.prospectId != null && p.id === audit.prospectId) ||
+          (audit.outletId != null && p.outletId === audit.outletId),
+      )
+    : null;
+
+  const effectiveCatId = linkedProspect?.categoryId ?? audit?.categoryId;
+  const effectiveStatus = linkedProspect?.status || audit?.prospectStatus || 'Prospek';
+  const normStatus = normalizeProspectStatus(effectiveStatus);
+  const effCat = (db.prospectCategories || []).find((c) => c.id === effectiveCatId);
+
   useEffect(() => {
     setPhotoIdx(null);
     if (audit) {
-      setCatId(audit.categoryId ? String(audit.categoryId) : '');
-      setStatus(audit.prospectStatus || 'Prospek');
+      setCatId(effectiveCatId ? String(effectiveCatId) : '');
+      setStatus(normStatus);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auditId, open]);
+  }, [auditId, open, linkedProspect?.categoryId, linkedProspect?.status]);
 
   if (!audit) return null; /* early return SETELAH semua hooks — aman */
 
   const outlet = (db.outlets || []).find((o) => o.id === audit.outletId) || {};
   const salesName = (db.sales || []).find((s) => s.id === audit.salesId)?.name || '-';
   const areaName = (db.areas || []).find((a) => a.id === outlet.areaId)?.name || '-';
-  const cat = (db.prospectCategories || []).find((c) => c.id === audit.categoryId);
 
   /* #69: simpan klasifikasi + upsert data prospek (terhubung GPS Route Planning #70) */
   const saveClassification = () => {
     const cid = catId ? Number(catId) : null;
-    update('audits', audit.id, { categoryId: cid, prospectStatus: status });
-    const existing = (db.prospects || []).find((p) => p.outletId === audit.outletId);
-    if (existing) {
-      update('prospects', existing.id, { categoryId: cid, status });
+    const normalizedStatus = normalizeProspectStatus(status);
+
+    update('audits', audit.id, { categoryId: cid, prospectStatus: normalizedStatus });
+
+    /* Sinkronkan seluruh riwayat audit outlet/prospek yang sama agar konsisten */
+    (db.audits || []).forEach((a) => {
+      if (a.id === audit.id) return;
+      const sameProspect = audit.prospectId != null && a.prospectId != null && a.prospectId === audit.prospectId;
+      const sameOutlet = audit.outletId != null && a.outletId != null && a.outletId === audit.outletId;
+      if (sameProspect || sameOutlet) {
+        update('audits', a.id, { categoryId: cid, prospectStatus: normalizedStatus });
+      }
+    });
+
+    if (linkedProspect) {
+      update('prospects', linkedProspect.id, { categoryId: cid, status: normalizedStatus });
     } else {
       insert('prospects', {
         name: outlet.name, outletId: audit.outletId, owner: outlet.owner || '',
         phone: outlet.phone || '', address: outlet.address || '', areaId: outlet.areaId,
-        salesId: audit.salesId, categoryId: cid, status, note: audit.note || '',
+        salesId: audit.salesId, categoryId: cid, status: normalizedStatus, note: audit.note || '',
       });
     }
     toast('Klasifikasi tersimpan & terintegrasi dengan data Prospek.', 'success');
@@ -171,10 +196,10 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
                 sx={{ height: 6, borderRadius: 1 }}
               />
             </Box>
-            {cat && (
+            {effCat && (
               <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
                 <Typography variant="caption" color="text.secondary" display="block">Klasifikasi Prospek</Typography>
-                <Typography variant="body2" fontWeight={600}>{cat.name} • {audit.prospectStatus || '-'}</Typography>
+                <Typography variant="body2" fontWeight={600}>{effCat.name} • {normStatus}</Typography>
               </Box>
             )}
           </Box>
@@ -329,7 +354,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                   >
-                    {['Prospek', 'Follow Up', 'Negosiasi', 'Closing'].map((s) => (
+                    {PROSPECT_STATUSES.map((s) => (
                       <MenuItem key={s} value={s}>{s}</MenuItem>
                     ))}
                   </TextField>

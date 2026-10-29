@@ -35,23 +35,17 @@ import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO } from '../../utils/helpers';
+import {
+  PROSPECT_STATUSES,
+  PROSPECT_STATUS_STYLES,
+  normalizeProspectStatus,
+} from '../../utils/auditUtils';
 
 const CAT_STYLES = {
   'Hot Lead':  { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
   'Warm Lead': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
   'Cold Lead': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
 };
-
-const STATUS_STYLES = {
-  'Prospek':   { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' },
-  'Follow Up': { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
-  'Negosiasi': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  'Disetujui': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  'Closing':   { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  'Ditolak':   { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
-};
-
-const STATUS_LIST = ['Prospek', 'Follow Up', 'Negosiasi', 'Closing', 'Disetujui', 'Ditolak'];
 
 export default function Prospek() {
   const { user } = useAuth();
@@ -64,6 +58,8 @@ export default function Prospek() {
   const [q, setQ] = useState('');
   const [picId, setPicId] = useState(null);
   const [picSales, setPicSales] = useState('');
+  const [manageCatId, setManageCatId] = useState('');
+  const [manageStatus, setManageStatus] = useState('Prospek');
   const [detailProspect, setDetailProspect] = useState(null);
   const [zoomPhoto, setZoomPhoto] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -96,7 +92,7 @@ export default function Prospek() {
 
   const filtered = prospects.filter((p) =>
     (catFilter === 'all' || String(p.categoryId) === catFilter) &&
-    (statusFilter === 'all' || p.status === statusFilter) &&
+    (statusFilter === 'all' || normalizeProspectStatus(p.status) === statusFilter) &&
     (!q.trim() ||
       p.name.toLowerCase().includes(q.trim().toLowerCase()) ||
       (p.owner || '').toLowerCase().includes(q.trim().toLowerCase()) ||
@@ -131,7 +127,8 @@ export default function Prospek() {
   };
 
   const statusChip = (s) => {
-    const style = STATUS_STYLES[s] || { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
+    const norm = normalizeProspectStatus(s);
+    const style = PROSPECT_STATUS_STYLES[norm] || { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
     return (
       <Box
         component="span"
@@ -151,7 +148,7 @@ export default function Prospek() {
           whiteSpace: 'nowrap',
         }}
       >
-        {s || '-'}
+        {norm || '-'}
       </Box>
     );
   };
@@ -160,6 +157,31 @@ export default function Prospek() {
     if (!picSales) return;
     update('prospects', picId, { salesId: Number(picSales) });
     toast(`PIC prospek diperbarui → ${salesName(Number(picSales))}.`, 'success');
+    setPicId(null);
+  };
+
+  const saveManage = () => {
+    const p = (db.prospects || []).find((x) => x.id === picId);
+    if (!p) return;
+    const newCatId = manageCatId ? Number(manageCatId) : null;
+    const normalizedStatus = normalizeProspectStatus(manageStatus);
+    update('prospects', p.id, {
+      salesId: picSales ? Number(picSales) : null,
+      categoryId: newCatId,
+      status: normalizedStatus,
+    });
+
+    /* Sinkron balik ke seluruh audit yang terhubung valid dengan prospek ini */
+    (db.audits || []).forEach((a) => {
+      const linked =
+        (p.id != null && a.prospectId != null && a.prospectId === p.id) ||
+        (p.outletId != null && a.outletId != null && a.outletId === p.outletId);
+      if (linked) {
+        update('audits', a.id, { prospectStatus: normalizedStatus, categoryId: newCatId });
+      }
+    });
+
+    toast('Prospek & riwayat audit terkait diperbarui.', 'success');
     setPicId(null);
   };
 
@@ -245,7 +267,7 @@ export default function Prospek() {
             sx={{ width: 170 }}
           >
             <MenuItem value="all">Semua Status</MenuItem>
-            {STATUS_LIST.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {PROSPECT_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
           </TextField>
 
           <TextField
@@ -318,10 +340,15 @@ export default function Prospek() {
                       size="small"
                       variant="outlined"
                       startIcon={<ManageAccountsRoundedIcon fontSize="small" />}
-                      onClick={() => { setPicId(p.id); setPicSales(p.salesId ? String(p.salesId) : ''); }}
+                      onClick={() => {
+                        setPicId(p.id);
+                        setPicSales(p.salesId ? String(p.salesId) : '');
+                        setManageCatId(p.categoryId ? String(p.categoryId) : '');
+                        setManageStatus(normalizeProspectStatus(p.status || 'Prospek'));
+                      }}
                       sx={{ borderRadius: 1, fontWeight: 650, fontSize: 12, textTransform: 'none', px: 1.1, py: 0.3 }}
                     >
-                      PIC
+                      Kelola
                     </Button>
                   </Stack>
                 </TableCell>
@@ -421,14 +448,15 @@ export default function Prospek() {
                       select
                       size="small"
                       label="Status Tindak Lanjut"
-                      value={fresh.status || 'Prospek'}
+                      value={normalizeProspectStatus(fresh.status) || 'Prospek'}
                       onChange={(e) => {
-                        update('prospects', fresh.id, { status: e.target.value });
-                        toast(`Status prospek diubah ke ${e.target.value}.`, 'success');
+                        const norm = normalizeProspectStatus(e.target.value);
+                        update('prospects', fresh.id, { status: norm });
+                        toast(`Status prospek diubah ke ${norm}.`, 'success');
                       }}
                       fullWidth
                     >
-                      {STATUS_LIST.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                      {PROSPECT_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                     </TextField>
                   </Stack>
                 </Stack>
@@ -448,20 +476,62 @@ export default function Prospek() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Atur PIC */}
-      <Dialog open={!!picId} onClose={() => setPicId(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Atur PIC Sales — {(db.prospects || []).find((p) => p.id === picId)?.name}</DialogTitle>
-        <DialogContent dividers sx={{ overflowX: 'hidden' }}>
-          <TextField select label="Sales Penanggung Jawab" value={picSales} onChange={(e) => setPicSales(e.target.value)} fullWidth>
-            {teamSales.map((s) => (
-              <MenuItem key={s.id} value={String(s.id)}>{s.name} — {areaName(s.areaId)}</MenuItem>
-            ))}
-          </TextField>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPicId(null)}>Batal</Button>
-          <Button variant="contained" onClick={savePic} disabled={!picSales}>Simpan</Button>
-        </DialogActions>
+      {/* Dialog Kelola Prospek (PIC, Kategori, Status — sinkron balik ke audit terkait) */}
+      <Dialog open={!!picId} onClose={() => setPicId(null)} maxWidth="sm" fullWidth>
+        {(() => {
+          const p = (db.prospects || []).find((x) => x.id === picId);
+          if (!p) return null;
+          return (
+            <>
+              <DialogTitle>Kelola Prospek — {p.name}</DialogTitle>
+              <DialogContent dividers sx={{ overflowX: 'hidden' }}>
+                <Stack spacing={2}>
+                  <TextField
+                    select
+                    label="Sales Penanggung Jawab"
+                    value={picSales}
+                    onChange={(e) => setPicSales(e.target.value)}
+                    fullWidth
+                  >
+                    <MenuItem value="">— Belum ditentukan —</MenuItem>
+                    {teamSales.map((s) => (
+                      <MenuItem key={s.id} value={String(s.id)}>{s.name} — {areaName(s.areaId)}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select
+                    label="Kategori Prospek"
+                    value={manageCatId}
+                    onChange={(e) => setManageCatId(e.target.value)}
+                    fullWidth
+                  >
+                    <MenuItem value="">— Belum diklasifikasi —</MenuItem>
+                    {activeCategories.map((c) => (
+                      <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select
+                    label="Status Prospek"
+                    value={manageStatus}
+                    onChange={(e) => setManageStatus(e.target.value)}
+                    fullWidth
+                  >
+                    {PROSPECT_STATUSES.map((s) => (
+                      <MenuItem key={s} value={s}>{s}</MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setPicId(null)}>Batal</Button>
+                <Button variant="contained" onClick={saveManage}>
+                  Simpan
+                </Button>
+              </DialogActions>
+            </>
+          );
+        })()}
       </Dialog>
 
       {/* Dialog Tambah Prospek Desktop */}
@@ -528,7 +598,7 @@ export default function Prospek() {
               ))}
             </TextField>
             <TextField select label="Status" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-              {STATUS_LIST.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              {PROSPECT_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
             </TextField>
             <TextField
               label="Catatan"

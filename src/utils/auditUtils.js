@@ -42,6 +42,30 @@ export const DEFAULT_AUDIT_TEMPLATE = {
 
 export const checkLabel = (score) => ({ 3: 'Baik', 2: 'Cukup', 1: 'Kurang' }[score] || '-');
 
+/* Single Source of Truth: status prospek standar (Bab 4.6 Manajemen Prospek) */
+export const PROSPECT_STATUSES = [
+  'Prospek',
+  'Follow Up',
+  'Negosiasi',
+  'Disetujui',
+  'Ditolak',
+];
+
+export const PROSPECT_STATUS_STYLES = {
+  'Prospek':   { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' },
+  'Follow Up': { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+  'Negosiasi': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  'Disetujui': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  'Ditolak':   { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+};
+
+/* Normalisasi status legacy ('Closing' → 'Disetujui') agar Select MUI tidak
+ * melempar out-of-range warning dan data lama tetap valid. */
+export function normalizeProspectStatus(status) {
+  if (status === 'Closing') return 'Disetujui';
+  return PROSPECT_STATUSES.includes(status) ? status : 'Prospek';
+}
+
 /* Ambil daftar seluruh versi template kuesioner (fallback aman bila db.auditTemplates belum ada) */
 export function getAuditTemplates(db) {
   const list = Array.isArray(db?.auditTemplates) && db.auditTemplates.length
@@ -275,6 +299,16 @@ export function exportAuditsCsv(db, rowsOverride = null) {
   const areaName = (id) => (db.areas || []).find((a) => a.id === id)?.name || '-';
   const catName = (id) => (db.prospectCategories || []).find((c) => c.id === id)?.name || '-';
 
+  /* Status prospek: prioritas data prospek terkait (outlet/prospectId), lalu
+   * status audit yang sudah ternormalisasi (mengatasi legacy 'Closing'). */
+  const prospectStatusOf = (a) => {
+    const linked = (db.prospects || []).find(
+      (p) => (a.prospectId != null && p.id === a.prospectId) || (a.outletId != null && p.outletId === a.outletId)
+    );
+    if (linked) return normalizeProspectStatus(linked.status);
+    return normalizeProspectStatus(a.prospectStatus) || '-';
+  };
+
   const header = [
     'No Audit', 'Tanggal', 'Versi Form', 'Nama Template', 'Sales', 'Outlet', 'Area',
     'Skor', 'Jumlah Foto', 'Temuan Stok Kritis/Habis', 'Kategori Prospek', 'Status Prospek',
@@ -302,7 +336,7 @@ export function exportAuditsCsv(db, rowsOverride = null) {
       (a.photos || []).length,
       dev,
       catName(a.categoryId),
-      a.prospectStatus || '-',
+      prospectStatusOf(a),
       summary,
       (a.note || '').replace(/[\r\n;]+/g, ' '),
     ].map(csvCell).join(';');

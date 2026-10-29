@@ -82,7 +82,6 @@ export default function ProdukPage() {
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [skuExists, setSkuExists] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmToggle, setConfirmToggle] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
@@ -90,6 +89,7 @@ export default function ProdukPage() {
   /* ---------- Scroll Restoration & Dialog Lifecycle (selaras EntityPage) ---------- */
   const scrollPosRef = useRef(null);
   const closingSnapshotRef = useRef(null);
+  const autoFilledSkuRef = useRef(null);
 
   const captureScrollPos = () => {
     closingSnapshotRef.current = null;
@@ -139,12 +139,21 @@ export default function ProdukPage() {
 
   const resetCreateState = () => {
     setValues({ sku: '', name: '', category: '', unit: 'pcs', hargaJual: '', hargaBeli: '', pcsPerUnit: '1', gudangId: '', stok: '', desc: '' });
-    setErrors({}); setSkuExists(false); setEditing(null);
+    setErrors({}); setEditing(null);
+    autoFilledSkuRef.current = null;
   };
 
   const products = db.products || [];
   const gudangs = db.warehouses || [];
   const placements = db.gudangDetails || [];
+
+  /* Produk yang identitasnya (SKU) sudah terdaftar di db.products — hanya relevan mode Tambah (!editing) */
+  const matchedProduct = useMemo(() => {
+    if (editing) return null;
+    const trimmed = (values.sku || '').trim().toLowerCase();
+    if (!trimmed) return null;
+    return products.find((p) => (p.sku || '').trim().toLowerCase() === trimmed) || null;
+  }, [editing, values.sku, products]);
 
   /* ===== Baris = produk × gudang ===== */
   const rows = useMemo(() => {
@@ -251,24 +260,116 @@ export default function ProdukPage() {
       stok: r.placed ? String(r.stok) : '',
       desc: r.desc || '',
     });
-    setErrors({}); setSkuExists(true);
+    setErrors({});
     setEditing(r.placed ? { productId: r.productId, gudangId: r.gudangId } : { productId: r.productId });
+    autoFilledSkuRef.current = null;
     setFormOpen(true);
   };
 
-  /* SKU yang sudah terdaftar → prefill data produk (jalur "tambah penempatan") */
+  /* Buka form tambah penempatan gudang baru untuk produk yang sudah ada (SKU tidak bisa diubah) */
+  const openAddPlacement = (productId) => {
+    const p = products.find((x) => x.id === productId);
+    if (!p) return;
+    captureScrollPos();
+    setValues({
+      sku: p.sku, name: p.name, category: p.category, unit: p.unit,
+      hargaJual: String(p.hargaJual ?? ''), hargaBeli: String(p.hargaBeli ?? ''),
+      pcsPerUnit: String(p.pcsPerUnit ?? 1),
+      gudangId: '', stok: '',
+      desc: p.desc || '',
+    });
+    setErrors({});
+    setEditing({ productId, gudangId: null });
+    setFormOpen(true);
+  };
+
+  /* SKU yang sudah terdaftar → auto-fill identitas produk agar Admin bisa tambah penempatan gudang baru,
+     tapi blokir jika produk berbeda, atau produk sama tapi gudang yang sama/belum dipilih. */
   const onSkuChange = (v) => {
     setVal('sku', v);
     if (editing) return;
-    const found = v.trim() ? products.find((p) => p.sku.toLowerCase() === v.trim().toLowerCase()) : null;
-    setSkuExists(!!found);
+    const found = v.trim() ? products.find((p) => (p.sku || '').trim().toLowerCase() === v.trim().toLowerCase()) : null;
     if (found) {
+      const manuallyTypedName = values.name.trim() !== '' && autoFilledSkuRef.current == null
+        && values.name.trim().toLowerCase() !== (found.name || '').trim().toLowerCase();
+      if (manuallyTypedName) {
+        setErrors((prev) => ({ ...prev, sku: 'Kode SKU sudah terdaftar.' }));
+        return;
+      }
+      autoFilledSkuRef.current = found.id;
       setValues((prev) => ({
         ...prev,
-        name: found.name, category: found.category, unit: found.unit,
-        hargaJual: String(found.hargaJual ?? ''), hargaBeli: String(found.hargaBeli ?? ''),
-        pcsPerUnit: String(found.pcsPerUnit ?? 1), desc: found.desc || '',
+        sku: v,
+        name: found.name,
+        category: found.category,
+        unit: found.unit,
+        hargaJual: String(found.hargaJual ?? ''),
+        hargaBeli: String(found.hargaBeli ?? ''),
+        pcsPerUnit: String(found.pcsPerUnit ?? 1),
+        desc: found.desc || '',
       }));
+      if (values.gudangId !== '') {
+        const already = placements.some((pl) => pl.productId === found.id && Number(pl.gudangId) === Number(values.gudangId));
+        if (already) {
+          setErrors((prev) => ({
+            ...prev,
+            sku: 'Kode SKU sudah terdaftar.',
+            gudangId: 'Produk ini sudah terdaftar di gudang tersebut. Pilih gudang berbeda.',
+          }));
+        } else {
+          setErrors((prev) => ({ ...prev, sku: undefined, gudangId: undefined }));
+        }
+      }
+    } else {
+      autoFilledSkuRef.current = null;
+    }
+  };
+
+  const onNameChange = (val) => {
+    setVal('name', val);
+    if (!editing && matchedProduct && autoFilledSkuRef.current != null) {
+      const sameName = val.trim().toLowerCase() === (matchedProduct.name || '').trim().toLowerCase();
+      if (!sameName) {
+        setErrors((prev) => ({ ...prev, sku: 'Kode SKU sudah terdaftar.' }));
+      } else {
+        const gid = values.gudangId === '' ? null : Number(values.gudangId);
+        if (gid != null) {
+          const already = placements.some((pl) => pl.productId === matchedProduct.id && Number(pl.gudangId) === gid);
+          if (already) {
+            setErrors((prev) => ({
+              ...prev,
+              sku: 'Kode SKU sudah terdaftar.',
+              gudangId: 'Produk ini sudah terdaftar di gudang tersebut. Pilih gudang berbeda.',
+            }));
+          } else {
+            setErrors((prev) => ({ ...prev, sku: undefined, gudangId: undefined }));
+          }
+        } else {
+          setErrors((prev) => ({ ...prev, sku: undefined }));
+        }
+      }
+    }
+  };
+
+  const onGudangChange = (e, v) => {
+    const gidStr = v ? String(v.id) : '';
+    setVal('gudangId', gidStr);
+    setErrors((prev) => ({ ...prev, gudangId: '' }));
+    if (!editing && matchedProduct) {
+      const gidNum = gidStr === '' ? null : Number(gidStr);
+      const already = gidNum != null && placements.some((pl) => pl.productId === matchedProduct.id && Number(pl.gudangId) === gidNum);
+      if (already) {
+        setErrors((prev) => ({
+          ...prev,
+          sku: 'Kode SKU sudah terdaftar.',
+          gudangId: 'Produk ini sudah terdaftar di gudang tersebut. Pilih gudang berbeda.',
+        }));
+      } else {
+        const sameName = (values.name || '').trim().toLowerCase() === (matchedProduct.name || '').trim().toLowerCase();
+        if (sameName) {
+          setErrors((prev) => ({ ...prev, sku: undefined, gudangId: undefined }));
+        }
+      }
     }
   };
 
@@ -276,8 +377,39 @@ export default function ProdukPage() {
     const v = values;
     const errs = {};
     if (!v.sku || !v.sku.trim()) errs.sku = 'Kode SKU wajib diisi.';
-    else if (!ALNUM.test(v.sku.trim())) errs.sku = 'Kode SKU harus alfanumerik tanpa spasi.';
-    else if (v.sku.trim().length > 30) errs.sku = 'Kode SKU maksimal 30 karakter.';
+    else if (!ALNUM.test(v.sku.trim())) errs.sku = 'Hanya huruf, angka, dan tanda hubung (-).';
+    else if (v.sku.trim().length > 30) errs.sku = 'Maksimal 30 karakter.';
+    else {
+      /* BR-MD-PRD-001: hanya aktif di mode Tambah (!editing). 1 Kode SKU = 1 identitas produk.
+         Produk sama + gudang berbeda diizinkan (tambah alokasi stok); sisanya diblokir. */
+      if (!editing) {
+        const existingBySku = v.sku && v.sku.trim()
+          ? products.find((p) => (p.sku || '').trim().toLowerCase() === v.sku.trim().toLowerCase())
+          : null;
+        if (existingBySku) {
+          const sameProductName = (v.name || '').trim().toLowerCase() === (existingBySku.name || '').trim().toLowerCase();
+          if (!sameProductName) {
+            errs.sku = 'Kode SKU sudah terdaftar.';
+          } else if (v.gudangId === '') {
+            errs.sku = 'Kode SKU sudah terdaftar.';
+            errs.gudangId = 'Pilih gudang penempatan baru untuk produk yang sudah terdaftar ini.';
+          } else {
+            const alreadyInGudang = placements.some(
+              (pl) => pl.productId === existingBySku.id && Number(pl.gudangId) === Number(v.gudangId),
+            );
+            if (alreadyInGudang) {
+              errs.sku = 'Kode SKU sudah terdaftar.';
+              errs.gudangId = 'Produk ini sudah terdaftar di gudang tersebut. Pilih gudang berbeda.';
+            } else {
+              const st = v.stok === '' ? NaN : Number(v.stok);
+              if (Number.isNaN(st) || st < 1) {
+                errs.stok = 'Stok awal untuk penempatan di gudang baru minimal 1 pcs.';
+              }
+            }
+          }
+        }
+      }
+    }
     if (!v.name || !v.name.trim()) errs.name = 'Nama Produk wajib diisi.';
     else if (v.name.trim().length > 100) errs.name = 'Nama Produk maksimal 100 karakter.';
     if (!v.category) errs.category = 'Kategori wajib dipilih.';
@@ -327,11 +459,20 @@ export default function ProdukPage() {
         }
         msg = 'Data produk berhasil diperbarui.';
       } else {
-        const existing = products.find((p) => p.sku.toLowerCase() === prodPayload.sku.toLowerCase());
+        const existing = products.find((p) => (p.sku || '').trim().toLowerCase() === prodPayload.sku.toLowerCase());
         if (existing) {
+          const sameProductName = (prodPayload.name || '').trim().toLowerCase() === (existing.name || '').trim().toLowerCase();
+          const alreadyInGudang = gid != null && placements.some(
+            (pl) => pl.productId === existing.id && Number(pl.gudangId) === gid,
+          );
+          if (!sameProductName || gid == null || alreadyInGudang) {
+            setErrors((prev) => ({ ...prev, sku: 'Kode SKU sudah terdaftar.' }));
+            setSaving(false);
+            return;
+          }
+          /* JANGAN memanggil update('products', existing.id, prodPayload) — data master produk lama tidak boleh ditimpa */
           productId = existing.id;
-          update('products', productId, prodPayload);
-          msg = 'SKU sudah terdaftar — data produk diperbarui & penempatan stok disimpan.';
+          msg = 'Penempatan produk di gudang baru berhasil disimpan.';
         } else {
           const rec = insert('products', { ...prodPayload, status: 'active', stock: 0 });
           productId = rec.id;
@@ -676,17 +817,21 @@ export default function ProdukPage() {
           {editing ? `Ubah — ${values.sku || 'Produk'}` : 'Tambah — Produk'}
         </DialogTitle>
         <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 2, sm: 3.5 }, py: 2.5 }}>
-          {skuExists && (
-            <Alert severity="info" sx={{ mb: 2, borderRadius: 1.5 }}>
-              SKU <b>sudah terdaftar</b> — data produk akan <b>diperbarui</b>. Pilih gudang untuk
-              menambah penempatan baru; <b>gudang yang sama → 1 baris</b>, stok diperbarui menjadi nilai baru.
-            </Alert>
-          )}
           <Stack spacing={2}>
             <SectionLabel>1 • Identitas Produk</SectionLabel>
-            <TextField {...fieldProps('sku', 'Kode SKU *', 'Alfanumerik tanpa spasi, maks 30.')}
+            <TextField {...fieldProps('sku', 'Kode SKU *', 'Alfanumerik + tanda hubung, maks 30 karakter.')}
               onChange={(e) => onSkuChange(e.target.value)} inputProps={{ maxLength: 30 }} disabled={!!editing} />
-            <TextField {...fieldProps('name', 'Nama Produk *', 'Maksimal 100 karakter.')} inputProps={{ maxLength: 100 }} />
+            <TextField
+              {...fieldProps('name', 'Nama Produk *', 'Maksimal 100 karakter.')}
+              inputProps={{ maxLength: 100 }}
+              onChange={(e) => onNameChange(e.target.value)}
+            />
+
+            {(!editing && matchedProduct && (values.name || '').trim().toLowerCase() === (matchedProduct.name || '').trim().toLowerCase()) && (
+              <Alert severity="info" sx={{ mb: 1, borderRadius: 1.5 }}>
+                SKU {matchedProduct.sku} terdaftar untuk produk <b>"{matchedProduct.name}"</b>. Pilih gudang yang belum ditempati untuk menambahkan alokasi stok di gudang berbeda.
+              </Alert>
+            )}
 
             <SectionLabel>2 • Klasifikasi &amp; Satuan</SectionLabel>
             <TextField select {...fieldProps('category', 'Kategori *')}>
@@ -710,13 +855,18 @@ export default function ProdukPage() {
             <SectionLabel>4 • Alokasi Stok Awal</SectionLabel>
             <Autocomplete
               options={gudangOpts}
-              getOptionLabel={(w) => `${w.code} — ${w.name}`}
+              getOptionLabel={(w) => {
+                const already = !editing && matchedProduct && placements.some(
+                  (pl) => pl.productId === matchedProduct.id && Number(pl.gudangId) === Number(w.id),
+                );
+                return `${w.code} — ${w.name}${already ? ' (Sudah terdaftar)' : ''}`;
+              }}
               isOptionEqualToValue={(w, v) => w.id === v.id}
               value={gudangValue}
-              onChange={(e, v) => setVal('gudangId', v ? String(v.id) : '')}
+              onChange={(e, v) => onGudangChange(e, v)}
               renderInput={(params) => (
                 <TextField {...params} label="Gudang Penempatan" placeholder="Cari gudang (kode / nama)…"
-                  helperText="Kosongkan (ikon ✕) untuk produk tanpa penempatan dulu." />
+                  error={Boolean(errors.gudangId)} helperText={errors.gudangId || 'Kosongkan (ikon ✕) untuk produk tanpa penempatan dulu.'} />
               )}
             />
             <TextField {...fieldProps('stok', 'Stok Awal (pcs)',
@@ -912,15 +1062,24 @@ export default function ProdukPage() {
             Tutup
           </Button>
           {detailRow && !readOnly && (
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<EditRoundedIcon fontSize="small" />}
-              onClick={() => { const r = detailRow; setDetailRow(null); openEditRow(r); }}
-              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 650 }}
-            >
-              Ubah Data
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<EditRoundedIcon fontSize="small" />}
+                onClick={() => { const r = detailRow; setDetailRow(null); openEditRow(r); }}
+                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 650 }}
+              >
+                Ubah Data
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => { setDetailRow(null); openAddPlacement(detailRow.productId); }}
+                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+              >
+                Tambah Penempatan Gudang
+              </Button>
+            </>
           )}
         </DialogActions>
       </Dialog>
