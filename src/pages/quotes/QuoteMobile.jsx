@@ -16,6 +16,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
@@ -30,6 +31,8 @@ import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import PercentRoundedIcon from '@mui/icons-material/PercentRounded';
 
 import QuoteDetailDialog from '../../components/quotes/QuoteDetailDialog';
 import EmptyState from '../../components/ui/EmptyState';
@@ -80,6 +83,89 @@ const payShort = (q) => {
     ] || 'Tunai'
   );
 };
+
+const QTY_ZERO_ERR = 'Jumlah pesanan tidak valid. Kuantitas minimal adalah 1.';
+const DISC_RANGE_ERR = 'Diskon harus bernilai antara 0% hingga 100%.';
+
+/* ===== Konfigurasi Multi-UoM per Produk (mirip OrderMobile) =====
+ * Harga dasar tetap ditarik & terkunci dari Master Produk (p.hargaJual).
+ * Satuan jual dapat dipilih antara Pcs vs Box / Karton dengan konversi otomatis ke baseQty (pcs).
+ */
+function getUomOptions(p) {
+  if (!p) return [];
+  const masterUnit = (p.unit || 'pcs').toLowerCase();
+  const masterFactor = Math.max(1, Number(p.pcsPerUnit) || 1);
+
+  if (masterUnit === 'box') {
+    const boxFactor = masterFactor > 1 ? masterFactor : 12;
+    const pcsPrice = Math.max(1, Math.round((Number(p.hargaJual) || 0) / boxFactor));
+    const kartonFactor = Number(p.pcsPerKarton) || boxFactor * 2;
+    return [
+      { value: 'pcs', label: 'Pcs (1 pcs)', pcsPerUnit: 1, price: pcsPrice },
+      { value: 'box', label: `Box (${boxFactor} pcs)`, pcsPerUnit: boxFactor, price: Number(p.hargaJual) || 0 },
+      { value: 'karton', label: `Karton (${kartonFactor} pcs)`, pcsPerUnit: kartonFactor, price: Math.round(((Number(p.hargaJual) || 0) / boxFactor) * kartonFactor) },
+    ];
+  }
+
+  if (masterUnit === 'karton') {
+    const kartonFactor = masterFactor > 1 ? masterFactor : 24;
+    const pcsPrice = Math.max(1, Math.round((Number(p.hargaJual) || 0) / kartonFactor));
+    const boxFactor = Number(p.pcsPerBox) || Math.max(1, Math.round(kartonFactor / 2));
+    return [
+      { value: 'pcs', label: 'Pcs (1 pcs)', pcsPerUnit: 1, price: pcsPrice },
+      { value: 'box', label: `Box (${boxFactor} pcs)`, pcsPerUnit: boxFactor, price: pcsPrice * boxFactor },
+      { value: 'karton', label: `Karton (${kartonFactor} pcs)`, pcsPerUnit: kartonFactor, price: Number(p.hargaJual) || 0 },
+    ];
+  }
+
+  /* Default: masterUnit === 'pcs' */
+  const pcsPrice = Number(p.hargaJual) || 0;
+  const boxFactor = Math.max(2, Number(p.pcsPerBox) || (masterFactor > 1 ? masterFactor : 12));
+  const kartonFactor = Math.max(boxFactor, Number(p.pcsPerKarton) || boxFactor * 2);
+  return [
+    { value: 'pcs', label: 'Pcs (1 pcs)', pcsPerUnit: 1, price: pcsPrice },
+    { value: 'box', label: `Box (${boxFactor} pcs)`, pcsPerUnit: boxFactor, price: pcsPrice * boxFactor },
+    { value: 'karton', label: `Karton (${kartonFactor} pcs)`, pcsPerUnit: kartonFactor, price: pcsPrice * kartonFactor },
+  ];
+}
+
+function resolveItemCalc(item, product) {
+  const opts = getUomOptions(product);
+  const selectedUnit = item?.unit || (product?.unit || 'pcs').toLowerCase();
+  const uom = opts.find((o) => o.value === selectedUnit) || opts[0] || {
+    value: 'pcs', label: 'Pcs (1 pcs)', pcsPerUnit: 1, price: Number(product?.hargaJual) || 0,
+  };
+
+  const rawQty = item ? String(item.rawQty ?? item.qty ?? '') : '';
+  const parsedQty = rawQty === '' ? NaN : Number(rawQty);
+  const qtyInvalid = Boolean(item) && (rawQty.trim() === '' || Number.isNaN(parsedQty) || !Number.isInteger(parsedQty) || parsedQty < 1);
+  const validQty = qtyInvalid || !item ? 0 : parsedQty;
+
+  const rawDisc = item ? String(item.rawDisc ?? item.disc ?? '0') : '0';
+  const parsedDisc = rawDisc.trim() === '' ? 0 : Number(rawDisc);
+  const discInvalid = Boolean(item) && (Number.isNaN(parsedDisc) || parsedDisc < 0 || parsedDisc > 100);
+  const validDisc = discInvalid ? 0 : parsedDisc;
+
+  const baseQty = validQty * uom.pcsPerUnit;
+  const gross = uom.price * validQty;
+  const discAmount = Math.round(gross * (validDisc / 100));
+  const line = Math.max(0, gross - discAmount);
+
+  return {
+    uom,
+    opts,
+    rawQty,
+    validQty,
+    qtyError: qtyInvalid ? QTY_ZERO_ERR : '',
+    rawDisc,
+    validDisc,
+    discError: discInvalid ? DISC_RANGE_ERR : '',
+    baseQty,
+    gross,
+    discAmount,
+    line,
+  };
+}
 
 /* Header langkah */
 function StepHeader({ title, onBack, step }) {
@@ -182,12 +268,24 @@ export default function QuoteMobile() {
           outletId: fromOrd.outletId,
           prospectId: null,
           fromOrderNo: fromOrd.no,
-          items: fromOrd.items.map((it) => ({ productId: it.productId, qty: it.qty, disc: 0 })),
+          items: (fromOrd.items || []).map((it) => {
+            const p = (db.products || []).find((x) => x.id === it.productId);
+            const unit = (it.unit || (p?.unit || 'pcs')).toLowerCase();
+            return {
+              productId: it.productId,
+              unit,
+              qty: it.qty,
+              rawQty: String(it.qty),
+              disc: it.disc || 0,
+              rawDisc: String(it.disc || 0),
+            };
+          }),
         }
       : null
   );
   const [outletSearch, setOutletSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [unitPrefs, setUnitPrefs] = useState({});
   const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14)); /* default 14 hari */
   const [note, setNote] = useState('');
   const [syarat, setSyarat] = useState('');
@@ -297,48 +395,117 @@ export default function QuoteMobile() {
     return '';
   })();
 
-  const qtyOf = (pid) => draft?.items.find((i) => i.productId === pid)?.qty || 0;
-  const discOf = (pid) => draft?.items.find((i) => i.productId === pid)?.disc || 0;
-  const itemCount = draft?.items.reduce((s, i) => s + i.qty, 0) || 0;
-  const draftMaxDisc = draft?.items.length ? Math.max(...draft.items.map((i) => i.disc || 0)) : 0;
+  const findDraftItem = (pid) => (draft?.items || []).find((i) => i.productId === pid) || null;
 
-  const totals = (() => {
-    let gross = 0;
-    let after = 0;
-    (draft?.items || []).forEach((i) => {
-      const p = (db.products || []).find((x) => x.id === i.productId);
-      if (!p) return; /* F-34: produk dihapus saat draft — baris dilewati */
-      const g = p.hargaJual * i.qty;
-      gross += g;
-      after += Math.round(g * (1 - (i.disc || 0) / 100));
-    });
-    const tax = Math.round(after * TAX_RATE);
-    return { subtotal: gross, discTotal: gross - after, after, tax, total: after + tax };
-  })();
-
-  /* ===== Helpers ===== */
-  const setQty = (productId, qty) => {
-    const val = Math.max(0, Math.floor(Number(qty) || 0));
+  const upsertDraftItem = (product, patch) => {
     setDraft((d) => {
       if (!d) return d;
-      const items = d.items.filter((i) => i.productId !== productId);
-      if (val > 0) items.push({ productId, qty: val, disc: discOf(productId) });
+      const existing = d.items.find((i) => i.productId === product.id);
+      const defaultUnit = unitPrefs[product.id] || (product.unit || 'pcs').toLowerCase();
+      const baseItem = existing || {
+        productId: product.id,
+        unit: defaultUnit,
+        qty: 0,
+        rawQty: '0',
+        disc: 0,
+        rawDisc: '0',
+      };
+      const updated = { ...baseItem, ...patch };
+      const items = existing
+        ? d.items.map((i) => (i.productId === product.id ? updated : i))
+        : [...d.items, updated];
       return { ...d, items };
     });
   };
 
-  const setDisc = (productId, disc) => {
-    let val = Math.floor(Number(disc));
-    if (Number.isNaN(val) || val < 0) val = 0;
-    if (val > 100) val = 100;
-    setDraft(
-      (d) =>
-        d && {
-          ...d,
-          items: d.items.map((i) => (i.productId === productId ? { ...i, disc: val } : i)),
-        }
-    );
+  /* Input qty 0 tetap mempertahankan baris & memunculkan error inline merah */
+  const handleQtyInput = (product, rawValue) => {
+    const cleaned = String(rawValue);
+    const parsed = cleaned.trim() === '' ? 0 : Math.floor(Number(cleaned));
+    upsertDraftItem(product, {
+      rawQty: cleaned,
+      qty: Number.isNaN(parsed) ? 0 : parsed,
+    });
   };
+
+  const handleQtyStep = (product, delta) => {
+    const existing = findDraftItem(product.id);
+    const current = existing ? (Math.floor(Number(existing.rawQty ?? existing.qty)) || 0) : 0;
+    const next = Math.max(0, current + delta);
+    upsertDraftItem(product, {
+      rawQty: String(next),
+      qty: next,
+    });
+  };
+
+  const handleUnitChange = (product, nextUnit) => {
+    setUnitPrefs((prev) => ({ ...prev, [product.id]: nextUnit }));
+    const existing = findDraftItem(product.id);
+    if (existing) {
+      upsertDraftItem(product, { unit: nextUnit });
+    }
+  };
+
+  const handleDiscInput = (product, rawValue) => {
+    const cleaned = String(rawValue);
+    const parsed = cleaned.trim() === '' ? 0 : Number(cleaned);
+    upsertDraftItem(product, {
+      rawDisc: cleaned,
+      disc: Number.isNaN(parsed) ? 0 : parsed,
+    });
+  };
+
+  const removeDraftItem = (productId) => {
+    setDraft((d) => {
+      if (!d) return d;
+      return { ...d, items: d.items.filter((i) => i.productId !== productId) };
+    });
+  };
+
+  const draftSummary = (() => {
+    let validItemCount = 0;
+    let totalUnits = 0;
+    let totalBasePcs = 0;
+    let grossSubtotal = 0;
+    let discTotal = 0;
+    let subtotal = 0;
+    let tax = 0;
+    let maxDisc = 0;
+    let hasError = false;
+
+    (draft?.items || []).forEach((it) => {
+      const p = (db.products || []).find((x) => x.id === it.productId);
+      if (!p) return; /* F-34: produk dihapus dari Master saat draft aktif — lewati aman */
+      const calc = resolveItemCalc(it, p);
+      if (calc.qtyError || calc.discError) {
+        hasError = true;
+        return;
+      }
+      if (calc.validQty >= 1) {
+        validItemCount += 1;
+        totalUnits += calc.validQty;
+        totalBasePcs += calc.baseQty;
+        grossSubtotal += calc.gross;
+        discTotal += calc.discAmount;
+        subtotal += calc.line;
+        maxDisc = Math.max(maxDisc, calc.validDisc);
+      }
+    });
+
+    tax = Math.round(subtotal * TAX_RATE);
+    return {
+      validItemCount,
+      totalUnits,
+      totalBasePcs,
+      grossSubtotal,
+      discTotal,
+      subtotal,
+      tax,
+      total: subtotal + tax,
+      hasError,
+      maxDisc,
+    };
+  })();
 
   const resetDraft = () => {
     setDraft(null);
@@ -360,12 +527,23 @@ export default function QuoteMobile() {
       outletId: o.outletId,
       prospectId: null,
       fromOrderNo: o.no,
-      items: (o.items || []).map((it) => ({ productId: it.productId, qty: it.qty, disc: 0 })),
+      items: (o.items || []).map((it) => {
+        const p = (db.products || []).find((x) => x.id === it.productId);
+        const unit = (it.unit || (p?.unit || 'pcs')).toLowerCase();
+        return {
+          productId: it.productId,
+          unit,
+          qty: it.qty,
+          rawQty: String(it.qty),
+          disc: it.disc || 0,
+          rawDisc: String(it.disc || 0),
+        };
+      }),
     });
     setMetode(o.metodePembayaran || 'tunai');
     setBankId(o.metodePembayaran === 'transfer' && o.bankId != null ? String(o.bankId) : '');
     setTerminHari(o.terminHari != null ? String(o.terminHari) : '14');
-    toast(`Template dimuat dari order ${o.no} — periksa kembali item & diskon sebelum menyimpan.`, 'info');
+    toast(`Template dimuat dari order ${o.no} — periksa kembali item, satuan & diskon sebelum menyimpan.`, 'info');
   };
 
   const genQuoteNo = () => {
@@ -379,7 +557,7 @@ export default function QuoteMobile() {
   const genVerCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
   const submitQuote = () => {
-    if (submitting || !draft?.items.length || Boolean(validUntilError)) return;
+    if (submitting || !draft?.items.length || draftSummary.hasError || Boolean(validUntilError)) return;
     if (metode === 'transfer' && !bankId) {
       toast('Pilih rekening bank tujuan untuk pembayaran transfer.', 'warning');
       return;
@@ -392,16 +570,21 @@ export default function QuoteMobile() {
         .map((i) => {
           const p = (db.products || []).find((x) => x.id === i.productId);
           if (!p) return null;
+          const calc = resolveItemCalc(i, p);
+          if (calc.qtyError || calc.discError || calc.validQty < 1) return null;
           return {
             productId: p.id,
             sku: p.sku,
             name: p.name,
-            unit: p.unit,
-            qty: i.qty,
-            price: p.hargaJual,
-            disc: i.disc || 0,
-            line: Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100)),
-            pcsPerUnit: p.pcsPerUnit || 1,
+            unit: calc.uom.value,
+            uom: calc.uom.value,
+            qty: calc.validQty,
+            pcsPerUnit: calc.uom.pcsPerUnit,
+            baseQty: calc.baseQty,
+            price: calc.uom.price,
+            disc: calc.validDisc,
+            discAmount: calc.discAmount,
+            line: calc.line,
           };
         })
         .filter(Boolean);
@@ -968,8 +1151,15 @@ export default function QuoteMobile() {
 
         {products.length ? (
           products.map((p) => {
-            const qty = qtyOf(p.id);
-            const disc = discOf(p.id);
+            const item = findDraftItem(p.id);
+            const previewUnit = item?.unit || unitPrefs[p.id] || (p.unit || 'pcs').toLowerCase();
+            const calc = resolveItemCalc(item || { unit: previewUnit, qty: 0, rawQty: '0', disc: 0, rawDisc: '0' }, p);
+            const qtyErr = item ? calc.qtyError : '';
+            const discErr = item ? calc.discError : '';
+            const displayQty = item ? calc.rawQty : 0;
+            const short = item && calc.validQty > 0 && calc.baseQty > p.stock;
+            const overDisc = item && calc.validQty > 0 && calc.validDisc > QUOTE_DISCOUNT_LIMIT;
+
             return (
               <Card
                 key={p.id}
@@ -977,7 +1167,7 @@ export default function QuoteMobile() {
                 sx={{
                   borderRadius: 2,
                   border: '1px solid',
-                  borderColor: qty > 0 ? 'primary.main' : 'divider',
+                  borderColor: (qtyErr || discErr) ? 'error.main' : (calc.validQty > 0 ? 'primary.main' : 'divider'),
                 }}
               >
                 <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
@@ -990,67 +1180,145 @@ export default function QuoteMobile() {
                         {p.sku} • {p.category} • {p.unit}
                       </Typography>
                       <Typography variant="body2" fontWeight={700}>
-                        {formatRupiah(p.hargaJual)}{' '}
-                        <span style={{ color: '#64748b', fontWeight: 400 }}>/ {p.unit}</span>
-                      </Typography>
-                      {disc > 0 && (
-                        <Typography variant="caption" color="success.main" fontWeight={700} display="block">
-                          Nego: {formatRupiah(Math.round(p.hargaJual * (1 - disc / 100)))} / {p.unit}
+                        {formatRupiah(calc.uom.price)}{' '}
+                        <Typography component="span" variant="caption" color="text.secondary" fontWeight={500}>
+                          / {calc.uom.value}
                         </Typography>
-                      )}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Stok gudang: {p.stock} pcs
+                        {calc.uom.pcsPerUnit > 1 ? ` • 1 ${calc.uom.value} = ${calc.uom.pcsPerUnit} pcs` : ''}
+                      </Typography>
                     </Box>
-                    <Stack spacing={0.75} alignItems="flex-end" sx={{ flexShrink: 0 }}>
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <IconButton
-                          size="small"
-                          disabled={qty === 0}
-                          onClick={() => setQty(p.id, qty - 1)}
-                          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
-                        >
-                          <RemoveRoundedIcon fontSize="small" />
-                        </IconButton>
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={qty}
-                          onChange={(e) => setQty(p.id, e.target.value)}
-                          sx={{ width: 64 }}
-                          inputProps={{ min: 0, style: { textAlign: 'center' } }}
-                        />
-                        <IconButton
-                          size="small"
-                          onClick={() => setQty(p.id, qty + 1)}
-                          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
-                        >
-                          <AddRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                      {qty > 0 && (
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <Typography variant="caption" color="text.secondary">
-                            Disc
-                          </Typography>
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={disc}
-                            onChange={(e) => setDisc(p.id, e.target.value)}
-                            sx={{ width: 76 }}
-                            inputProps={{ min: 0, max: 100, style: { textAlign: 'center' } }}
-                            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-                          />
-                        </Stack>
+
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0, pt: 0.25 }}>
+                      <IconButton
+                        size="small"
+                        disabled={!item || calc.validQty === 0}
+                        onClick={() => handleQtyStep(p, -1)}
+                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                      >
+                        <RemoveRoundedIcon fontSize="small" />
+                      </IconButton>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={displayQty}
+                        error={Boolean(qtyErr)}
+                        onChange={(e) => handleQtyInput(p, e.target.value)}
+                        sx={{ width: 66 }}
+                        inputProps={{ min: 0, style: { textAlign: 'center', fontWeight: 700 } }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleQtyStep(p, 1)}
+                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                      >
+                        <AddRoundedIcon fontSize="small" />
+                      </IconButton>
+                      {item && (
+                        <Tooltip title="Hapus item dari penawaran">
+                          <IconButton size="small" color="error" onClick={() => removeDraftItem(p.id)}>
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       )}
                     </Stack>
                   </Stack>
-                  {disc > QUOTE_DISCOUNT_LIMIT && (
-                    <Alert
-                      severity="warning"
-                      sx={{ mt: 1, py: 0.5 }}
-                      icon={<WarningAmberRoundedIcon fontSize="small" />}
+
+                  {qtyErr && (
+                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.75 }}>
+                      {qtyErr}
+                    </Typography>
+                  )}
+
+                  {/* Pemilihan Satuan Jual (UoM) & Diskon Manual per Item */}
+                  <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
+                    <TextField
+                      select
+                      size="small"
+                      label="Satuan Jual (UoM)"
+                      value={calc.uom.value}
+                      onChange={(e) => handleUnitChange(p, e.target.value)}
+                      sx={{ flex: 1.25 }}
                     >
+                      {calc.opts.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Diskon Manual"
+                      value={item ? calc.rawDisc : '0'}
+                      disabled={!item}
+                      error={Boolean(discErr)}
+                      onChange={(e) => handleDiscInput(p, e.target.value)}
+                      sx={{ flex: 0.95 }}
+                      inputProps={{ min: 0, max: 100, step: 'any' }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <PercentRoundedIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Stack>
+
+                  {discErr && (
+                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.5 }}>
+                      {discErr}
+                    </Typography>
+                  )}
+
+                  {/* Ringkasan Konversi Kuantitas Dasar (baseQty) & Subtotal Bersih Item */}
+                  {item && !qtyErr && calc.validQty >= 1 && (
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{
+                        mt: 1,
+                        px: 1,
+                        py: 0.6,
+                        borderRadius: 1.25,
+                        bgcolor: 'action.hover',
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Kuantitas dasar (baseQty): <b>{calc.baseQty} pcs</b>
+                      </Typography>
+                      <Box sx={{ textAlign: 'right' }}>
+                        {calc.validDisc > 0 && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ textDecoration: 'line-through', mr: 0.75 }}
+                          >
+                            {formatRupiah(calc.gross)}
+                          </Typography>
+                        )}
+                        <Typography component="span" variant="caption" fontWeight={800} color="primary.main">
+                          {formatRupiah(calc.line)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  )}
+
+                  {overDisc && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
                       Diskon melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen akan menunggu{' '}
                       <b>persetujuan Supervisor</b>.
+                    </Alert>
+                  )}
+
+                  {short && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
+                      Estimasi stok gudang saat ini {p.stock} pcs (kebutuhan {calc.baseQty} pcs). Penawaran tetap dapat dibuat — stok gudang baru dipotong saat Quotation dikonversi menjadi Entry Order.
                     </Alert>
                   )}
                 </CardContent>
@@ -1061,11 +1329,12 @@ export default function QuoteMobile() {
           <EmptyState message="Produk tidak ditemukan." />
         )}
 
-        {itemCount > 0 && (
+        {draftSummary.validItemCount > 0 && (
           <BottomBar
-            itemCount={itemCount}
-            total={totals.total}
-            actionLabel="Lanjut ke Review"
+            itemCount={draftSummary.totalUnits}
+            total={draftSummary.total}
+            actionLabel={draftSummary.hasError ? 'Perbaiki Isian Item' : 'Lanjut ke Review'}
+            disabled={draftSummary.hasError || draftSummary.validItemCount === 0}
             onClick={() => setDraft((d) => ({ ...d, step: 'review' }))}
           />
         )}
@@ -1109,12 +1378,13 @@ export default function QuoteMobile() {
             {selectedTarget.address || '-'}
           </Typography>
 
-          {/* Rincian item */}
+          {/* Rincian item — menampilkan UoM, baseQty (pcs), dan diskon manual */}
           <Stack spacing={1}>
             {draft.items.map((i) => {
               const p = (db.products || []).find((x) => x.id === i.productId);
               if (!p) return null;
-              const line = Math.round(p.hargaJual * i.qty * (1 - (i.disc || 0) / 100));
+              const calc = resolveItemCalc(i, p);
+              if (calc.validQty < 1) return null;
               return (
                 <Box
                   key={i.productId}
@@ -1125,17 +1395,34 @@ export default function QuoteMobile() {
                     '&:last-child': { borderBottom: 0, pb: 0 },
                   }}
                 >
-                  <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25 }}>
-                    {p.name}
-                  </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25, flex: 1 }}>
+                      {p.name}
+                    </Typography>
+                    {calc.validDisc > 0 && (
+                      <Chip
+                        size="small"
+                        color="warning"
+                        label={`Disc ${calc.validDisc}%`}
+                        sx={{ height: 20, fontSize: '0.675rem', fontWeight: 700 }}
+                      />
+                    )}
+                  </Stack>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                      {i.qty} {p.unit} × {formatRupiah(p.hargaJual)}
-                      {(i.disc || 0) > 0 ? ` (disc ${i.disc}%)` : ''}
+                      {calc.validQty} {calc.uom.value} × {formatRupiah(calc.uom.price)}
+                      {calc.uom.pcsPerUnit > 1 ? ` (baseQty: ${calc.baseQty} pcs)` : ` (${calc.baseQty} pcs)`}
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
-                      {formatRupiah(line)}
-                    </Typography>
+                    <Box sx={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {calc.validDisc > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ textDecoration: 'line-through', mr: 0.75 }}>
+                          {formatRupiah(calc.gross)}
+                        </Typography>
+                      )}
+                      <Typography component="span" variant="body2" fontWeight={700}>
+                        {formatRupiah(calc.line)}
+                      </Typography>
+                    </Box>
                   </Stack>
                 </Box>
               );
@@ -1143,30 +1430,40 @@ export default function QuoteMobile() {
           </Stack>
 
           <Stack spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            {draftSummary.discTotal > 0 && (
+              <>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Subtotal Kotor
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+                    {formatRupiah(draftSummary.grossSubtotal)}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="warning.dark">
+                    Total Diskon Item
+                  </Typography>
+                  <Typography variant="body2" color="warning.dark" fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>
+                    −{formatRupiah(draftSummary.discTotal)}
+                  </Typography>
+                </Stack>
+              </>
+            )}
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="body2" color="text.secondary">
-                Subtotal
+                Subtotal Bersih
               </Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(totals.subtotal)}
+                {formatRupiah(draftSummary.subtotal)}
               </Typography>
             </Stack>
-            {totals.discTotal > 0 && (
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  Diskon
-                </Typography>
-                <Typography variant="body2" color="success.main" sx={{ whiteSpace: 'nowrap' }}>
-                  − {formatRupiah(totals.discTotal)}
-                </Typography>
-              </Stack>
-            )}
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="body2" color="text.secondary">
                 PPN {Math.round(TAX_RATE * 100)}%
               </Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(totals.tax)}
+                {formatRupiah(draftSummary.tax)}
               </Typography>
             </Stack>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1174,7 +1471,7 @@ export default function QuoteMobile() {
                 TOTAL
               </Typography>
               <Typography variant="body2" fontWeight={800} color="primary" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(totals.total)}
+                {formatRupiah(draftSummary.total)}
               </Typography>
             </Stack>
           </Stack>
@@ -1294,9 +1591,9 @@ export default function QuoteMobile() {
         </CardContent>
       </Card>
 
-      {draftMaxDisc > QUOTE_DISCOUNT_LIMIT ? (
+      {draftSummary.maxDisc > QUOTE_DISCOUNT_LIMIT ? (
         <Alert severity="warning" icon={<WarningAmberRoundedIcon fontSize="small" />}>
-          Diskon maks <b>{draftMaxDisc}%</b> melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — quotation akan
+          Diskon maks <b>{draftSummary.maxDisc}%</b> melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — quotation akan
           berstatus <b>Menunggu Persetujuan Supervisor</b> dan tidak dapat dikirim/diunduh sebelum
           disetujui.
         </Alert>
@@ -1308,11 +1605,11 @@ export default function QuoteMobile() {
       )}
 
       <BottomBar
-        itemCount={itemCount}
-        total={totals.total}
+        itemCount={draftSummary.totalUnits}
+        total={draftSummary.total}
         actionLabel="Simpan Quotation"
         onClick={submitQuote}
-        disabled={!itemCount || Boolean(validUntilError)}
+        disabled={!draftSummary.validItemCount || draftSummary.hasError || Boolean(validUntilError)}
         loading={submitting}
       />
     </Stack>
