@@ -32,16 +32,16 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 
-import OrderDetailDialog from '../../components/orders/OrderDetailDialog';
-import StatusChip from '../../components/ui/StatusChip';
-import EmptyState from '../../components/ui/EmptyState';
+import OrderDetailDialog from '../../components/mobile/OrderDetailDialogMobile';
+import StatusChip from '../../components/mobile/StatusChipMobile';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, formatRupiah, TAX_RATE } from '../../utils/helpers';
+import { ORDER_PAYMENT_METHODS, ORDER_TERMIN_DAYS, generateOrderNumber } from '../../utils/orderUtils';
 import { completeTaskAuto } from '../../utils/taskUtils';
-import { reduceStockByOrder } from '../../utils/gudangUtils';
 
 const FILTERS = [
   { v: 'all', l: 'Semua' }, { v: 'submitted', l: 'Diajukan' }, { v: 'approved', l: 'Disetujui' },
@@ -197,6 +197,9 @@ export default function OrderMobile() {
   const [productSearch, setProductSearch] = useState('');
   const [unitPrefs, setUnitPrefs] = useState({});
   const [note, setNote] = useState('');
+  const [metode, setMetode] = useState('tunai');
+  const [bankId, setBankId] = useState('');
+  const [terminHari, setTerminHari] = useState('14');
   const [submitting, setSubmitting] = useState(false);
   const [successOrder, setSuccessOrder] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -216,6 +219,12 @@ export default function OrderMobile() {
     const q = outletSearch.trim().toLowerCase();
     return o.status === 'active' && (!q || o.name.toLowerCase().includes(q) || (o.address || '').toLowerCase().includes(q));
   });
+
+  const banks = (db.banks || []).filter(
+    (b) =>
+      (b.status || 'active') === 'active' &&
+      (!b.kategori || b.kategori === 'perusahaan' || b.kategori === 'Rekening Perusahaan')
+  );
 
   const findDraftItem = (pid) => (draft?.items || []).find((i) => i.productId === pid) || null;
 
@@ -335,15 +344,6 @@ export default function OrderMobile() {
     });
   };
 
-  /* Nomor unik otomatis — ikut menghitung antrean offline agar tidak duplikat */
-  const genOrderNo = () => {
-    const t = todayISO();
-    const kodeSales = user.salesId ? `SAL-${String(user.salesId).padStart(3, '0')}` : 'SFA';
-    const count = (db.orders || []).filter((o) => o.date === t && o.salesId === user.salesId).length
-      + (db.syncQueue || []).filter((x) => x.kind === 'order' && x.payload?.salesId === user.salesId && x.payload?.date === t).length;
-    return `ORD-${t.replace(/-/g, '')}-${kodeSales}-${String(count + 1).padStart(3, '0')}`;
-  };
-
   const submitOrder = () => {
     if (submitting || draftSummary.hasError || !draftSummary.validItemCount) return;
     setSubmitting(true);
@@ -375,6 +375,11 @@ export default function OrderMobile() {
       return toast('Produk pesanan sudah tidak tersedia atau belum valid — periksa kembali pesanan.', 'warning');
     }
 
+    if (metode === 'transfer' && !bankId) {
+      setSubmitting(false);
+      return toast('Pilih rekening bank tujuan untuk pembayaran transfer.', 'warning');
+    }
+
     const grossSubtotal = items.reduce((s, x) => s + (x.price * x.qty), 0);
     const discTotal = items.reduce((s, x) => s + (x.discAmount || 0), 0);
     const subtotal = items.reduce((s, x) => s + x.line, 0);
@@ -382,7 +387,7 @@ export default function OrderMobile() {
     const total = subtotal + tax;
 
     const order = {
-      no: genOrderNo(),
+      no: generateOrderNumber(db.orders, db.syncQueue, todayISO(), user.salesId),
       date: todayISO(),
       salesId: user.salesId,
       outletId: draft.outletId,
@@ -394,6 +399,9 @@ export default function OrderMobile() {
       tax,
       total,
       status: 'submitted',
+      metodePembayaran: metode,
+      bankId: metode === 'transfer' ? Number(bankId) : null,
+      terminHari: metode === 'termin' ? Number(terminHari) : null,
       note: note.trim(),
       paid: false,
     };
@@ -410,8 +418,6 @@ export default function OrderMobile() {
 
     setTimeout(() => {
       const rec = insert('orders', order);
-
-      reduceStockByOrder(mutate, order.items);
 
       /* Auto-complete tugas order terkait (BR-TASK-003) */
       completeTaskAuto(db, mutate, { outletId: draft.outletId, type: 'order', salesId: user.salesId });
@@ -818,6 +824,82 @@ export default function OrderMobile() {
                 {formatRupiah(draftSummary.total)}
               </Typography>
             </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* ===== Card Pilihan Metode Pembayaran (BR-ORD-008 & Changelog v1.3) ===== */}
+      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+          <Stack spacing={2}>
+            <TextField
+              select
+              label="Metode Pembayaran *"
+              value={metode}
+              onChange={(e) => setMetode(e.target.value)}
+            >
+              {ORDER_PAYMENT_METHODS.map((m) => (
+                <MenuItem key={m.value} value={m.value}>
+                  {m.label}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            {metode === 'transfer' &&
+              (banks.length ? (
+                <TextField
+                  select
+                  label="Rekening Bank Tujuan *"
+                  value={bankId}
+                  onChange={(e) => setBankId(e.target.value)}
+                  helperText="Rekening resmi perusahaan untuk transfer pelanggan."
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}
+                >
+                  {banks.map((b) => (
+                    <MenuItem key={b.id} value={String(b.id)}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {b.nama}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {b.noRekening} {b.atasNama ? `— a.n. ${b.atasNama}` : ''}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : (
+                <Alert severity="warning">
+                  Belum ada rekening bank perusahaan aktif di Master Data Bank.
+                </Alert>
+              ))}
+
+            {metode === 'termin' && (
+              <TextField
+                select
+                label="Jatuh Tempo (Termin) *"
+                value={terminHari}
+                onChange={(e) => setTerminHari(e.target.value)}
+              >
+                {ORDER_TERMIN_DAYS.map((d) => (
+                  <MenuItem key={d} value={String(d)}>
+                    Termin {d} hari
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {metode === 'cicilan' && (
+              <Alert severity="info">
+                Metode Cicilan: rincian kesepakatan cicilan dapat dicantumkan pada catatan pesanan.
+              </Alert>
+            )}
+
+            {metode === 'konsinyasi' && (
+              <Alert severity="info">
+                Metode Konsinyasi: barang titipan — penagihan dilakukan berkala mengikuti hasil stock-take audit.
+              </Alert>
+            )}
           </Stack>
         </CardContent>
       </Card>

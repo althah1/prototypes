@@ -4,7 +4,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
-export default function StatCard({ icon, value, label, color = 'primary' }) {
+export default function StatCard({ icon, value, label, subtitle, color = 'primary', sx }) {
   const theme = useTheme();
   const paletteColor = theme.palette[color] || theme.palette.primary;
 
@@ -12,27 +12,39 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
     <Card
       elevation={0}
       sx={{
-        borderRadius: 2.5,
+        borderRadius: 1.25,
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
-        transition: 'all 0.18s ease-in-out',
+        height: '100%',
+        transition: 'border-color 0.16s ease, box-shadow 0.16s ease',
         '&:hover': {
           borderColor: alpha(paletteColor.main, 0.4),
-          boxShadow: `0 4px 16px ${alpha(paletteColor.main, 0.08)}`,
+          boxShadow: `0 4px 14px ${alpha(paletteColor.main, 0.07)}`,
         },
+        ...sx,
       }}
     >
-      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.75, p: 2, '&:last-child': { pb: 2 } }}>
+      <CardContent
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 2,
+          '&:last-child': { pb: 2 },
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 44,
-            height: 44,
-            borderRadius: 2,
+            width: 42,
+            height: 42,
+            borderRadius: 1.25,
             bgcolor: alpha(paletteColor.main, 0.1),
+            border: '1px solid',
+            borderColor: alpha(paletteColor.main, 0.18),
             color: paletteColor.main,
             flexShrink: 0,
           }}
@@ -45,10 +57,11 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
             noWrap
             sx={{
               fontWeight: 800,
-              fontSize: '1.25rem',
+              fontSize: '1.2rem',
               letterSpacing: '-0.02em',
               fontVariantNumeric: 'tabular-nums',
               lineHeight: 1.2,
+              color: 'text.primary',
             }}
           >
             {value}
@@ -59,8 +72,8 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
             noWrap
             sx={{
               display: 'block',
-              fontWeight: 650,
-              fontSize: '0.725rem',
+              fontWeight: 700,
+              fontSize: '0.7rem',
               textTransform: 'uppercase',
               letterSpacing: '0.03em',
               mt: 0.35,
@@ -68,6 +81,16 @@ export default function StatCard({ icon, value, label, color = 'primary' }) {
           >
             {label}
           </Typography>
+          {subtitle && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              sx={{ display: 'block', fontSize: '0.7rem', mt: 0.15 }}
+            >
+              {subtitle}
+            </Typography>
+          )}
         </Box>
       </CardContent>
     </Card>

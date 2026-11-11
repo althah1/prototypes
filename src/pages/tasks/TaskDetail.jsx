@@ -26,8 +26,8 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
 import CheckInDialog from '../../components/gps/CheckInDialog';
-import EmptyState from '../../components/ui/EmptyState';
-import StatusChip from '../../components/ui/StatusChip';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
+import StatusChip from '../../components/mobile/StatusChipMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';

@@ -18,8 +18,8 @@ import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded';
 import LocationOnRoundedIcon from '@mui/icons-material/LocationOnRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 
-import EmptyState from '../../components/ui/EmptyState';
-import StatusChip from '../../components/ui/StatusChip';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
+import StatusChip from '../../components/mobile/StatusChipMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { todayISO, formatRupiah, formatDistance } from '../../utils/helpers';

@@ -13,9 +13,9 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import MyLocationRoundedIcon from '@mui/icons-material/MyLocationRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 
-import LeafletMap from '../../components/map/LeafletMap';
+import LeafletMap from '../../components/mobile/LeafletMapMobile';
 import CheckInDialog from '../../components/gps/CheckInDialog';
-import EmptyState from '../../components/ui/EmptyState';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';

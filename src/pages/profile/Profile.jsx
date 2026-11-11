@@ -1,205 +1,228 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
-import MailRoundedIcon from '@mui/icons-material/MailRounded';
-import MapRoundedIcon from '@mui/icons-material/MapRounded';
-import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
-import PhoneRoundedIcon from '@mui/icons-material/PhoneRounded';
-import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
-import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
-import SupervisorAccountRoundedIcon from '@mui/icons-material/SupervisorAccountRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
 
-import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import { useAuth } from '../../store/AuthContext';
+import DetailGrid, { CardSectionHeader } from '../../components/ui/DetailGrid';
+import PageHeader from '../../components/ui/PageHeader';
+import StatusChip from '../../components/ui/StatusChip';
+import { passwordPolicy, useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';
-import { initials, formatRupiah } from '../../utils/helpers';
+import { initials } from '../../utils/helpers';
+
+const ROLE_LABELS = {
+  admin: 'Administrator',
+  supervisor: 'Supervisor',
+  sales: 'Sales Lapangan',
+  finance: 'Finance',
+};
 
 export default function Profile() {
-  const { user, logout } = useAuth();
-  const { db, reset } = useDb();
+  const { user, logout, changePassword } = useAuth();
+  const { db } = useDb();
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const isMobile = useLocation().pathname.startsWith('/app');
-  const [openReset, setOpenReset] = useState(false);
 
-  const sales = user.salesId ? db.sales.find((s) => s.id === user.salesId) : null;
-  const area = sales ? db.areas.find((a) => a.id === sales.areaId) : null;
-  const supervisor = sales ? db.supervisors.find((s) => s.id === sales.supervisorId) : null;
-  const roleLabel = { admin: 'Administrator', supervisor: 'Supervisor', sales: 'Sales Lapangan', finance: 'Finance' }[user.role] || user.role;
+  const [curPass, setCurPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confPass, setConfPass] = useState('');
+  const [err, setErr] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const rows = [
-    { icon: <MailRoundedIcon fontSize="small" />, label: 'Email Resmi', value: user.email },
-    { icon: <PhoneRoundedIcon fontSize="small" />, label: 'Nomor Telepon', value: user.phone || '-' },
-    { icon: <ScheduleRoundedIcon fontSize="small" />, label: 'Sesi Login Terakhir', value: `${user.loginAt || '-'} WIB` },
+  const salesRec = user?.salesId ? (db.sales || []).find((s) => s.id === user.salesId) : null;
+  const areaRec = salesRec ? (db.areas || []).find((a) => a.id === salesRec.areaId) : null;
+
+  const handleSavePass = (e) => {
+    e.preventDefault();
+    setErr('');
+    if (!curPass) {
+      setErr('Kata sandi saat ini wajib diisi.');
+      return;
+    }
+    const pErr = passwordPolicy(newPass);
+    if (pErr) {
+      setErr(pErr);
+      return;
+    }
+    if (newPass !== confPass) {
+      setErr('Konfirmasi kata sandi baru tidak cocok.');
+      return;
+    }
+    setSaving(true);
+    const res = changePassword(curPass, newPass);
+    setSaving(false);
+    if (res.error) {
+      setErr(res.error);
+      return;
+    }
+    setCurPass('');
+    setNewPass('');
+    setConfPass('');
+    toast('Kata sandi berhasil diperbarui.', 'success');
+  };
+
+  if (!user) return null;
+
+  const profileItems = [
+    { label: 'Nama Lengkap', value: user.name },
+    { label: 'Peran Akun', value: ROLE_LABELS[user.role] || user.role },
+    { label: 'Status Akun', customNode: <StatusChip kind="active" status={user.status || 'active'} /> },
+    { label: 'Email Login', value: user.email },
+    { label: 'No. Telepon', value: user.phone || salesRec?.phone || '-' },
+    ...(areaRec ? [{ label: 'Area Kerja', value: `${areaRec.code} — ${areaRec.name}` }] : []),
+    { label: 'Waktu Login Terakhir', value: user.loginAt || '-' },
   ];
-  if (sales) {
-    rows.push(
-      { icon: <BadgeRoundedIcon fontSize="small" />, label: 'NIK Karyawan', value: sales.nik },
-      { icon: <SupervisorAccountRoundedIcon fontSize="small" />, label: 'Supervisor Pembina', value: supervisor?.name || '-' },
-      { icon: <MapRoundedIcon fontSize="small" />, label: 'Area Distribusi', value: area?.name || '-' },
-      { icon: <PaymentsRoundedIcon fontSize="small" />, label: 'Target Penjualan', value: formatRupiah(sales.target) },
-    );
-  }
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 640, width: '100%', mx: 0, pb: 4, alignItems: 'stretch' }}>
-      <Typography variant="h6" fontWeight={800}>
-        Profil Saya
-      </Typography>
+    <Box sx={{ width: '100%', maxWidth: { xs: 440, md: 1040 }, mx: 'auto' }}>
+      <PageHeader
+        title="Profil Pengguna"
+        subtitle="Informasi akun aktif dan pengaturan keamanan kata sandi."
+      />
 
-      {/* Kartu Profil Utama — Mengikuti Standar Master Perusahaan */}
-      <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                width: 64,
-                height: 64,
-                borderRadius: 2,
-                bgcolor: 'primary.main',
-                fontSize: 22,
-                fontWeight: 800,
-              }}
-            >
-              {initials(user.name)}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800, overflowWrap: 'anywhere' }} noWrap>
-                {user.name}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                color="primary"
-                label={roleLabel}
-                sx={{ mt: 0.5, fontWeight: 650 }}
-              />
-            </Box>
-          </Stack>
-
-          <List dense disablePadding>
-            {rows.map((r) => (
-              <ListItem key={r.label} disableGutters sx={{ py: 0.9, borderBottom: '1px dashed', borderColor: 'divider' }}>
-                <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
-                <ListItemText
-                  primary={r.label}
-                  secondary={r.value}
-                  primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
-                  secondaryTypographyProps={{
-                    sx: { fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere', wordBreak: 'break-word' },
-                  }}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </CardContent>
-      </Card>
-
-      {/* Kartu Menu Riwayat Aktivitas (Khusus Mobile Sales) */}
-      {isMobile && (
+      {/* Grid 2 Kolom Desktop: Kiri = Info Akun, Kanan = Keamanan */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr' },
+          gap: 2.5,
+          alignItems: 'start',
+        }}
+      >
+        {/* Kolom 1: Informasi Akun */}
         <Card
           elevation={0}
-          onClick={() => navigate('/app/activity')}
           sx={{
-            maxWidth: 640,
-            borderRadius: 2,
+            borderRadius: 1.25,
             border: '1px solid',
             borderColor: 'divider',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            '&:hover': {
-              bgcolor: 'action.hover',
-              borderColor: 'primary.main',
-            },
+            bgcolor: 'background.paper',
           }}
         >
-          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
+          <CardSectionHeader
+            title="Informasi Akun"
+            subtitle="Kredensial dan hak akses yang tercatat di sistem"
+          />
+          <CardContent sx={{ p: 2.5 }}>
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
               <Avatar
-                variant="rounded"
                 sx={{
-                  bgcolor: '#eff6ff',
-                  color: '#1d4ed8',
-                  width: 44,
-                  height: 44,
-                  borderRadius: 2,
-                  border: '1px solid #bfdbfe',
+                  width: 58,
+                  height: 58,
+                  bgcolor: 'primary.main',
+                  fontWeight: 800,
+                  fontSize: 20,
+                  borderRadius: 1.25,
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
                 }}
               >
-                <HistoryRoundedIcon />
+                {initials(user.name)}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography fontWeight={750} fontSize={14}>
-                  Riwayat Aktivitas
+                <Typography variant="h6" noWrap sx={{ fontWeight: 800, fontSize: '1.1rem' }}>
+                  {user.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                  Timeline kunjungan toko, pesanan &amp; audit lapangan
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    {ROLE_LABELS[user.role] || user.role}
+                  </Typography>
+                  <StatusChip kind="active" status={user.status || 'active'} />
+                </Stack>
               </Box>
-              <ArrowForwardRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+            </Stack>
+
+            <DetailGrid items={profileItems} columns={1} />
+
+            {/* Tombol Logout khusus Sales Mobile */}
+            {user.role === 'sales' && (
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                startIcon={<LogoutRoundedIcon />}
+                onClick={() => logout('Anda telah keluar dari sistem.')}
+                sx={{ mt: 2.5, py: 1, borderRadius: 1.25, fontWeight: 650 }}
+              >
+                Keluar dari Akun
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Kolom 2: Keamanan / Ubah Kata Sandi */}
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 1.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <CardSectionHeader
+            title="Keamanan Kata Sandi"
+            subtitle="Perbarui kata sandi akun secara berkala"
+          />
+          <CardContent component="form" onSubmit={handleSavePass} noValidate sx={{ p: 2.5 }}>
+            <Stack spacing={2}>
+              {err && <Alert severity="error">{err}</Alert>}
+
+              <TextField
+                label="Kata Sandi Saat Ini"
+                type="password"
+                value={curPass}
+                onChange={(e) => { setCurPass(e.target.value); setErr(''); }}
+                autoComplete="current-password"
+                required
+              />
+
+              <Box sx={{ pt: 0.5 }}>
+                <TextField
+                  label="Kata Sandi Baru"
+                  type="password"
+                  value={newPass}
+                  onChange={(e) => { setNewPass(e.target.value); setErr(''); }}
+                  helperText="Minimal 8 karakter, mengandung huruf besar, huruf kecil, dan angka."
+                  autoComplete="new-password"
+                  required
+                />
+              </Box>
+
+              <TextField
+                label="Konfirmasi Kata Sandi Baru"
+                type="password"
+                value={confPass}
+                onChange={(e) => { setConfPass(e.target.value); setErr(''); }}
+                autoComplete="new-password"
+                required
+              />
+
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={saving}
+                  startIcon={<LockResetRoundedIcon />}
+                  sx={{ py: 0.9, px: 2.5, borderRadius: 1.25, fontWeight: 650 }}
+                >
+                  {saving ? 'Menyimpan…' : 'Simpan Kata Sandi'}
+                </Button>
+              </Box>
             </Stack>
           </CardContent>
         </Card>
-      )}
-
-      {/* Tombol Logout & Reset Data */}
-      <Stack spacing={1.5} sx={{ mt: 1 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          size="medium"
-          startIcon={<LogoutRoundedIcon />}
-          onClick={() => logout('Anda telah keluar dari sistem.')}
-          sx={{ borderRadius: 1.5, py: 1, fontWeight: 650, textTransform: 'none' }}
-        >
-          Keluar (Logout)
-        </Button>
-
-        <Button
-          variant="text"
-          size="small"
-          startIcon={<RestartAltRoundedIcon />}
-          onClick={() => setOpenReset(true)}
-          sx={{ color: 'text.secondary', fontSize: '0.75rem', textTransform: 'none' }}
-        >
-          Reset Data Prototype
-        </Button>
-      </Stack>
-
-      <ConfirmDialog
-        open={openReset}
-        onClose={() => setOpenReset(false)}
-        onConfirm={() => {
-          Object.keys(localStorage)
-            .filter((k) => k.startsWith('sfa_morn_') || k.startsWith('sfa_ensure_'))
-            .forEach((k) => localStorage.removeItem(k));
-          reset();
-          setOpenReset(false);
-          toast('Data prototype dimuat ulang dari seed awal.', 'success');
-        }}
-        title="Reset Data Prototype?"
-        message="Semua transaksi, pesanan, dan perubahan stok yang dibuat pada sesi ini akan dikembalikan ke data awal demo."
-        confirmText="Reset Sekarang"
-        confirmColor="warning"
-      />
-    </Stack>
+      </Box>
+    </Box>
   );
 }

@@ -33,8 +33,8 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import TrackChangesRoundedIcon from '@mui/icons-material/TrackChangesRounded';
 import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
-import AuditDetailDialog from '../../components/audit/AuditDetailDialog';
-import EmptyState from '../../components/ui/EmptyState';
+import AuditDetailDialog from '../../components/mobile/AuditDetailDialogMobile';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';

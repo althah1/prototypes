@@ -34,9 +34,9 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import PercentRoundedIcon from '@mui/icons-material/PercentRounded';
 
-import QuoteDetailDialog from '../../components/quotes/QuoteDetailDialog';
-import EmptyState from '../../components/ui/EmptyState';
-import StatusChip from '../../components/ui/StatusChip';
+import QuoteDetailDialog from '../../components/mobile/QuoteDetailDialogMobile';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
+import StatusChip from '../../components/mobile/StatusChipMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';

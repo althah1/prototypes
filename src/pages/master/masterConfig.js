@@ -126,6 +126,7 @@ export const MASTER_CONFIG = {
     sub: 'Lokasi fisik penyimpanan barang.',
     table: 'warehouses',
     addLabel: 'Gudang',
+    detailPage: '/dashboard/master/gudang',
     uniques: ['code'],
     refs: [
       { table: 'gudangDetails', field: 'gudangId', label: 'penempatan produk' },

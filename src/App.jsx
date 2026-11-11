@@ -20,6 +20,7 @@ import Notifications from './pages/mobile/Notifications';
 import CatalogMobile from './pages/mobile/CatalogMobile';
 import BillingMobile from './pages/mobile/BillingMobile';
 import Profile from './pages/profile/Profile';
+import ProfileMobile from './pages/mobile/ProfileMobile';
 import EntityPage from './pages/master/EntityPage';
 import GudangDetail from './pages/master/GudangDetail';
 
@@ -97,7 +98,7 @@ export default function App() {
                   <Route path="billing" element={<BillingMobile />} />
                   <Route path="activity" element={<ActivityHistory />} />
                   <Route path="notifications" element={<Notifications />} />
-                  <Route path="profile" element={<Profile />} />
+                  <Route path="profile" element={<ProfileMobile />} />
                   <Route path="tasks" element={<TaskMobile />} />
                   <Route path="tasks/:id" element={<TaskDetail />} />
                   <Route path="order" element={<OrderMobile />} />

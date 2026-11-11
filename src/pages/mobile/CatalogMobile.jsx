@@ -29,7 +29,7 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import WarehouseRoundedIcon from '@mui/icons-material/WarehouseRounded';
 
-import EmptyState from '../../components/ui/EmptyState';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useDb } from '../../store/DbContext';
 import { formatRupiah } from '../../utils/helpers';
 import { ensureGudangDetails } from '../../utils/gudangUtils';

@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@mui/material/styles';
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
@@ -12,6 +13,8 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
+
+import mobileTheme from '../../themeMobile';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
@@ -103,20 +106,21 @@ export default function MobileLayout() {
     path === '/app' ? location.pathname === '/app' : location.pathname.startsWith(path);
 
   return (
-    <Box
-      sx={{
-        maxWidth: 430,
-        mx: 'auto',
-        minHeight: '100vh',
-        bgcolor: 'background.default',
-        display: 'flex',
-        flexDirection: 'column',
-        borderLeft: { sm: '1px solid' },
-        borderRight: { sm: '1px solid' },
-        borderColor: 'divider',
-        boxShadow: { sm: '0 8px 32px rgba(15,23,42,.06)' },
-      }}
-    >
+    <ThemeProvider theme={mobileTheme}>
+      <Box
+        sx={{
+          maxWidth: 430,
+          mx: 'auto',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          display: 'flex',
+          flexDirection: 'column',
+          borderLeft: { sm: '1px solid' },
+          borderRight: { sm: '1px solid' },
+          borderColor: 'divider',
+          boxShadow: { sm: '0 8px 32px rgba(15,23,42,.06)' },
+        }}
+      >
       {/* Header Frosty Glass */}
       <AppBar
         position="sticky"
@@ -269,6 +273,7 @@ export default function MobileLayout() {
           ))}
         </Stack>
       </Drawer>
-    </Box>
+      </Box>
+    </ThemeProvider>
   );
 }

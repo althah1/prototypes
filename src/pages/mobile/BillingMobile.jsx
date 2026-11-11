@@ -31,8 +31,8 @@ import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
-import EmptyState from '../../components/ui/EmptyState';
-import StatusChip from '../../components/ui/StatusChip';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
+import StatusChip from '../../components/mobile/StatusChipMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';

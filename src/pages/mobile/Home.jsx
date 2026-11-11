@@ -22,8 +22,8 @@ import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded';
 
-import StatusChip from '../../components/ui/StatusChip';
-import EmptyState from '../../components/ui/EmptyState';
+import StatusChip from '../../components/mobile/StatusChipMobile';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';

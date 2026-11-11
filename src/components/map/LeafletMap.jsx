@@ -9,22 +9,30 @@ import MapRoundedIcon from '@mui/icons-material/MapRounded';
  * mode daftar rute di halaman tetap berfungsi.
  *
  * Props:
- *  - height  : tinggi peta (px)
- *  - center  : { lat, lng } untuk view awal
- *  - zoom    : zoom awal
- *  - markers : [{ lat, lng, kind: 'num'|'me'|'outlet', label, tooltip, done }]
- *  - lines   : [{ coords: [[lat,lng],...], color, weight, dashArray, tooltip }]
- *  - circles : [{ lat, lng, radius, color, label }]
- *  - fit     : boolean — sesuaikan view ke seluruh titik
+ *  - height       : tinggi peta (px or string)
+ *  - center       : { lat, lng } atau [lat, lng] untuk view awal
+ *  - zoom         : zoom awal
+ *  - markers      : [{ id, lat, lng, kind, label, title, subtitle, details, tooltip, color }]
+ *  - lines        : [{ coords: [[lat,lng],...], color, weight, dashArray, tooltip }]
+ *  - circles      : [{ lat, lng, radius, color, label }]
+ *  - selectedId   : id marker yang sedang dipilih (popup otomatis dibuka)
+ *  - onSelectMarker: callback(id) saat marker diklik
+ *  - fit          : boolean — sesuaikan view ke seluruh titik
  */
 export default function LeafletMap({
   height = 250, center, zoom = 14, markers = [], lines = [], circles = [], fit = true,
+  selectedId, onSelectMarker
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef([]);
+  const markerLayersRef = useRef({});
   const styleInjectedRef = useRef(false);
   const [offline, setOffline] = useState(!window.L);
+
+  const centerLatLng = center
+    ? Array.isArray(center) ? { lat: center[0], lng: center[1] } : center
+    : { lat: -7.7956, lng: 110.3695 };
 
   /* CSS marker bernomor — disuntik sekali ke <head> */
   useEffect(() => {
@@ -49,7 +57,7 @@ export default function LeafletMap({
     if (!window.L || !containerRef.current) { setOffline(true); return undefined; }
     setOffline(false);
     const map = window.L.map(containerRef.current, { zoomControl: true })
-      .setView([center.lat, center.lng], zoom);
+      .setView([centerLatLng.lat, centerLatLng.lng], zoom);
     window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap',
@@ -70,8 +78,10 @@ export default function LeafletMap({
 
     layersRef.current.forEach((l) => { try { l.remove(); } catch (e) { /* ignore */ } });
     layersRef.current = [];
+    Object.values(markerLayersRef.current).forEach((m) => { try { m.remove(); } catch (e) { /* ignore */ } });
+    markerLayersRef.current = {};
 
-    /* Lingkaran batas area (geofencing #73/#75) */
+    /* Lingkaran batas area (geofencing) */
     (circles || []).forEach((c) => {
       const circle = window.L.circle([c.lat, c.lng], {
         radius: c.radius, color: c.color || '#16a34a', weight: 1,
@@ -94,6 +104,7 @@ export default function LeafletMap({
 
     /* Marker */
     (markers || []).forEach((m) => {
+      const isSelected = m.id === selectedId;
       let layer;
       if (m.kind === 'me') {
         layer = window.L.circleMarker([m.lat, m.lng], {
@@ -106,13 +117,46 @@ export default function LeafletMap({
       } else {
         layer = window.L.marker([m.lat, m.lng], {
           icon: window.L.divIcon({
-            className: m.done ? 'num-marker done' : 'num-marker',
+            className: isSelected ? 'num-marker selected' : 'num-marker',
             html: `<span>${m.label ?? ''}</span>`,
             iconSize: [28, 28],
           }),
         }).addTo(map);
       }
+
+      /* Popup dengan detail sales */
+      if (m.title || m.details) {
+        let popupContent = `
+          <div style="font-family: inherit; font-size: 13px; line-height: 1.4; min-width: 180px;">
+            <div style="font-weight: 800; font-size: 14px; margin-bottom: 2px;">${m.title || m.label}</div>
+            ${m.subtitle ? `<div style="color: #64748b; font-size: 11px; margin-bottom: 8px;">${m.subtitle}</div>` : ''}
+        `;
+        if (m.details) {
+          popupContent += '<div style="border-top: 1px solid #e2e8f0; padding-top: 6px;">';
+          Object.entries(m.details).forEach(([k, v]) => {
+            popupContent += `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 11px;">
+                <span style="color: #64748b;">${k}:</span>
+                <span style="font-weight: 600;">${v}</span>
+              </div>
+            `;
+          });
+          popupContent += '</div>';
+        }
+        popupContent += '</div>';
+        layer.bindPopup(popupContent);
+        if (isSelected) {
+          layer.openPopup();
+        }
+      }
+
       if (m.tooltip) layer.bindTooltip(m.tooltip);
+
+      layer.on('click', () => {
+        if (onSelectMarker) onSelectMarker(m.id);
+      });
+
+      markerLayersRef.current[m.id] = layer;
       layersRef.current.push(layer);
     });
 
@@ -125,7 +169,7 @@ export default function LeafletMap({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(markers), JSON.stringify(lines), JSON.stringify(circles), fit]);
+  }, [JSON.stringify(markers), JSON.stringify(lines), JSON.stringify(circles), fit, selectedId, onSelectMarker]);
 
   if (offline) {
     return (

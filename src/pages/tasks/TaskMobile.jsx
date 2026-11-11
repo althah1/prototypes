@@ -17,8 +17,8 @@ import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 
-import StatusChip from '../../components/ui/StatusChip';
-import EmptyState from '../../components/ui/EmptyState';
+import StatusChip from '../../components/mobile/StatusChipMobile';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../../components/ui/ToastProvider';

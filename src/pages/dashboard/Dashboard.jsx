@@ -1,203 +1,260 @@
+import React, { useMemo } from 'react';
+import {
+  Box,
+  Grid,
+  Card,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  LinearProgress,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import StoreOutlinedIcon from '@mui/icons-material/StoreOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import { useNavigate } from 'react-router-dom';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-
-import DirectionsRunRoundedIcon from '@mui/icons-material/DirectionsRunRounded';
-import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
-import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
-import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import PendingActionsRoundedIcon from '@mui/icons-material/PendingActionsRounded';
-import PercentRoundedIcon from '@mui/icons-material/PercentRounded';
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
-
+import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
 import StatusChip from '../../components/ui/StatusChip';
-import PageHeader from '../../components/ui/PageHeader';
-import EmptyState from '../../components/ui/EmptyState';
-import { useAuth } from '../../store/AuthContext';
+import { CardSectionHeader } from '../../components/ui/DetailGrid';
 import { useDb } from '../../store/DbContext';
-import { todayISO, formatRupiah } from '../../utils/helpers';
-
-const ORDER_ROW_STYLE = { py: 1, borderBottom: '1px dashed', borderColor: 'divider', cursor: 'pointer' };
-
-/* Ubin antrean pada kartu "Perlu Tindakan" — klik untuk menuju modul terkait */
-function ActionTile({ icon, color, title, count, preview, onClick }) {
-  return (
-    <Stack onClick={onClick} spacing={0.75} sx={{
-      p: 1.5, borderRadius: 2, cursor: 'pointer',
-      border: '1px solid', borderColor: 'divider',
-      '&:hover': { bgcolor: 'action.hover' },
-    }}>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Avatar sx={{ bgcolor: `${color}.main`, width: 28, height: 28 }}>{icon}</Avatar>
-        <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>{title}</Typography>
-        <Typography variant="h6" component="span" fontWeight={800}>{count}</Typography>
-      </Stack>
-      <Typography variant="caption" color="text.secondary" noWrap title={preview}>{preview}</Typography>
-    </Stack>
-  );
-}
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { db } = useDb();
   const navigate = useNavigate();
-  const today = todayISO();
-  const outletOf = (id) => (db.outlets.find((o) => o.id === id) || {}).name || '-';
+  const { db } = useDb();
 
-  const tasksToday = db.tasks.filter((t) => t.date === today);
-  const doneToday = tasksToday.filter((t) => t.status === 'done').length;
-  const ordersToday = db.orders.filter((o) => o.date === today);
-  const pending = db.orders.filter((o) => o.status === 'submitted');
+  const orders = db.orders || [];
+  const tasks = db.tasks || [];
+  const audits = db.audits || [];
+  const prospects = db.prospects || [];
 
-  /* ===== Tampilan Finance ===== */
-  if (user.role === 'finance') {
-    const invoices = db.orders.filter((o) => !['submitted', 'rejected', 'cancelled'].includes(o.status));
-    const unpaid = invoices.filter((o) => !o.paid);
-    const paid = invoices.filter((o) => o.paid);
-    return (
-      <Box>
-        <PageHeader
-          title="Dashboard Finance"
-          subtitle={`Ringkasan tagihan & pembayaran — ${today}`}
-          action={<Button variant="contained" onClick={() => navigate('/dashboard/billing')} endIcon={<ArrowForwardRoundedIcon />}>Kelola Billing</Button>}
-        />
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
-          <StatCard icon={<ReceiptLongRoundedIcon />} value={invoices.length} label="Total invoice" />
-          <StatCard icon={<ScheduleRoundedIcon />} value={formatRupiah(unpaid.reduce((s, o) => s + o.total, 0))} label="Belum dibayar" color="warning" />
-          <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(paid.reduce((s, o) => s + o.total, 0))} label="Sudah lunas" color="success" />
-        </Box>
-        <Card>
-          <CardHeader title="Invoice Terbaru" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
-          <CardContent>
-            {invoices.length ? invoices.slice(-6).reverse().map((o) => (
-              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ORDER_ROW_STYLE, overflow: 'hidden' }} onClick={() => navigate('/dashboard/billing')}>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="body2" fontFamily="monospace" fontWeight={700} noWrap>{o.no}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>{outletOf(o.outletId)} • {o.date}</Typography>
-                </Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                  <Typography variant="body2" fontWeight={700} noWrap>{formatRupiah(o.total)}</Typography>
-                  <StatusChip kind="paid" status={o.paid ? 'yes' : 'no'} />
-                </Stack>
-              </Stack>
-            )) : <EmptyState message="Belum ada invoice dari order yang disetujui." />}
-          </CardContent>
-        </Card>
-      </Box>
-    );
-  }
+  const stats = useMemo(() => {
+    const totalOmzet = orders.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0);
+    const orderSelesai = orders.filter((o) => ['Selesai', 'Terkirim', 'Lunas', 'completed'].includes(o.status)).length;
+    const taskSelesai = tasks.filter((t) => ['Selesai', 'Completed', 'done'].includes(t.status)).length;
+    const totalToko = prospects.length + audits.length;
 
-  /* ===== Tampilan Admin / Supervisor ===== */
-  const recentOrders = [...db.orders].reverse().slice(0, 6);
-  const activeSales = db.sales.filter((s) => s.status === 'active');
-  const pendingQuotes = (db.quotations || []).filter((qt) => qt.status === 'pending_approval');
-  const violationsToday = (db.violations || []).filter((v) => v.date === today);
+    return {
+      omzet: totalOmzet,
+      orderCount: orders.length,
+      orderSuccessRate: orders.length ? Math.round((orderSelesai / orders.length) * 100) : 0,
+      taskProgress: tasks.length ? Math.round((taskSelesai / tasks.length) * 100) : 0,
+      totalToko
+    };
+  }, [orders, tasks, audits, prospects]);
+
+  const recentOrders = useMemo(() => {
+    return [...orders].slice(0, 5);
+  }, [orders]);
+
+  const recentAudits = useMemo(() => {
+    return [...audits].slice(0, 5);
+  }, [audits]);
 
   return (
-    <Box>
-      <PageHeader title="Dashboard" subtitle={`Ringkasan operasional penjualan lapangan — ${today}`} />
+    <Box sx={{ width: '100%' }}>
+      <PageHeader
+        title="Ringkasan Operasional Sales"
+        subtitle="Pantau kinerja penjualan, progres kunjungan lapangan, dan pemantauan toko secara terpusat"
+      />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', lg: 'repeat(6, 1fr)' }, gap: 1.5, mb: 2 }}>
-        <StatCard icon={<DirectionsRunRoundedIcon />} value={activeSales.length} label="Sales aktif" />
-        <StatCard icon={<StorefrontRoundedIcon />} value={db.outlets.filter((o) => o.status === 'active').length} label="Outlet aktif" color="secondary" />
-        <StatCard icon={<TaskAltRoundedIcon />} value={`${doneToday}/${tasksToday.length}`} label="Tugas selesai" color="success" />
-        <StatCard icon={<ReceiptLongRoundedIcon />} value={ordersToday.length} label="Order hari ini" color="warning" />
-        <StatCard icon={<ScheduleRoundedIcon />} value={pending.length} label="Menunggu" color="error" />
-        <StatCard icon={<PaymentsRoundedIcon />} value={formatRupiah(ordersToday.reduce((s, o) => s + o.total, 0))} label="Nilai order hari ini" />
-      </Box>
+      {/* Grid Kartu Metrik Utama */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<TrendingUpOutlinedIcon />}
+            value={`Rp ${stats.omzet.toLocaleString('id-ID')}`}
+            label="Total Estimasi Omzet"
+            subtitle="Akumulasi seluruh Sales Order aktif"
+            color="primary"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<ShoppingCartOutlinedIcon />}
+            value={stats.orderCount}
+            label="Total Sales Order"
+            subtitle={`${stats.orderSuccessRate}% pesanan telah terselesaikan`}
+            color="success"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<AssignmentOutlinedIcon />}
+            value={`${stats.taskProgress}%`}
+            label="Tugas & Kunjungan Sales"
+            subtitle="Persentase penyelesaian agenda rute"
+            color="info"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<StoreOutlinedIcon />}
+            value={stats.totalToko}
+            label="Basis Toko & Prospek"
+            subtitle="Total toko teraudit & prospek baru"
+            color="warning"
+          />
+        </Grid>
+      </Grid>
 
-      {/* ===== Perlu Tindakan: antrean yang menunggu keputusan ===== */}
-      <Card sx={{ mb: 2 }}>
-        <CardHeader
-          avatar={<Avatar sx={{ bgcolor: 'warning.main', width: 32, height: 32 }}><PendingActionsRoundedIcon sx={{ fontSize: 18 }} /></Avatar>}
-          title="Perlu Tindakan"
-          titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}
-          subheader="Antrean pekerjaan yang menunggu keputusan Anda"
-        />
-        <CardContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5 }}>
-            <ActionTile
-              icon={<PendingActionsRoundedIcon sx={{ fontSize: 16 }} />} color="warning"
-              title="Order menunggu approval" count={pending.length}
-              preview={pending.length ? `${pending[0].no} • ${outletOf(pending[0].outletId)}` : 'Tidak ada antrean'}
-              onClick={() => navigate('/dashboard/orders')}
+      {/* Konten 2 Kolom: Order Terbaru & Progres Sales */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        {/* Kolom Kiri: Tabel Order Terbaru */}
+        <Grid item xs={12} lg={8}>
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardSectionHeader
+              title="Sales Order Terbaru"
+              action={
+                <Tooltip title="Buka Halaman Transaksi Order">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => navigate('/dashboard/transaksi/order')}
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    <ArrowForwardOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              }
             />
-            <ActionTile
-              icon={<PercentRoundedIcon sx={{ fontSize: 16 }} />} color="warning"
-              title="Quotation approval" count={pendingQuotes.length}
-              preview={pendingQuotes.length ? `${pendingQuotes[0].no} • ${outletOf(pendingQuotes[0].outletId)}` : 'Tidak ada antrean'}
-              onClick={() => navigate('/dashboard/quotations')}
+            <TableContainer sx={{ flexGrow: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>No. Order / Toko</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Sales / Waktu</TableCell>
+                    <TableCell sx={{ fontWeight: 700, textAlign: 'right' }}>Total Nilai</TableCell>
+                    <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {recentOrders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
+                        Belum ada transaksi sales order yang tercatat.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    recentOrders.map((ord, idx) => (
+                      <TableRow key={ord.id || idx} hover>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {ord.nomor || `ORD-${ord.id}`}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                            {ord.namaToko || ord.customer || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {ord.sales || ord.salesName || '-'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                            {ord.tanggal || ord.date || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ textAlign: 'right', fontWeight: 700 }}>
+                          Rp {Number(ord.total || 0).toLocaleString('id-ID')}
+                        </TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          <StatusChip kind="order" status={ord.status || 'Draft'} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Card>
+        </Grid>
+
+        {/* Kolom Kanan: Ringkasan Kunjungan & Audit */}
+        <Grid item xs={12} lg={4}>
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardSectionHeader
+              title="Aktivitas Audit Toko Terakhir"
+              action={
+                <Tooltip title="Lihat Seluruh Audit">
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={() => navigate('/dashboard/audit/kualifikasi')}
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    <ArrowForwardOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              }
             />
-            <ActionTile
-              icon={<WarningAmberRoundedIcon sx={{ fontSize: 16 }} />} color="error"
-              title="Pelanggaran GPS hari ini" count={violationsToday.length}
-              preview={violationsToday.length ? `${outletOf(violationsToday[0].outletId)} • ${violationsToday[0].type === 'area' ? 'luar wilayah' : 'luar radius'}` : 'Tidak ada pelanggaran'}
-              onClick={() => navigate('/dashboard/gps')}
-            />
-          </Box>
-        </CardContent>
+            <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {recentAudits.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+                  <Typography variant="body2">Belum ada data audit toko fisik.</Typography>
+                </Box>
+              ) : (
+                recentAudits.map((item, i) => (
+                  <Box
+                    key={item.id || i}
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0.75,
+                      bgcolor: 'background.paper'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {item.namaToko || item.name || '-'}
+                      </Typography>
+                      <StatusChip kind="prospect" status={item.statusLead || item.status || 'Prospek'} />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Auditor: {item.auditor || item.salesName || '-'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        Skor: {item.skor || item.score || 0}/100
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min(item.skor || item.score || 0, 100)}
+                      sx={{ height: 4, borderRadius: 2 }}
+                    />
+                  </Box>
+                ))
+              )}
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Peringatan Pelanggaran Wilayah / Geofencing */}
+      <Card sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+          <WarningAmberOutlinedIcon color="warning" />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            Informasi Kepatuhan Rute & Geofencing Sales
+          </Typography>
+        </Box>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Seluruh koordinat GPS sales diperbarui setiap 30 detik saat jam operasional. Petugas lapangan yang berada di luar toleransi radius kunjungan (200 meter dari toko) akan otomatis ditandai sebagai deviasi rute pada modul Live Monitoring.
+        </Typography>
       </Card>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { lg: '1.3fr 1fr' }, gap: 2 }}>
-        <Card>
-          <CardHeader
-            title="Progres Tugas per Sales (Hari Ini)"
-            titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}
-            action={user.role === 'supervisor' && (
-              <Button size="small" onClick={() => navigate('/dashboard/tasks')} endIcon={<ArrowForwardRoundedIcon />}>Kelola Jadwal</Button>
-            )}
-          />
-          <CardContent>
-            {activeSales.map((s) => {
-              const list = tasksToday.filter((t) => t.salesId === s.id);
-              const done = list.filter((t) => t.status === 'done').length;
-              const pct = list.length ? Math.round((done / list.length) * 100) : 0;
-              return (
-                <Box key={s.id} sx={{ mb: 1.75, '&:last-child': { mb: 0 } }}>
-                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                    <Typography variant="body2" fontWeight={700}>{s.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{done}/{list.length} • {pct}%</Typography>
-                  </Stack>
-                  <LinearProgress variant="determinate" value={pct} sx={{ height: 8, borderRadius: 99 }} />
-                </Box>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Order Terbaru"
-            titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}
-            action={<Button size="small" onClick={() => navigate('/dashboard/orders')} endIcon={<ArrowForwardRoundedIcon />}>Lihat Semua</Button>}
-          />
-          <CardContent>
-            {recentOrders.length ? recentOrders.map((o) => (
-              <Stack key={o.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ ...ORDER_ROW_STYLE, overflow: 'hidden' }} onClick={() => navigate('/dashboard/orders')}>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="body2" fontFamily="monospace" fontWeight={700} noWrap>{o.no}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>{outletOf(o.outletId)} • {o.date}</Typography>
-                </Box>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                  <Typography variant="body2" fontWeight={700} noWrap>{formatRupiah(o.total)}</Typography>
-                  <StatusChip kind="order" status={o.status}	 />
-                </Stack>
-              </Stack>
-            )) : <EmptyState message="Belum ada order." />}
-          </CardContent>
-        </Card>
-      </Box>
     </Box>
   );
 }

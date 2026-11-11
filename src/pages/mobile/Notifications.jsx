@@ -11,7 +11,7 @@ import Typography from '@mui/material/Typography';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
 
-import EmptyState from '../../components/ui/EmptyState';
+import EmptyState from '../../components/mobile/EmptyStateMobile';
 import { useAuth } from '../../store/AuthContext';
 import { useDb } from '../../store/DbContext';
 

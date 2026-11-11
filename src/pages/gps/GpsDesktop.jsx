@@ -1,315 +1,260 @@
-import { useEffect, useState } from 'react';
-import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import Chip from '@mui/material/Chip';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
-import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
-import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
-import StopCircleRoundedIcon from '@mui/icons-material/StopCircleRounded';
-import WhereToVoteRoundedIcon from '@mui/icons-material/WhereToVoteRounded';
-import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
-
-import LeafletMap from '../../components/map/LeafletMap';
-import StatCard from '../../components/ui/StatCard';
-import StatusChip from '../../components/ui/StatusChip';
+import React, { useState, useMemo } from 'react';
+import {
+  Box,
+  Grid,
+  Card,
+  Typography,
+  TextField,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  Chip,
+  Button,
+  Divider,
+  Tooltip,
+  IconButton
+} from '@mui/material';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
+import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
 import PageHeader from '../../components/ui/PageHeader';
-import EmptyState from '../../components/ui/EmptyState';
-import { useAuth } from '../../store/AuthContext';
-import { useDb } from '../../store/DbContext';
-import { useToast } from '../../components/ui/ToastProvider';
-import { todayISO, formatDistance } from '../../utils/helpers';
-import { currentPosSim, optimizeRoute, checkinTrail } from '../../utils/gpsUtils';
+import { CardSectionHeader } from '../../components/ui/DetailGrid';
+import LeafletMap from '../../components/map/LeafletMap';
+import StatusChip from '../../components/ui/StatusChip';
 
-/* RBAC #5: GPS Route Planning — Admin & Supervisor Full, Finance tanpa akses */
-export default function GpsDesktop() {
-  const { user } = useAuth();
-  if (!['supervisor', 'admin'].includes(user.role)) {
-    return (
-      <Alert severity="error">
-        Akses ditolak — modul <b>GPS Route Planning</b> hanya untuk <b>Supervisor &amp; Admin</b>.
-      </Alert>
-    );
+// Data simulasi posisi GPS sales lapangan
+const INITIAL_SALES_LOCATIONS = [
+  {
+    id: 'SLS-001',
+    name: 'Budi Santoso',
+    wilayah: 'Yogyakarta Kota',
+    status: 'Bergerak',
+    lat: -7.7956,
+    lng: 110.3695,
+    lastUpdate: '10 detik yang lalu',
+    tokoTujuan: 'Toko Berkah Malioboro',
+    dalamRadius: true
+  },
+  {
+    id: 'SLS-002',
+    name: 'Dewi Lestari',
+    wilayah: 'Sleman Timur',
+    status: 'Kunjungan Toko',
+    lat: -7.7681,
+    lng: 110.3789,
+    lastUpdate: '1 menit yang lalu',
+    tokoTujuan: 'Minimarket Barokah Gejayan',
+    dalamRadius: true
+  },
+  {
+    id: 'SLS-003',
+    name: 'Rian Pratama',
+    wilayah: 'Bantul Utara',
+    status: 'Di Luar Radius',
+    lat: -7.8285,
+    lng: 110.3541,
+    lastUpdate: '3 menit yang lalu',
+    tokoTujuan: 'Grosir Sembako Bantul',
+    dalamRadius: false
+  },
+  {
+    id: 'SLS-004',
+    name: 'Siti Rahma',
+    wilayah: 'Kulon Progo',
+    status: 'Offline',
+    lat: -7.8592,
+    lng: 110.1584,
+    lastUpdate: '25 menit yang lalu',
+    tokoTujuan: 'Outlet Sentolo',
+    dalamRadius: true
   }
-  return <GpsMonitor />;
-}
+];
 
-function GpsMonitor() {
-  const { user } = useAuth();
-  const { db } = useDb();
-  const { toast } = useToast();
+export default function GpsDesktop() {
+  const [salesList] = useState(INITIAL_SALES_LOCATIONS);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Semua');
+  const [selectedSales, setSelectedSales] = useState(INITIAL_SALES_LOCATIONS[0]);
 
-  const isSupervisor = user.role === 'supervisor';
-  const spv = isSupervisor
-    ? (db.supervisors || []).find(
-        (s) => (user.supervisorId && s.id === user.supervisorId) ||
-               String(s.email || '').trim().toLowerCase() === String(user.email || '').trim().toLowerCase()
-      )
-    : null;
-  const salesList = (db.sales || []).filter(
-    (s) => s.status === 'active' && (!isSupervisor || (spv && s.supervisorId === spv.id))
-  );
+  // Filter daftar sales
+  const filteredSales = useMemo(() => {
+    return salesList.filter((s) => {
+      const matchSearch =
+        !search ||
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.wilayah.toLowerCase().includes(search.toLowerCase());
 
-  /* Semua hooks di atas */
-  const [salesId, setSalesId] = useState(() => salesList[0]?.id || 0);
-  const [date, setDate] = useState(todayISO());
-  const [liveOn, setLiveOn] = useState(false);
-  const [liveIdx, setLiveIdx] = useState(0);
+      const matchStatus =
+        filterStatus === 'Semua' ||
+        (filterStatus === 'Aktif' && ['Bergerak', 'Kunjungan Toko'].includes(s.status)) ||
+        (filterStatus === 'Pelanggaran' && !s.dalamRadius) ||
+        (filterStatus === 'Offline' && s.status === 'Offline');
 
-  const sales = salesList.find((s) => s.id === salesId) || salesList[0] || null;
+      return matchSearch && matchStatus;
+    });
+  }, [salesList, search, filterStatus]);
 
-  const tasksForDate = (db.tasks || []).filter(
-    (t) => t.salesId === sales?.id && t.date === date && t.status !== 'failed'
-  );
-  const stopOutlets = [...new Set(tasksForDate.map((t) => t.outletId))]
-    .map((id) => (db.outlets || []).find((o) => o.id === id))
-    .filter(Boolean);
+  // Siapkan marker untuk LeafletMap
+  const mapMarkers = useMemo(() => {
+    return filteredSales.map((s) => ({
+      id: s.id,
+      lat: s.lat,
+      lng: s.lng,
+      kind: s.dalamRadius ? (s.status === 'Bergerak' ? 'num' : 'outlet') : 'num',
+      label: s.name.charAt(0),
+      title: s.name,
+      subtitle: `${s.status} • ${s.wilayah}`,
+      tooltip: `${s.name} — ${s.status}`,
+      details: {
+        'Toko Tujuan': s.tokoTujuan,
+        'Pembaruan Terakhir': s.lastUpdate,
+        'Kepatuhan Rute': s.dalamRadius ? 'Dalam Radius (Aman)' : 'Di Luar Radius Toleransi!'
+      },
+      color: !s.dalamRadius ? 'error' : s.status === 'Offline' ? 'default' : s.status === 'Bergerak' ? 'primary' : 'success'
+    }));
+  }, [filteredSales]);
 
-  const checkins = checkinTrail(db, sales?.id, date); /* #77/#78: track history */
-  const checkedInIds = new Set(checkins.map((c) => c.outletId));
-  const openStops = stopOutlets.filter((o) => !checkedInIds.has(o.id));
-  const doneStops = stopOutlets.filter((o) => checkedInIds.has(o.id));
-
-  const lastCk = checkins[checkins.length - 1];
-  const basePos = lastCk
-    ? { lat: lastCk.lat, lng: lastCk.lng, label: `Check-in terakhir ${lastCk.ts}` }
-    : { ...currentPosSim(db, sales?.id), label: 'Posisi simulasi (belum ada check-in)' };
-
-  const route = openStops.length ? optimizeRoute(basePos, openStops) : [];
-  const routeCoords = [[basePos.lat, basePos.lng], ...route.map((r) => [r.stop.lat, r.stop.lng])];
-  const trailCoords = checkins.map((c) => [c.lat, c.lng]);
-  const livePath = routeCoords.length > 1
-    ? routeCoords
-    : (trailCoords.length > 1 ? trailCoords : [[basePos.lat, basePos.lng]]);
-
-  /* #77: simulasi live tracking — marker bergerak menyusuri rute */
-  useEffect(() => {
-    if (!liveOn) return undefined;
-    if (liveIdx >= livePath.length - 1) {
-      setLiveOn(false);
-      toast('Simulasi live: sales telah menyelesaikan seluruh rute hari ini.', 'info');
-      return undefined;
-    }
-    const t = setTimeout(() => setLiveIdx((i) => i + 1), 2200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveOn, liveIdx]);
-
-  useEffect(() => { setLiveOn(false); setLiveIdx(0); }, [salesId, date]);
-
-  const livePos = liveOn && livePath[liveIdx]
-    ? { lat: livePath[liveIdx][0], lng: livePath[liveIdx][1] }
-    : basePos;
-
-  const violations = sales
-    ? (db.violations || []).filter((v) => v.salesId === sales.id).slice().reverse()
-    : [];
-  const doneTasks = tasksForDate.filter((t) => t.status === 'done').length;
-
-  const circles = (db.areas || []).map((a) => ({
-    lat: a.lat, lng: a.lng, radius: (a.radiusKm || 5) * 1000,
-    color: a.id === sales?.areaId ? '#2563eb' : '#16a34a',
-    label: `Area: ${a.name} (radius ${a.radiusKm} km)`,
-  }));
-  const markers = [
-    ...(sales ? [{ lat: livePos.lat, lng: livePos.lng, kind: 'me', tooltip: `${sales.name} — ${liveOn ? 'LIVE' : basePos.label}` }] : []),
-    ...(db.outlets || []).filter((o) => o.status === 'active').map((o) => ({
-      lat: o.lat, lng: o.lng, kind: 'outlet', tooltip: o.name,
-    })),
-    ...route.map((r, i) => ({
-      lat: r.stop.lat, lng: r.stop.lng, kind: 'num', label: String(i + 1),
-      tooltip: `${i + 1}. ${r.stop.name}`,
-    })),
-    ...doneStops.map((o) => ({
-      lat: o.lat, lng: o.lng, kind: 'num', label: '✓', done: true,
-      tooltip: `${o.name} — sudah check-in`,
-    })),
-  ];
-  const lines = [
-    ...(routeCoords.length > 1
-      ? [{ coords: routeCoords, color: '#2563eb', weight: 3, dashArray: '7 7', tooltip: 'Rute terencana' }]
-      : []),
-    ...(trailCoords.length > 1
-      ? [{ coords: trailCoords, color: '#64748b', weight: 2, tooltip: 'Riwayat perjalanan / check-in' }]
-      : []),
-  ];
+  const center = selectedSales ? { lat: selectedSales.lat, lng: selectedSales.lng } : { lat: -7.7956, lng: 110.3695 };
 
   return (
-    <Box>
+    <Box sx={{ width: '100%' }}>
       <PageHeader
-        title="GPS Route Planning — Live Monitoring"
-        subtitle="Pemantauan tim sales: penyebaran outlet, batas area geofencing, rute & riwayat perjalanan, indikator status kunjungan."
+        title="Live GPS Tracking & Geofencing"
+        subtitle="Pemantauan posisi waktu-nyata sales lapangan, rute perjalanan, dan verifikasi radius kunjungan toko"
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshOutlinedIcon />}
+            onClick={() => {}}
+            sx={{ borderRadius: 1 }}
+          >
+            Segarkan Data
+          </Button>
+        }
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 1.5, mb: 2 }}>
-        <StatCard icon={<TaskAltRoundedIcon />} value={`${doneTasks}/${tasksForDate.length}`} label={`Tugas selesai (${date})`} color="success" />
-        <StatCard icon={<WhereToVoteRoundedIcon />} value={checkins.length} label="Check-in tercatat" color="info" />
-        <StatCard icon={<WarningAmberRoundedIcon />} value={violations.length} label="Pelanggaran (wilayah/radius)" color="error" />
-      </Box>
+      <Grid container spacing={2.5}>
+        {/* PANEL KIRI: Daftar Petugas Sales */}
+        <Grid item xs={12} md={4.5} lg={4}>
+          <Card sx={{ height: '720px', display: 'flex', flexDirection: 'column' }}>
+            <CardSectionHeader
+              title="Daftar Sales Lapangan"
+              action={
+                <Chip
+                  label={`${filteredSales.length} Petugas`}
+                  size="small"
+                  sx={{ fontWeight: 700, borderRadius: '6px' }}
+                />
+              }
+            />
 
-      {/* ============ Toolbar: Sales + Tanggal + Simulasi Live ============ */}
-<Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5, mb: 2 }}>
-  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'text.secondary', pr: 0.75 }}>
-      <FilterListRoundedIcon fontSize="small" />
-      <Typography variant="subtitle2" fontWeight={700}>Filter</Typography>
-    </Stack>
+            {/* Pencarian & Filter Cepat */}
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <TextField
+                size="small"
+                placeholder="Cari nama sales atau wilayah..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  )
+                }}
+                fullWidth
+              />
 
-    <TextField
-      size="small"
-      select
-      label="Sales"
-      value={sales ? String(sales.id) : ''}
-      onChange={(e) => setSalesId(Number(e.target.value))}
-      sx={{ width: 210 }}
-    >
-      {salesList.length ? salesList.map((s) => (
-        <MenuItem key={s.id} value={String(s.id)}>{s.name} — {(db.areas || []).find((a) => a.id === s.areaId)?.name || ''}</MenuItem>
-      )) : (
-        <MenuItem value="" disabled>Tidak ada sales bawahan aktif</MenuItem>
-      )}
-    </TextField>
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                {['Semua', 'Aktif', 'Pelanggaran', 'Offline'].map((st) => (
+                  <Chip
+                    key={st}
+                    label={st}
+                    size="small"
+                    onClick={() => setFilterStatus(st)}
+                    color={filterStatus === st ? 'primary' : 'default'}
+                    variant={filterStatus === st ? 'filled' : 'outlined'}
+                    sx={{ fontWeight: 600, borderRadius: '6px', cursor: 'pointer' }}
+                  />
+                ))}
+              </Box>
+            </Box>
 
-    <TextField
-      size="small"
-      type="date"
-      label="Tanggal"
-      value={date}
-      InputLabelProps={{ shrink: true }}
-      onChange={(e) => setDate(e.target.value || todayISO())}
-      sx={{ width: 170 }}
-    />
+            {/* List Petugas Sales */}
+            <List sx={{ flexGrow: 1, overflowY: 'auto', p: 0 }}>
+              {filteredSales.map((s) => {
+                const isSelected = selectedSales?.id === s.id;
+                return (
+                  <ListItem key={s.id} disablePadding divider>
+                    <ListItemButton
+                      onClick={() => setSelectedSales(s)}
+                      selected={isSelected}
+                      sx={{
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: 1,
+                        bgcolor: isSelected ? 'action.selected' : 'inherit'
+                      }}
+                    >
+                      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {s.name}
+                        </Typography>
+                        <StatusChip kind="gps" status={s.status} size="small" />
+                      </Box>
 
-    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-      {stopOutlets.length} outlet terjadwal • {checkins.length} check-in
-    </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Wilayah: <strong>{s.wilayah}</strong> • Menuju: {s.tokoTujuan}
+                      </Typography>
 
-    <Button
-      variant={liveOn ? 'outlined' : 'contained'}
-      color={liveOn ? 'error' : 'primary'}
-      startIcon={liveOn ? <StopCircleRoundedIcon /> : <PlayArrowRoundedIcon />}
-      onClick={() => { setLiveIdx(0); setLiveOn((v) => !v); }}
-      disabled={livePath.length < 2}
-    >
-      {liveOn ? 'Hentikan Simulasi' : 'Mulai Simulasi Live'}
-    </Button>
-  </Stack>
-</Paper>
+                      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                          Terakhir: {s.lastUpdate}
+                        </Typography>
+                      </Box>
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Card>
+        </Grid>
 
-      <LeafletMap height={380} center={basePos} markers={markers} lines={lines} circles={circles} />
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, mb: 2 }}>
-        Posisi: <span style={{ fontFamily: 'monospace' }}>{livePos.lat.toFixed(5)}, {livePos.lng.toFixed(5)}</span> •
-        sumber: {liveOn ? 'simulasi live' : basePos.label}. Peta OpenStreetMap + Leaflet.js.
-      </Typography>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { lg: '1.3fr 1fr' }, gap: 2 }}>
-        {/* Status kunjungan */}
-        <Card>
-          <CardHeader title={`Status Kunjungan — ${sales?.name || '-'} (${date})`} titleTypographyProps={{ fontSize: 15, fontWeight: 700 }} />
-          <CardContent>
-            {route.map((r, i) => {
-              const t = tasksForDate.find((x) => x.outletId === r.stop.id);
-              return (
-                <Stack key={r.stop.id} direction="row" spacing={1.25} alignItems="center"
-                  sx={{ py: 0.75, borderBottom: '1px dashed', borderColor: 'divider' }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', width: 28, height: 28, fontSize: 13, fontWeight: 800 }}>{i + 1}</Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={700} noWrap>{r.stop.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Belum check-in • jarak {formatDistance(r.dist)}
-                    </Typography>
-                  </Box>
-                  <StatusChip kind="task" status={t?.status || 'pending'} />
-                </Stack>
-              );
-            })}
-            {doneStops.map((o) => {
-              const ck = checkins.filter((c) => c.outletId === o.id).pop();
-              const t = tasksForDate.find((x) => x.outletId === o.id);
-              return (
-                <Stack key={o.id} direction="row" spacing={1.25} alignItems="center"
-                  sx={{ py: 0.75, borderBottom: '1px dashed', borderColor: 'divider' }}>
-                  <Avatar sx={{ bgcolor: 'success.main', width: 28, height: 28 }}>
-                    <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={700} noWrap>{o.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Check-in {ck?.ts || '-'} • {formatDistance(ck?.distM || 0)}
-                    </Typography>
-                  </Box>
-                  <StatusChip kind="task" status={t?.status || 'done'} />
-                </Stack>
-              );
-            })}
-            {!stopOutlets.length && <EmptyState message="Tidak ada rute pada tanggal ini." />}
-          </CardContent>
-        </Card>
-
-        {/* Pelanggaran */}
-        <Card>
-          <CardHeader
-          avatar={<Avatar sx={{ bgcolor: 'error.main', width: 32, height: 32 }}><WarningAmberRoundedIcon sx={{ fontSize: 18 }} /></Avatar>} title="Pelanggaran Wilayah / Radius" titleTypographyProps={{ fontSize: 15, fontWeight: 700 }}/>
-          <CardContent sx={{ p: 0 }}>
-            {violations.length ? (
-              <TableContainer component={Paper} elevation={0}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Waktu</TableCell><TableCell>Outlet</TableCell><TableCell>Jenis</TableCell>
-                      <TableCell align="right">Jarak</TableCell><TableCell>Catatan</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {violations.slice(0, 10).map((v) => (
-                      <TableRow key={v.id}>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{v.date} {v.ts?.slice(11) || ''}</TableCell>
-                        <TableCell>
-                          <Box title={(db.outlets || []).find((o) => o.id === v.outletId)?.name || '-'} sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {(db.outlets || []).find((o) => o.id === v.outletId)?.name || '-'}
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip size="small" color={v.type === 'area' ? 'error' : 'warning'}
-                            label={v.type === 'area' ? 'Luar Wilayah' : 'Luar Radius'} />
-                        </TableCell>
-                        <TableCell align="right">{formatDistance(v.distM || 0)}</TableCell>
-                        <TableCell>
-                          <Typography variant="caption" color="text.secondary">{v.note || '-'}</Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : <EmptyState message="Tidak ada pelanggaran tercatat." />}
-          </CardContent>
-        </Card>
-      </Box>
-
-      <Alert severity="info" sx={{ mt: 2 }}>
-        Posisi sales dikirim berkala selama jam kerja untuk live tracking &amp; riwayat perjalanan;
-        Supervisor dapat memilih tim &amp; tanggal untuk melihat plot historis. Check-in di luar batas Area Kerja /
-        radius outlet otomatis dicatat sebagai <b>flag pelanggaran</b> ke database. Deteksi Fake GPS pada
-        browser web bersifat terbatas — validasi mock-location definitif dilakukan di sisi backend/OS.
-      </Alert>
+        {/* PANEL KANAN: Peta Leaflet Interaktif */}
+        <Grid item xs={12} md={7.5} lg={8}>
+          <Card sx={{ height: '720px', display: 'flex', flexDirection: 'column' }}>
+            <CardSectionHeader
+              title="Peta Sebaran Real-Time & Geofencing"
+              action={
+                selectedSales && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<MyLocationOutlinedIcon />}
+                    onClick={() => {}}
+                    sx={{ borderRadius: 1 }}
+                  >
+                    Fokus: {selectedSales.name}
+                  </Button>
+                )
+              }
+            />
+            <Box sx={{ flexGrow: 1, position: 'relative' }}>
+              <LeafletMap
+                center={center}
+                zoom={14}
+                markers={mapMarkers}
+                height="100%"
+              />
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

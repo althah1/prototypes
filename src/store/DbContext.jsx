@@ -3,7 +3,7 @@ import { seed } from '../data/seed';
 import { nowStamp, todayISO } from '../utils/helpers';
 import { buildGudangDetails } from '../utils/gudangUtils';
 
-const STORAGE_KEY = 'sfa_react_db_v1'; // beda dari prototype vanilla agar tidak bentrok
+const STORAGE_KEY = 'sfa_react_db_v2'; // beda dari prototype vanilla agar tidak bentrok
 const DbContext = createContext(null);
 
 /* Pastikan tabel gudangDetails ada (murni — tanpa mutate) */
@@ -72,11 +72,12 @@ export function DataProvider({ children }) {
       return true;
     });
 
-  /* Nomor dokumen unik otomatis: ORD-/QT-/AUD- + tanggal + urutan */
-  const nextNo = (prefix, table) => {
+  /* Nomor dokumen unik otomatis sesuai standar FSD: PREFIX-YYYYMMDD-[KodeSales]-001 */
+  const nextNo = (prefix, table, salesId = null) => {
     const t = todayISO();
     const count = (dataRef.current[table] || []).filter((r) => String(r.date || '').startsWith(t)).length + 1;
-    return `${prefix}-${t.replace(/-/g, '')}-${String(count).padStart(3, '0')}`;
+    const salesPart = salesId ? `-SAL-${String(salesId).padStart(3, '0')}` : '';
+    return `${prefix}-${t.replace(/-/g, '')}${salesPart}-${String(count).padStart(3, '0')}`;
   };
 
   const reset = () => persist(hydrateGudang(seed()));
