@@ -21,7 +21,7 @@ import { useAuth } from '../../store/AuthContext';
 const DEMO_ACCOUNTS = [
   { label: 'Admin', email: 'admin@sfa.co.id', pass: 'Admin123' },
   { label: 'Supervisor', email: 'supervisor@sfa.co.id', pass: 'Super123' },
-  { label: 'Sales', email: 'sales@sfa.co.id', pass: 'Sales123' },
+  { label: 'Sales', email: 'sales1@sfa.co.id', pass: 'Sales123' },
   { label: 'Finance', email: 'finance@sfa.co.id', pass: 'Finance123' },
 ];
 

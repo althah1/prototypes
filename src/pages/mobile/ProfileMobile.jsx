@@ -59,30 +59,29 @@ export default function ProfileMobile() {
   }
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 640, width: '100%', mx: 0, pb: 4, alignItems: 'stretch' }}>
-      <Typography variant="h6" fontWeight={800}>
+    <Stack spacing={1.5} sx={{ maxWidth: 640, width: '100%', mx: 0, pb: 3, alignItems: 'stretch' }}>
+      <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
         Profil Saya
       </Typography>
 
-      {/* Kartu Profil Utama — Mengikuti Standar Master Perusahaan */}
-      <Card elevation={0} sx={{ maxWidth: 640, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.5 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
             <Avatar
               variant="rounded"
               sx={{
-                width: 64,
-                height: 64,
-                borderRadius: 2,
+                width: 52,
+                height: 52,
+                borderRadius: 1,
                 bgcolor: 'primary.main',
-                fontSize: 22,
+                fontSize: 18,
                 fontWeight: 800,
               }}
             >
               {initials(user.name)}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800, overflowWrap: 'anywhere' }} noWrap>
+              <Typography variant="body2" sx={{ fontWeight: 800, overflowWrap: 'anywhere', fontSize: 15 }} noWrap>
                 {user.name}
               </Typography>
               <Chip
@@ -90,21 +89,21 @@ export default function ProfileMobile() {
                 variant="outlined"
                 color="primary"
                 label={roleLabel}
-                sx={{ mt: 0.5, fontWeight: 650 }}
+                sx={{ mt: 0.3, fontWeight: 650, fontSize: '0.65rem', borderRadius: 1 }}
               />
             </Box>
           </Stack>
 
           <List dense disablePadding>
             {rows.map((r) => (
-              <ListItem key={r.label} disableGutters sx={{ py: 0.9, borderBottom: '1px dashed', borderColor: 'divider' }}>
+              <ListItem key={r.label} disableGutters sx={{ py: 0.8, borderBottom: '1px dashed', borderColor: 'divider' }}>
                 <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>{r.icon}</ListItemIcon>
                 <ListItemText
                   primary={r.label}
                   secondary={r.value}
-                  primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
+                  primaryTypographyProps={{ variant: 'caption', color: 'text.secondary', sx: { fontSize: 10.5, fontWeight: 700 } }}
                   secondaryTypographyProps={{
-                    sx: { fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere', wordBreak: 'break-word' },
+                    sx: { fontWeight: 600, fontSize: 11.5, overflowWrap: 'anywhere', wordBreak: 'break-word' },
                   }}
                 />
               </ListItem>
@@ -113,14 +112,12 @@ export default function ProfileMobile() {
         </CardContent>
       </Card>
 
-      {/* Kartu Menu Riwayat Aktivitas (Khusus Mobile Sales) */}
       {isMobile && (
         <Card
           elevation={0}
           onClick={() => navigate('/app/activity')}
           sx={{
-            maxWidth: 640,
-            borderRadius: 2,
+            borderRadius: 1,
             border: '1px solid',
             borderColor: 'divider',
             cursor: 'pointer',
@@ -131,26 +128,26 @@ export default function ProfileMobile() {
             },
           }}
         >
-          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
+          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
               <Avatar
                 variant="rounded"
                 sx={{
                   bgcolor: '#eff6ff',
                   color: '#1d4ed8',
-                  width: 44,
-                  height: 44,
-                  borderRadius: 2,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 1,
                   border: '1px solid #bfdbfe',
                 }}
               >
                 <HistoryRoundedIcon />
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography fontWeight={750} fontSize={14}>
+                <Typography fontWeight={750} fontSize={13}>
                   Riwayat Aktivitas
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2, fontSize: 10 }}>
                   Timeline kunjungan toko, pesanan &amp; audit lapangan
                 </Typography>
               </Box>
@@ -160,15 +157,14 @@ export default function ProfileMobile() {
         </Card>
       )}
 
-      {/* Tombol Logout & Reset Data */}
-      <Stack spacing={1.5} sx={{ mt: 1 }}>
+      <Stack spacing={1} sx={{ mt: 1 }}>
         <Button
           variant="outlined"
           color="error"
           size="medium"
           startIcon={<LogoutRoundedIcon />}
           onClick={() => logout('Anda telah keluar dari sistem.')}
-          sx={{ borderRadius: 1.5, py: 1, fontWeight: 650, textTransform: 'none' }}
+          sx={{ borderRadius: 1, py: 0.8, fontWeight: 650, textTransform: 'none', fontSize: 12 }}
         >
           Keluar (Logout)
         </Button>
@@ -178,7 +174,7 @@ export default function ProfileMobile() {
           size="small"
           startIcon={<RestartAltRoundedIcon />}
           onClick={() => setOpenReset(true)}
-          sx={{ color: 'text.secondary', fontSize: '0.75rem', textTransform: 'none' }}
+          sx={{ color: 'text.secondary', fontSize: '0.7rem', textTransform: 'none' }}
         >
           Reset Data Prototype
         </Button>

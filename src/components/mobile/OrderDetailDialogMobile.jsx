@@ -215,7 +215,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
             m: { xs: 0, sm: 2 },
             width: { xs: '100%', sm: 'auto' },
             maxWidth: { xs: '100%', sm: 'md' },
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: { xs: 0, sm: 1 },
             borderTop: '1px solid',
             borderBottom: '1px solid',
             borderLeft: { xs: 'none', sm: '1px solid' },
@@ -226,7 +226,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
         }}
       >
         <DialogTitle sx={{ fontWeight: 800, pr: isMobile ? 6 : 3, position: 'relative', pb: 1, px: { xs: 2, sm: 3 } }}>
-          Detail Order — {order.no}
+          Detail Order
           {isMobile && (
             <IconButton
               onClick={onClose}
@@ -242,22 +242,22 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
         <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}>
           {/* Status Alerts */}
           {order.status === 'submitted' && (
-            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 1 }}>
               Menunggu persetujuan <b>Supervisor</b> — Admin &amp; Finance hanya dapat memantau data.
             </Alert>
           )}
           {order.status === 'rejected' && (
-            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 1 }}>
               Order ditolak Supervisor — proses tidak dilanjutkan.
             </Alert>
           )}
           {order.status === 'cancelled' && (
-            <Alert severity="error" icon={<BlockRoundedIcon fontSize="small" />} sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="error" icon={<BlockRoundedIcon fontSize="small" />} sx={{ mb: 2.5, borderRadius: 1 }}>
               Order dibatalkan — stok barang telah dikembalikan ke gudang penyimpanan.
             </Alert>
           )}
           {order.status === 'completed' && (
-            <Alert severity="success" icon={<CheckCircleRoundedIcon fontSize="small" />} sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="success" icon={<CheckCircleRoundedIcon fontSize="small" />} sx={{ mb: 2.5, borderRadius: 1 }}>
               Order selesai{order.paid ? ' dan pembayaran sudah lunas.' : ' — menunggu penyelesaian tagihan di modul Billing.'}
             </Alert>
           )}
@@ -284,10 +284,10 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
                     color="success"
                     icon={<PaymentsRoundedIcon />}
                     label={`Lunas — ${order.paidMethod || 'Terverifikasi'}`}
-                    sx={{ height: 22, fontWeight: 700 }}
+                    sx={{ height: 22, fontWeight: 700, borderRadius: 1 }}
                   />
                 ) : (
-                  <Chip size="small" variant="outlined" label="Belum Lunas (Modul Billing)" sx={{ height: 22 }} />
+                    <Chip size="small" variant="outlined" label="Belum Lunas (Modul Billing)" sx={{ height: 22, borderRadius: 1 }} />
                 )
               }
             />
@@ -315,7 +315,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
                   key={i.productId}
                   sx={{
                     p: 1.25,
-                    borderRadius: 1.5,
+                    borderRadius: 1,
                     border: '1px solid',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
@@ -351,7 +351,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
               ))}
             </Stack>
           ) : (
-            <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, mb: 2.5 }}>
+            <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, mb: 2.5 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell sx={{ fontWeight: 700 }}>Produk</TableCell>
@@ -397,7 +397,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
               },
               gap: 1.5,
               p: 1.5,
-              borderRadius: 1.5,
+              borderRadius: 1,
               bgcolor: 'action.hover',
               border: '1px solid',
               borderColor: 'divider',
@@ -427,11 +427,11 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
           </Box>
 
           {order.note && (
-            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1.5 }} icon={<NoteRoundedIcon fontSize="small" />}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }} icon={<NoteRoundedIcon fontSize="small" />}>
               <b>Catatan Pesanan:</b> {order.note}
             </Alert>
           )}
-          <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1.5 }} icon={<LockRoundedIcon fontSize="small" />}>
+          <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }} icon={<LockRoundedIcon fontSize="small" />}>
             Harga bersifat <b>snapshot</b> saat dokumen dibuat — perubahan katalog di kemudian hari tidak mengubah nilai pesanan ini.
           </Alert>
         </DialogContent>
@@ -493,7 +493,7 @@ export default function OrderDetailDialog({ open, orderId, onClose, canApprove =
         onClose={() => setRejectOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2 } }}
+        PaperProps={{ sx: { borderRadius: 1 } }}
       >
         <DialogTitle sx={{ fontWeight: 800 }}>Tolak Order — {order.no}</DialogTitle>
         <DialogContent dividers sx={{ overflowX: 'hidden' }}>

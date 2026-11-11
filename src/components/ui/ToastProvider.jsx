@@ -30,7 +30,7 @@ export function ToastProvider({ children }) {
             severity={t.severity}
             variant="filled"
             onClose={() => dismiss(t.id)}
-            sx={{ minWidth: 280, '& .MuiAlert-message': { fontSize: 14 } }}
+            sx={{ minWidth: 280, borderRadius: 1, '& .MuiAlert-message': { fontSize: 14 } }}
           >
             {t.message}
           </Alert>

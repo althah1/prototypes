@@ -20,9 +20,6 @@ export default function Notifications() {
   const { db, mutate } = useDb();
   const navigate = useNavigate();
 
-  /* Snapshot ID notifikasi yang belum terbaca SAAT HALAMAN DIBUKA —
-     penanda visual "BARU" bertahan selama kunjungan ini,
-     meski status terbaca di database sudah diperbarui. */
   const [newIds] = useState(() => new Set(
     (db.notifications || []).filter((n) => n.userId === user.id && !n.read).map((n) => n.id)
   ));
@@ -30,25 +27,23 @@ export default function Notifications() {
   const list = (db.notifications || []).filter((n) => n.userId === user.id).slice().reverse();
   const newCount = list.filter((n) => newIds.has(n.id)).length;
 
-  /* Tandai semua notifikasi sebagai terbaca saat halaman dibuka (badge lonceng ikut bersih) */
   useEffect(() => {
     if ((db.notifications || []).some((n) => n.userId === user.id && !n.read)) {
       mutate((d) => {
         (d.notifications || []).forEach((n) => { if (n.userId === user.id) n.read = true; });
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={1.25}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <IconButton onClick={() => navigate('/app')} aria-label="Kembali" sx={{ bgcolor: 'action.hover' }}>
           <ArrowBackRoundedIcon />
         </IconButton>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" fontWeight={800}>Notifikasi</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 15 }}>Notifikasi</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
             {newCount > 0 ? `${newCount} notifikasi baru` : 'Semua sudah terbaca'}
           </Typography>
         </Box>
@@ -59,20 +54,20 @@ export default function Notifications() {
         return (
           <Card key={n.id} elevation={0}
             sx={{
-              borderRadius: 2, border: '1px solid', borderColor: 'divider',
+              borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
               borderLeft: isNew ? '3px solid' : '1px solid',
               borderLeftColor: isNew ? 'primary.main' : 'divider',
             }}>
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                <Typography variant="body2" fontWeight={700}>{n.title}</Typography>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.75}>
+                <Typography variant="body2" fontWeight={700} sx={{ fontSize: 12.5 }}>{n.title}</Typography>
                 {isNew && (
                   <Chip size="small" color="primary" label="BARU"
-                    sx={{ height: 20, flexShrink: 0, '& .MuiChip-label': { fontSize: 10, fontWeight: 800, px: 0.75 } }} />
+                    sx={{ height: 18, flexShrink: 0, '& .MuiChip-label': { fontSize: 9, fontWeight: 800, px: 0.6 } }} />
                 )}
               </Stack>
-              <Typography variant="body2" color="text.secondary">{n.body}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>{n.createdAt}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11.5 }}>{n.body}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: 9.5 }}>{n.createdAt}</Typography>
             </CardContent>
           </Card>
         );

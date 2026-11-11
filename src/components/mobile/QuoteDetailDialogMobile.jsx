@@ -443,7 +443,7 @@ export default function QuoteDetailDialog({
             m: { xs: 0, sm: 2 },
             width: { xs: '100%', sm: 'auto' },
             maxWidth: { xs: '100%', sm: 'md' },
-            borderRadius: { xs: 0, sm: 2 },
+            borderRadius: { xs: 0, sm: 1 },
             borderTop: '1px solid',
             borderBottom: '1px solid',
             borderLeft: { xs: 'none', sm: '1px solid' },
@@ -462,7 +462,7 @@ export default function QuoteDetailDialog({
             px: { xs: 2, sm: 3 },
           }}
         >
-          Detail Quotation — {quote.no}
+          Detail Quotation
           {isMobile && (
             <IconButton
               onClick={onClose}
@@ -483,7 +483,7 @@ export default function QuoteDetailDialog({
             <Alert
               severity="error"
               icon={<EventBusyRoundedIcon fontSize="small" />}
-              sx={{ mb: 2.5, borderRadius: 1.5, border: '1px solid #fecaca' }}
+              sx={{ mb: 2.5, borderRadius: 1, border: '1px solid #fecaca' }}
             >
               <Typography variant="body2" fontWeight={750}>
                 Penawaran Telah Kadaluarsa
@@ -496,13 +496,13 @@ export default function QuoteDetailDialog({
           )}
 
           {quote.status === 'pending_approval' && (
-            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 1 }}>
               Menunggu persetujuan <b>Supervisor</b> sebelum dapat dikirimkan ke pelanggan.
               {overLimit ? ` Diskon ${maxDisc}% melebihi batas wewenang ${QUOTE_DISCOUNT_LIMIT}%.` : ''}
             </Alert>
           )}
           {quote.status === 'draft' && !isExpired && (
-            <Alert severity="info" sx={{ mb: 2.5, borderRadius: 1.5 }}>
+            <Alert severity="info" sx={{ mb: 2.5, borderRadius: 1 }}>
               Quotation masih draft — klik <b>Ajukan ke Supervisor</b> untuk meminta persetujuan.
             </Alert>
           )}
@@ -510,7 +510,7 @@ export default function QuoteDetailDialog({
             <Alert
               severity="info"
               icon={<LockRoundedIcon fontSize="small" />}
-              sx={{ mb: 2.5, borderRadius: 1.5 }}
+              sx={{ mb: 2.5, borderRadius: 1 }}
             >
               Telah dikonversi menjadi order <b>{convertedOrder?.no}</b> — dokumen{' '}
               <b>terkunci permanen</b>.
@@ -639,7 +639,7 @@ export default function QuoteDetailDialog({
                   key={i.productId}
                   sx={{
                     p: 1.25,
-                    borderRadius: 1.5,
+                    borderRadius: 1,
                     border: '1px solid',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
@@ -674,7 +674,7 @@ export default function QuoteDetailDialog({
               ))}
             </Stack>
           ) : (
-            <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, mb: 2.5 }}>
+            <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, mb: 2.5 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
                   <TableCell sx={{ fontWeight: 700 }}>Produk</TableCell>
@@ -710,7 +710,7 @@ export default function QuoteDetailDialog({
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' },
               gap: 1.5,
               p: 1.5,
-              borderRadius: 1.5,
+              borderRadius: 1,
               bgcolor: 'action.hover',
               border: '1px solid',
               borderColor: 'divider',
@@ -738,122 +738,151 @@ export default function QuoteDetailDialog({
           </Box>
 
           {quote.note && (
-            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1.5 }} icon={<NoteRoundedIcon fontSize="small" />}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }} icon={<NoteRoundedIcon fontSize="small" />}>
               <b>Catatan Pesanan:</b> {quote.note}
             </Alert>
           )}
           {quote.catatanSyarat && (
-            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1.5 }} icon={<DescriptionRoundedIcon fontSize="small" />}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }} icon={<DescriptionRoundedIcon fontSize="small" />}>
               <b>Syarat &amp; Ketentuan Cetak:</b> {quote.catatanSyarat}
             </Alert>
           )}
-          <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1.5 }} icon={<LockRoundedIcon fontSize="small" />}>
+          <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }} icon={<LockRoundedIcon fontSize="small" />}>
             Harga bersifat <b>snapshot</b> saat dokumen dibuat — perubahan katalog di kemudian hari tidak mengubah nilai dokumen ini.
           </Alert>
         </DialogContent>
 
         <DialogActions
-          sx={
-            isMobile
-              ? { flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2, px: { xs: 1.5, sm: 3 } }
-              : { gap: 1, p: 2, px: { xs: 1.5, sm: 3 } }
-          }
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            p: 2,
+            px: { xs: 1.5, sm: 3 },
+          }}
         >
           {!isMobile && <Button onClick={onClose}>Tutup</Button>}
 
-          {salesActions && pdfAllowed && (
-            <>
-              <Button
-                variant="outlined"
-                startIcon={<IosShareRoundedIcon />}
-                onClick={doWebShare}
-              >
-                Bagikan (Share)
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<ShareRoundedIcon />}
-                onClick={() => shareQuoteWhatsApp(quote, db)}
-              >
-                WhatsApp
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<EmailRoundedIcon />}
-                onClick={openEmailDialog}
-              >
-                Kirim Email (PDF)
-              </Button>
-              <Button variant="outlined" startIcon={<PrintRoundedIcon />} onClick={doPdf}>
-                Cetak / Unduh PDF
-              </Button>
-            </>
-          )}
-
-          {!salesActions && pdfAllowed && (
-            <Button variant="outlined" startIcon={<PrintRoundedIcon />} onClick={doPdf}>
-              Cetak / Unduh PDF
-            </Button>
-          )}
-
+          {/* Primary action — one filled button only */}
           {salesActions && quote.status === 'draft' && (
             <Button
               variant="contained"
               startIcon={<SendRoundedIcon />}
               onClick={submitForApproval}
               disabled={isExpired}
+              sx={{ fontWeight: 700, borderRadius: 1, textTransform: 'none', py: 1, width: '100%' }}
             >
               {isExpired ? 'Penawaran Kadaluarsa' : 'Ajukan ke Supervisor'}
             </Button>
           )}
-
           {salesActions && quote.status === 'sent' && !isExpired && (
-            <>
-              <Button
-                color="error"
-                startIcon={<CancelRoundedIcon />}
-                onClick={() => customerDecision(false)}
-              >
-                Tolak
-              </Button>
-              <Button
-                color="success"
-                variant="contained"
-                startIcon={<CheckCircleRoundedIcon />}
-                onClick={() => customerDecision(true)}
-              >
-                Pelanggan Setujui
-              </Button>
-            </>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircleRoundedIcon />}
+              onClick={() => customerDecision(true)}
+              sx={{ fontWeight: 700, borderRadius: 1, textTransform: 'none', py: 1, width: '100%' }}
+            >
+              Pelanggan Setujui
+            </Button>
           )}
-
           {salesActions && quote.status === 'approved' && !quote.convertedOrderId && !isExpired && (
             <Button
               variant="contained"
               startIcon={<ShoppingCartRoundedIcon />}
               onClick={() => setConfirmConvert(true)}
+              sx={{ fontWeight: 700, borderRadius: 1, textTransform: 'none', py: 1, width: '100%' }}
             >
               Konversi ke Order
             </Button>
           )}
-
           {supervisorActions && quote.status === 'pending_approval' && (
-            <>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircleRoundedIcon />}
+              onClick={spvApprove}
+              disabled={isExpired}
+              sx={{ fontWeight: 700, borderRadius: 1, textTransform: 'none', py: 1, width: '100%' }}
+            >
+              Setujui Quotation
+            </Button>
+          )}
+
+          {/* Secondary actions — flat text buttons, left aligned */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: '100%' }}>
+            {salesActions && pdfAllowed && (
+              <>
+                <Button
+                  variant="text"
+                  startIcon={<IosShareRoundedIcon />}
+                  onClick={doWebShare}
+                  sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+                >
+                  Bagikan
+                </Button>
+                <Button
+                  variant="text"
+                  startIcon={<ShareRoundedIcon />}
+                  onClick={() => shareQuoteWhatsApp(quote, db)}
+                  sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+                >
+                  WhatsApp
+                </Button>
+                <Button
+                  variant="text"
+                  startIcon={<EmailRoundedIcon />}
+                  onClick={openEmailDialog}
+                  sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+                >
+                  Kirim Email (PDF)
+                </Button>
+                <Button
+                  variant="text"
+                  startIcon={<PrintRoundedIcon />}
+                  onClick={doPdf}
+                  sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+                >
+                  Cetak / Unduh PDF
+                </Button>
+              </>
+            )}
+            {!salesActions && pdfAllowed && (
+              <Button
+                variant="text"
+                startIcon={<PrintRoundedIcon />}
+                onClick={doPdf}
+                sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+              >
+                Cetak / Unduh PDF
+              </Button>
+            )}
+            {salesActions && quote.status === 'sent' && !isExpired && (
               <Button
                 color="error"
+                variant="text"
+                startIcon={<CancelRoundedIcon />}
+                onClick={() => customerDecision(false)}
+                sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+              >
+                Tolak
+              </Button>
+            )}
+            {supervisorActions && quote.status === 'pending_approval' && (
+              <Button
+                color="error"
+                variant="text"
                 onClick={() => {
                   setReason('');
                   setReasonErr('');
                   setRejectOpen(true);
                 }}
+                sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
               >
                 Tolak Quotation
               </Button>
-              <Button color="success" variant="contained" onClick={spvApprove} disabled={isExpired}>
-                Setujui Quotation
-              </Button>
-            </>
-          )}
+            )}
+          </Box>
         </DialogActions>
       </Dialog>
 
@@ -863,7 +892,7 @@ export default function QuoteDetailDialog({
         onClose={() => !sendingEmail && setEmailOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2 } }}
+        PaperProps={{ sx: { borderRadius: 1 } }}
       >
         <DialogTitle sx={{ fontWeight: 800 }}>Kirim Email Quotation — {quote.no}</DialogTitle>
         <DialogContent dividers sx={{ overflowX: 'hidden' }}>
@@ -922,7 +951,7 @@ export default function QuoteDetailDialog({
         onClose={() => setRejectOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2 } }}
+        PaperProps={{ sx: { borderRadius: 1 } }}
       >
         <DialogTitle sx={{ fontWeight: 800 }}>Tolak Quotation — {quote.no}</DialogTitle>
         <DialogContent dividers sx={{ overflowX: 'hidden' }}>

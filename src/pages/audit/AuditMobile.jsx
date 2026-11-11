@@ -63,8 +63,8 @@ function PageHeaderBack({ title, caption, onBack, right }) {
         <ArrowBackRoundedIcon />
       </IconButton>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="h6" fontWeight={800} noWrap>{title}</Typography>
-        {caption && <Typography variant="caption" color="text.secondary" noWrap display="block">{caption}</Typography>}
+        <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 14 }}>{title}</Typography>
+        {caption && <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 10 }}>{caption}</Typography>}
       </Box>
       {right}
     </Stack>
@@ -78,13 +78,13 @@ function SubmitBar({ ready, actionLabel, statusText, onClick, loading }) {
       width: 'calc(100% - 32px)', maxWidth: 398,
       bgcolor: ready ? 'primary.main' : 'action.disabledBackground',
       color: ready ? '#fff' : 'text.disabled',
-      borderRadius: 2.5, px: 2, py: 1.25,
+      borderRadius: 1, px: 1.5, py: 1,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       cursor: ready && !loading ? 'pointer' : 'default', zIndex: 1150, boxShadow: 4,
     }}>
       <Box sx={{ minWidth: 0 }}>
-        <Typography fontWeight={800} fontSize={14} noWrap>{loading ? 'Mengirim…' : actionLabel}</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.9 }} noWrap>{statusText}</Typography>
+        <Typography fontWeight={800} fontSize={12} noWrap>{loading ? 'Mengirim…' : actionLabel}</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9, fontSize: 10.5 }} noWrap>{statusText}</Typography>
       </Box>
       {!loading && <ArrowForwardRoundedIcon fontSize="small" />}
     </Box>
@@ -118,7 +118,6 @@ export default function AuditMobile() {
   const activeTemplate = getActiveAuditTemplate(db);
   const questions = activeTemplate.questions || [];
 
-  /* ===== SEMUA HOOKS DI PALING ATAS ===== */
   const [homeTab, setHomeTab] = useState(() => (
     searchParams.get('tab') === 'prospect' ? 'prospect' : 'audit'
   ));
@@ -144,7 +143,6 @@ export default function AuditMobile() {
   const [submitting, setSubmitting] = useState(false);
   const [cameraErr, setCameraErr] = useState('');
 
-  /* Sinkronisasi bila user menekan shortcut "+ Akuisisi Prospek" saat sudah berada di /app/audit */
   useEffect(() => {
     const tParam = searchParams.get('tab');
     const newParam = searchParams.get('new');
@@ -157,7 +155,6 @@ export default function AuditMobile() {
         setSearchParams({ tab: 'prospect' }, { replace: true });
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const outlet = (db.outlets || []).find((o) => o.id === draft?.outletId);
@@ -190,7 +187,6 @@ export default function AuditMobile() {
   const areaName = (id) => (db.areas || []).find((a) => a.id === Number(id))?.name || '-';
   const catOf = (id) => (db.prospectCategories || []).find((c) => c.id === Number(id));
 
-  /* Validasi kelengkapan kuesioner dinamis */
   const isQuestionAnswered = (q, idx) => {
     const val = draft?.answers?.[q.id || String(idx)];
     if (q.type === 'text') return String(val ?? '').trim().length > 0;
@@ -211,7 +207,6 @@ export default function AuditMobile() {
 
   const removePhoto = (idx) => setDraft((d) => ({ ...d, photos: d.photos.filter((_, i) => i !== idx) }));
 
-  /* Foto kamera langsung + watermark untuk Audit Outlet */
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -233,7 +228,6 @@ export default function AuditMobile() {
     e.target.value = '';
   };
 
-  /* Submit Audit dengan snapshot versi template dinamis */
   const submitAudit = () => {
     if (!canSubmit) return;
     if (findSubmittedAudit(db, draft.outletId)) {
@@ -271,7 +265,7 @@ export default function AuditMobile() {
       templateId: activeTemplate.id,
       templateCode: activeTemplate.code || 'TPL-AUD-001',
       templateName: activeTemplate.name,
-      templateVersion: activeTemplate.version || 1,
+      templateVersion: 1,
       checklist,
       score,
       stocks,
@@ -291,14 +285,13 @@ export default function AuditMobile() {
     setTimeout(() => {
       const rec = insert('audits', payload);
       completeTaskAuto(db, mutate, { outletId: draft.outletId, type: 'audit', salesId: user.salesId });
-      toast(`Audit ${rec.no} (Form v${payload.templateVersion}) tersimpan — skor ${score}/100.`, 'success');
+      toast(`Audit ${rec.no} tersimpan — skor ${score}/100.`, 'success');
       setSubmitting(false);
       setDraft(null);
       setDetailId(rec.id);
     }, 400);
   };
 
-  /* ===== Logika Akuisisi Prospek Baru (New Lead — BR-MD-LEAD-002 & Bab 4.6) ===== */
   const openNewLeadForm = () => {
     setCameraErr('');
     setLeadErr({});
@@ -319,7 +312,6 @@ export default function AuditMobile() {
         setLeadForm((f) => ({ ...f, lat: String(lat), lng: String(lng) }));
         setLeadErr((e) => ({ ...e, coords: '' }));
 
-        /* Reverse Geocoding Nominatim otomatis jika online */
         if (online) {
           try {
             const res = await fetch(
@@ -335,14 +327,13 @@ export default function AuditMobile() {
               }
             }
           } catch {
-            /* Abaikan jika jaringan lambat; koordinat tetap tersimpan */
+            /* Abaikan jika jaringan lambat */
           }
         }
         setLocLoading(false);
         toast('Titik koordinat GPS toko prospek berhasil dikunci.', 'success');
       },
       () => {
-        /* Fallback ke titik tengah Area Kerja Sales jika izin GPS ditolak pada mode demo */
         const fallbackArea = (db.areas || []).find((a) => a.id === Number(leadForm.areaId || salesProfile?.areaId));
         if (fallbackArea?.lat && fallbackArea?.lng) {
           setLeadForm((f) => ({
@@ -390,7 +381,6 @@ export default function AuditMobile() {
     if (!leadForm.areaId) errs.areaId = 'Area kerja wajib dipilih.';
     if (!leadForm.address.trim()) errs.address = 'Alamat lengkap toko prospek wajib diisi.';
 
-    /* Cek duplikasi nama prospek di area yang sama */
     const dup = (db.prospects || []).find(
       (p) =>
         p.name.trim().toLowerCase() === leadForm.name.trim().toLowerCase() &&
@@ -424,7 +414,7 @@ export default function AuditMobile() {
 
     if (!online) {
       enqueue('prospect', payload);
-      toast('Offline: Prospek baru disimpan di perangkat & otomatis terkirim saat koneksi pulih.', 'warning', 5000);
+      toast('Offline: Prospek baru disimpan di antrean lokal dan disinkronkan saat online.', 'warning', 5000);
       setSubmitting(false);
       setHomeTab('prospect');
       setDraft(null);
@@ -433,7 +423,6 @@ export default function AuditMobile() {
 
     setTimeout(() => {
       insert('prospects', payload);
-      /* Kirim notifikasi ke Supervisor atasan Sales */
       if (salesProfile?.supervisorId) {
         const spvMaster = (db.supervisors || []).find((s) => s.id === salesProfile.supervisorId);
         const spvUser = spvMaster ? (db.users || []).find((u) => u.email === spvMaster.email) : null;
@@ -453,7 +442,6 @@ export default function AuditMobile() {
     }, 350);
   };
 
-  /* ===================== VIEW 1: FORM AKUISISI PROSPEK BARU (NEW LEAD) ===================== */
   if (step === 'new_lead') {
     const selectedCat = catOf(leadForm.categoryId);
     const leadReady = Boolean(
@@ -466,7 +454,7 @@ export default function AuditMobile() {
     ) && !submitting;
 
     return (
-      <Stack spacing={1.5} sx={{ pb: 8 }}>
+      <Stack spacing={1.25} sx={{ pb: 7 }}>
         <PageHeaderBack
           title="Akuisisi Prospek Baru"
           caption="Pendaftaran calon pelanggan baru di lapangan (BR-MD-LEAD-002)"
@@ -474,16 +462,15 @@ export default function AuditMobile() {
         />
 
         {!online && (
-          <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />}>
+          <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />} sx={{ fontSize: 11 }}>
             Mode <b>Offline</b> — data prospek baru akan disimpan di antrean lokal dan disinkronkan saat online.
           </Alert>
         )}
 
-        {/* 1. Identitas & Kategori Prospek */}
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardHeader title="1 · Identitas & Klasifikasi Awal" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardHeader title="1 · Identitas & Klasifikasi Awal" titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
           <CardContent sx={{ pt: 0 }}>
-            <Stack spacing={1.75}>
+            <Stack spacing={1.25}>
               <TextField
                 size="small"
                 label="Nama Toko / Prospek Baru *"
@@ -546,11 +533,10 @@ export default function AuditMobile() {
           </CardContent>
         </Card>
 
-        {/* 2. Lokasi Area & GPS Lapangan */}
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardHeader title="2 · Lokasi & Titik GPS Toko" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardHeader title="2 · Lokasi & Titik GPS Toko" titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
           <CardContent sx={{ pt: 0 }}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1}>
               <TextField
                 select
                 size="small"
@@ -571,7 +557,7 @@ export default function AuditMobile() {
                 onClick={captureLeadGps}
                 disabled={locLoading}
                 startIcon={locLoading ? <CircularProgress size={16} /> : <MyLocationRoundedIcon />}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 700 }}
+                sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: 700, fontSize: 11 }}
               >
                 {locLoading
                   ? 'Mengambil titik GPS & alamat…'
@@ -597,25 +583,24 @@ export default function AuditMobile() {
           </CardContent>
         </Card>
 
-        {/* 3. Foto Toko & Catatan Potensi */}
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardHeader title={`3 · Foto Depan Toko & Catatan (${leadForm.photos.length}/2)`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardHeader title={`3 · Foto Depan Toko & Catatan (${leadForm.photos.length}/2)`} titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
           <CardContent sx={{ pt: 0 }}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1}>
               <Box>
                 <input hidden id="lead-cam" type="file" accept="image/*" capture="environment" onChange={handleLeadPhoto} />
                 <label htmlFor="lead-cam">
-                  <Button component="span" size="small" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={leadForm.photos.length >= 2}>
+                  <Button component="span" size="small" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={leadForm.photos.length >= 2} sx={{ fontSize: 11 }}>
                     Foto Tampak Depan Toko
                   </Button>
                 </label>
-                {cameraErr && <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>{cameraErr}</Typography>}
+                {cameraErr && <Typography variant="caption" display="block" sx={{ mt: 0.5, fontSize: 10 }}>{cameraErr}</Typography>}
               </Box>
 
               {leadForm.photos.length > 0 && (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0.75 }}>
                   {leadForm.photos.map((ph, i) => (
-                    <Box key={i} sx={{ position: 'relative', aspectRatio: '4/3', borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                    <Box key={i} sx={{ position: 'relative', aspectRatio: '4/3', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       <Box component="img" src={ph} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <IconButton
                         size="small"
@@ -655,18 +640,17 @@ export default function AuditMobile() {
     );
   }
 
-  /* ===================== VIEW 2: DAFTAR AUDIT & DAFTAR PROSPEK SALES ===================== */
   if (!step) {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={1.25}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6" fontWeight={800}>Audit &amp; Prospek</Typography>
+          <Typography variant="body2" fontWeight={800} sx={{ fontSize: 14 }} noWrap>Audit &amp; Prospek</Typography>
           {homeTab === 'audit' ? (
             <Button
               variant="contained"
               size="small"
-              startIcon={<FactCheckRoundedIcon />}
-              onClick={() => setDraft({ step: 'outlet', answers: {}, stocks: {}, photos: [], note: '' })}
+              startIcon={<FactCheckRoundedIcon fontSize="small" />}
+              onClick={() => setDraft({ step: 'outlet', answers: {}, stocks: {}, photos: [], note: '' })} sx={{ fontSize: 11 }}
             >
               Mulai Audit
             </Button>
@@ -675,70 +659,55 @@ export default function AuditMobile() {
               variant="contained"
               size="small"
               color="primary"
-              startIcon={<AddBusinessRoundedIcon />}
-              onClick={openNewLeadForm}
+              startIcon={<AddBusinessRoundedIcon fontSize="small" />}
+              onClick={openNewLeadForm} sx={{ fontSize: 11 }}
             >
               Prospek Baru
             </Button>
           )}
         </Stack>
 
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
           <Tabs
             value={homeTab}
             onChange={(_, v) => setHomeTab(v)}
             variant="fullWidth"
-            sx={{ minHeight: 42 }}
+            sx={{ minHeight: 40 }}
           >
             <Tab
               value="audit"
               icon={<FactCheckRoundedIcon fontSize="small" />}
               iconPosition="start"
               label={`Audit Toko (${myAudits.length})`}
-              sx={{ minHeight: 42, textTransform: 'none', fontWeight: 700, fontSize: 13 }}
+              sx={{ minHeight: 40, textTransform: 'none', fontWeight: 700, fontSize: 11.5 }}
             />
             <Tab
               value="prospect"
               icon={<TrackChangesRoundedIcon fontSize="small" />}
               iconPosition="start"
               label={`Prospek Baru (${myProspects.length})`}
-              sx={{ minHeight: 42, textTransform: 'none', fontWeight: 700, fontSize: 13 }}
+              sx={{ minHeight: 40, textTransform: 'none', fontWeight: 700, fontSize: 11.5 }}
             />
           </Tabs>
         </Card>
 
         {homeTab === 'audit' ? (
           <>
-            <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                  <Typography variant="caption" fontWeight={800} color="primary.main">
-                    Template Aktif: {activeTemplate.name}
-                  </Typography>
-                  <Chip size="small" color="primary" variant="outlined" label={`v${activeTemplate.version}`} sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-                </Stack>
-                <Typography variant="body2" color="text.secondary" fontSize={12.5}>
-                  {questions.length} pertanyaan kuesioner aktif, stock-take aktual, dan foto bukti ber-watermark. Satu submit per outlet per kunjungan.
-                </Typography>
-              </CardContent>
-            </Card>
-
             {myAudits.length ? myAudits.map((a) => (
               <Card
                 key={a.id}
                 elevation={0}
                 onClick={() => setDetailId(a.id)}
-                sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+                sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
               >
-                <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography fontWeight={700} fontSize={14}>{outletName(a.outletId)}</Typography>
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <Chip size="small" variant="outlined" label={`v${a.templateVersion || 1}`} sx={{ height: 22, fontSize: 11 }} />
-                      <Chip size="small" color={scoreColor(a.score)} variant="outlined" label={`${a.score}/100`} />
+                    <Typography fontWeight={700} fontSize={12}>{outletName(a.outletId)}</Typography>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <Chip size="small" color={scoreColor(a.score)} variant="outlined" label={`${a.score}/100`} sx={{ borderRadius: 1 }} />
                     </Stack>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary" display="block">
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: 9.5 }}>
                     {a.no} • {a.date} • {a.photos?.length || 0} foto
                   </Typography>
                 </CardContent>
@@ -747,9 +716,9 @@ export default function AuditMobile() {
           </>
         ) : (
           <>
-            <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                <Typography variant="body2" color="text.secondary" fontSize={12.5}>
+            <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11 }}>
                   Temukan toko potensial yang belum terdaftar saat kunjungan lapangan? Daftarkan sebagai <b>Prospek Baru (New Lead)</b> beserta kategori potensi untuk ditindaklanjuti bersama Supervisor.
                 </Typography>
               </CardContent>
@@ -758,27 +727,27 @@ export default function AuditMobile() {
             {myProspects.length ? myProspects.map((p) => {
               const cat = catOf(p.categoryId);
               return (
-                <Card key={p.id} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                <Card key={p.id} elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                  <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={0.75}>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography fontWeight={700} fontSize={14} noWrap>{p.name}</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                        <Typography fontWeight={700} fontSize={12} noWrap>{p.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                           {p.owner || '-'} • {p.phone || '-'} • {areaName(p.areaId)}
                         </Typography>
                       </Box>
                       <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-                        {p._queued && <Chip size="small" color="warning" label="Antrean Offline" sx={{ height: 22, fontSize: 11 }} />}
-                        {cat && <Chip size="small" color="primary" variant="outlined" label={cat.name} sx={{ height: 22, fontSize: 11 }} />}
+                        {p._queued && <Chip size="small" color="warning" label="Antrean Offline" sx={{ height: 18, fontSize: 10, borderRadius: 1 }} />}
+                        {cat && <Chip size="small" color="primary" variant="outlined" label={cat.name} sx={{ height: 18, fontSize: 10, borderRadius: 1 }} />}
                       </Stack>
                     </Stack>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5, fontSize: 9.5 }}>
                       {p.address || '-'}
                     </Typography>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
-                      <Chip size="small" label={p.status || 'Prospek'} sx={{ height: 20, fontSize: 11 }} />
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.6 }}>
+                      <Chip size="small" label={p.status || 'Prospek'} sx={{ height: 18, fontSize: 10, borderRadius: 1 }} />
                       {p.lat && p.lng && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: 9.5 }}>
                           GPS: {Number(p.lat).toFixed(4)}, {Number(p.lng).toFixed(4)}
                         </Typography>
                       )}
@@ -797,13 +766,12 @@ export default function AuditMobile() {
     );
   }
 
-  /* ===================== VIEW 3: PILIH OUTLET AUDIT ===================== */
   if (step === 'outlet') {
     return (
-      <Stack spacing={1.5}>
+      <Stack spacing={1.25}>
         <PageHeaderBack
           title="Pilih Outlet Audit"
-          caption={`Form Aktif: v${activeTemplate.version} • ${activeTemplate.name}`}
+            caption={`Form Aktif: ${activeTemplate.name}`}
           onBack={() => setDraft(null)}
         />
         <TextField
@@ -811,6 +779,7 @@ export default function AuditMobile() {
           value={outletSearch}
           onChange={(e) => setOutletSearch(e.target.value)}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }}
+          size="small"
         />
         {outlets.length ? outlets.map((o) => {
           const done = findSubmittedAudit(db, o.id);
@@ -827,22 +796,22 @@ export default function AuditMobile() {
               )}
               sx={{
                 cursor: 'pointer',
-                borderRadius: 2,
+                borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'divider',
                 opacity: done ? 0.75 : 1,
               }}
             >
-              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 }, display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 36, height: 36, borderRadius: 1 }}>
                   <StorefrontRoundedIcon fontSize="small" />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography fontWeight={700} fontSize={14} noWrap>{o.name}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap display="block">{o.address}</Typography>
+                  <Typography fontWeight={700} fontSize={12} noWrap>{o.name}</Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>{o.address}</Typography>
                 </Box>
-                {done && <Chip size="small" color="success" icon={<LockRoundedIcon />} label="Sudah diaudit" />}
-                {!done && !ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" />}
+                {done && <Chip size="small" color="success" icon={<LockRoundedIcon fontSize="small" />} label="Sudah diaudit" sx={{ borderRadius: 1 }} />}
+                {!done && !ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" sx={{ fontSize: '0.65rem', borderRadius: 1 }} />}
               </CardContent>
             </Card>
           );
@@ -853,17 +822,17 @@ export default function AuditMobile() {
     );
   }
 
-  /* ===================== VIEW 4: FORM AUDIT KUESIONER DINAMIS ===================== */
   const locked = findSubmittedAudit(db, outlet.id);
 
   if (locked) {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <PageHeaderBack title="Audit Terkunci" caption={outlet.name} onBack={() => setDraft(null)} />
         <Alert
           severity="warning"
           icon={<LockRoundedIcon fontSize="small" />}
-          action={<Button size="small" onClick={() => setDetailId(locked.id)}>Lihat Hasil</Button>}
+          action={<Button size="small" onClick={() => setDetailId(locked.id)} sx={{ fontSize: 11 }}>Lihat Hasil</Button>}
+          sx={{ fontSize: 11 }}
         >
           Outlet <b>{outlet.name}</b> sudah diaudit hari ini — form <b>terkunci</b> untuk mencegah data ganda.
         </Alert>
@@ -877,27 +846,26 @@ export default function AuditMobile() {
   };
 
   return (
-    <Stack spacing={1.5} sx={{ pb: 7 }}>
+    <Stack spacing={1.25} sx={{ pb: 6 }}>
       <PageHeaderBack
         title="Audit — Form Kunjungan"
-        caption={`${outlet.name} • Form v${activeTemplate.version}`}
+        caption={`${outlet.name}`}
         onBack={() => setDraft(null)}
-        right={<Chip size="small" color={scoreColor(liveScore)} variant="outlined" label={`Skor ${liveScore}/100`} />}
+        right={<Chip size="small" color={scoreColor(liveScore)} variant="outlined" label={`Skor ${liveScore}/100`} sx={{ borderRadius: 1 }} />}
       />
 
       {!online && (
-        <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />}>
+        <Alert severity="warning" icon={<WifiOffRoundedIcon fontSize="small" />} sx={{ fontSize: 11 }}>
           Anda sedang <b>offline</b> — data &amp; foto akan disimpan lokal di perangkat dan tersinkron otomatis saat koneksi pulih.
         </Alert>
       )}
 
-      {/* 1 — Kuesioner Dinamis dari Template Aktif */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
         <CardHeader
-          title={`1 · ${activeTemplate.name} (v${activeTemplate.version}) — ${totalAnsweredCount}/${questions.length}`}
+          title={`1 · ${activeTemplate.name} — ${totalAnsweredCount}/${questions.length}`}
           subheader={activeTemplate.description || undefined}
-          titleTypographyProps={{ fontSize: 14, fontWeight: 700 }}
-          subheaderTypographyProps={{ fontSize: 12 }}
+          titleTypographyProps={{ fontSize: 12, fontWeight: 700 }}
+          subheaderTypographyProps={{ fontSize: 10 }}
         />
         <CardContent sx={{ pt: 0 }}>
           {questions.map((q, i) => {
@@ -906,12 +874,12 @@ export default function AuditMobile() {
             const type = q.type || 'scale_3';
 
             return (
-              <Box key={qKey} sx={{ mb: 1.75 }}>
-                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.6 }}>
+              <Box key={qKey} sx={{ mb: 1.25 }}>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5, fontSize: 11.5 }}>
                   {i + 1}. {q.label}
                   {q.required !== false && <Box component="span" sx={{ color: 'error.main' }}> *</Box>}
                   {Number(q.weight) > 1 && (
-                    <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.75 }}>
+                    <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.75, fontSize: 10 }}>
                       (Bobot {q.weight}x)
                     </Typography>
                   )}
@@ -926,7 +894,7 @@ export default function AuditMobile() {
                     onChange={(_, v) => v != null && setAnswer(qKey, v)}
                   >
                     {CHECK_OPTIONS.map((o) => (
-                      <ToggleButton key={o.v} value={o.v} sx={{ py: 0.5 }}>{o.l}</ToggleButton>
+                      <ToggleButton key={o.v} value={o.v} sx={{ py: 0.4, fontSize: 11 }}>{o.l}</ToggleButton>
                     ))}
                   </ToggleButtonGroup>
                 )}
@@ -939,8 +907,8 @@ export default function AuditMobile() {
                     value={curVal}
                     onChange={(_, v) => v != null && setAnswer(qKey, v)}
                   >
-                    <ToggleButton value="yes" sx={{ py: 0.5 }}>Ya (Sesuai)</ToggleButton>
-                    <ToggleButton value="no" sx={{ py: 0.5 }}>Tidak</ToggleButton>
+                    <ToggleButton value="yes" sx={{ py: 0.4, fontSize: 11 }}>Ya (Sesuai)</ToggleButton>
+                    <ToggleButton value="no" sx={{ py: 0.4, fontSize: 11 }}>Tidak</ToggleButton>
                   </ToggleButtonGroup>
                 )}
 
@@ -953,7 +921,7 @@ export default function AuditMobile() {
                     onChange={(_, v) => v != null && setAnswer(qKey, v)}
                   >
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <ToggleButton key={n} value={n} sx={{ py: 0.5 }}>{n}</ToggleButton>
+                      <ToggleButton key={n} value={n} sx={{ py: 0.4, fontSize: 11 }}>{n}</ToggleButton>
                     ))}
                   </ToggleButtonGroup>
                 )}
@@ -974,80 +942,80 @@ export default function AuditMobile() {
         </CardContent>
       </Card>
 
-      {/* 2 — Stock take */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title="2 · Stock-Take (Stok Aktual di Toko)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title="2 · Stock-Take (Stok Aktual di Toko)" titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75, fontSize: 10 }}>
             Hitung fisik sisa produk kita di rak/etalase toko ini (dalam pcs). Wajib isi minimal 1 produk. Terisi: {stockCount} produk.
           </Typography>
           <TextField
             label="Cari produk / SKU…"
             value={productSearch}
             onChange={(e) => setProductSearch(e.target.value)}
-            sx={{ mb: 1 }}
+            sx={{ mb: 0.75 }}
+            size="small"
             InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>) }}
           />
-          {products.length ? products.map((p) => {
+{products.length ? products.map((p) => {
             const actual = draft.stocks[p.id] ?? '';
             const refStock = getOutletProductRefStock(db, draft.outletId, p.id);
             const actualNum = actual === '' ? null : Number(actual);
             const health = actualNum !== null ? getOutletStockHealth(actualNum) : null;
             return (
-              <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75, borderBottom: '1px dashed', borderColor: 'divider' }}>
+              <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, py: 0.6, borderBottom: '1px dashed', borderColor: 'divider' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight={600} noWrap>{p.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {refStock !== null ? `Riwayat toko: ${refStock} pcs` : 'Riwayat toko: Belum ada (Stok Awal)'} • Gudang kita: {p.stock} pcs{p.pcsPerUnit > 1 ? ` • 1 ${p.unit} = ${p.pcsPerUnit} pcs` : ''}
+                  <Typography variant="body2" fontWeight={600} noWrap sx={{ fontSize: 11.5 }}>{p.name}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9.5 }}>
+                    {refStock !== null ? `Riwayat toko: ${refStock} pcs` : 'Riwayat toko: Belum ada (Stok Awal)'} • Gudang kita: {p.stock} pcs {p.pcsPerUnit > 1 ? ` • 1 ${p.unit} = ${p.pcsPerUnit} pcs` : ''}
                   </Typography>
                 </Box>
                 <TextField
                   type="number"
                   placeholder="Aktual"
                   value={actual}
-                  sx={{ width: 96 }}
+                  sx={{ width: 80 }}
+                  size="small"
                   onChange={(e) => setDraft((d) => {
                     const stocks = { ...d.stocks };
                     if (e.target.value === '') delete stocks[p.id];
                     else stocks[p.id] = Math.max(0, Math.floor(Number(e.target.value) || 0));
                     return { ...d, stocks };
                   })}
-                  inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                  inputProps={{ min: 0, style: { textAlign: 'center', fontSize: 11 } }}
                 />
                 {actualNum !== null && health && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-end' }}>
-                    <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} />
-                    {refStock !== null && <Typography variant="caption" color="text.secondary" fontSize={11} sx={{ textAlign: 'right' }}>{formatStockMovement({ systemStock: refStock, actualStock: actualNum })}</Typography>}
+                    <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} sx={{ fontSize: '0.65rem', borderRadius: 1 }} />
+                    {refStock !== null && <Typography variant="caption" color="text.secondary" fontSize={9.5} sx={{ textAlign: 'right' }}>{formatStockMovement({ systemStock: refStock, actualStock: actualNum })}</Typography>}
                   </Box>
                 )}
               </Box>
             );
           }) : (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 1, fontSize: 10.5 }}>
               Produk tidak ditemukan.
             </Typography>
           )}
         </CardContent>
       </Card>
 
-      {/* 3 — Foto bukti */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3`} titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title={`3 · Foto Bukti Kunjungan — ${draft.photos.length}/3`} titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <input hidden id="audit-cam" type="file" accept="image/*" capture="environment" onChange={handlePhoto} />
           <label htmlFor="audit-cam">
-            <Button component="span" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={draft.photos.length >= 3}>
+            <Button component="span" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={draft.photos.length >= 3} sx={{ fontSize: 11 }}>
               Ambil Foto (Kamera Langsung)
             </Button>
           </label>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, mb: 0.75, fontSize: 9.5 }}>
             Wajib kamera langsung — galeri/Camera Roll ditolak. Watermark waktu + GPS otomatis diterapkan. Maks 3 × 2MB.
           </Typography>
-          {cameraErr && <Typography variant="caption" color="error" sx={{ display: 'block', mb: 1 }}>{cameraErr}</Typography>}
+          {cameraErr && <Typography variant="caption" color="error" sx={{ display: 'block', mb: 0.75, fontSize: 10 }}>{cameraErr}</Typography>}
           {draft.photos.length > 0 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.75 }}>
               {draft.photos.map((ph, i) => (
-                <Box key={i} sx={{ position: 'relative', aspectRatio: '1', borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                <Box key={i} sx={{ position: 'relative', aspectRatio: '1', borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                   <Box component="img" src={ph} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <IconButton
                     size="small"
@@ -1063,9 +1031,8 @@ export default function AuditMobile() {
         </CardContent>
       </Card>
 
-      {/* 4 — Catatan */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardHeader title="4 · Catatan Kendala (maks 500)" titleTypographyProps={{ fontSize: 14, fontWeight: 700 }} />
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardHeader title="4 · Catatan Kendala (maks 500)" titleTypographyProps={{ fontSize: 12, fontWeight: 700 }} />
         <CardContent sx={{ pt: 0 }}>
           <TextField
             label="mis. toko tutup sementara / POSM usai"
@@ -1074,6 +1041,7 @@ export default function AuditMobile() {
             value={draft.note}
             onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
             inputProps={{ maxLength: 500 }}
+            size="small"
           />
         </CardContent>
       </Card>
@@ -1083,7 +1051,7 @@ export default function AuditMobile() {
         loading={submitting}
         actionLabel="Kirim Hasil Audit"
         statusText={canSubmit
-          ? `Skor ${liveScore}/100 • Form v${activeTemplate.version}`
+          ? `Skor ${liveScore}/100`
           : `Wajib ${answeredRequiredCount}/${requiredQuestions.length} • stok: ${stockCount} produk`}
         onClick={submitAudit}
       />

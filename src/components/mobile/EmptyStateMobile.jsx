@@ -5,9 +5,11 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 export default function EmptyState({ message = 'Belum ada data.', icon: Icon }) {
   const Ico = Icon || InboxOutlinedIcon;
   return (
-    <Box sx={{ textAlign: 'center', py: 5, color: 'text.secondary' }}>
-      <Ico sx={{ fontSize: 42, mb: 1 }} />
-      <Typography variant="body2">{message}</Typography>
+    <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+      <Ico sx={{ fontSize: 36, mb: 1 }} />
+      <Typography variant="body2" sx={{ fontSize: 12 }}>
+        {message}
+      </Typography>
     </Box>
   );
 }

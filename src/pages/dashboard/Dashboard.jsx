@@ -36,11 +36,16 @@ export default function Dashboard() {
   const tasks = db.tasks || [];
   const audits = db.audits || [];
   const prospects = db.prospects || [];
+  const outlets = db.outlets || [];
+  const sales = db.sales || [];
+
+  const outletName = (id) => outlets.find((o) => o.id === id)?.name || '-';
+  const salesName = (id) => sales.find((s) => s.id === id)?.name || '-';
 
   const stats = useMemo(() => {
     const totalOmzet = orders.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0);
-    const orderSelesai = orders.filter((o) => ['Selesai', 'Terkirim', 'Lunas', 'completed'].includes(o.status)).length;
-    const taskSelesai = tasks.filter((t) => ['Selesai', 'Completed', 'done'].includes(t.status)).length;
+    const orderSelesai = orders.filter((o) => ['completed'].includes(o.status)).length;
+    const taskSelesai = tasks.filter((t) => ['done'].includes(t.status)).length;
     const totalToko = prospects.length + audits.length;
 
     return {
@@ -119,7 +124,7 @@ export default function Dashboard() {
                   <IconButton
                     size="small"
                     color="primary"
-                    onClick={() => navigate('/dashboard/transaksi/order')}
+                    onClick={() => navigate('/dashboard/orders')}
                     sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                   >
                     <ArrowForwardOutlinedIcon fontSize="small" />
@@ -149,18 +154,18 @@ export default function Dashboard() {
                       <TableRow key={ord.id || idx} hover>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            {ord.nomor || `ORD-${ord.id}`}
+                            {ord.no || `ORD-${ord.id}`}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                            {ord.namaToko || ord.customer || '-'}
+                            {outletName(ord.outletId)}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {ord.sales || ord.salesName || '-'}
+                            {salesName(ord.salesId)}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                            {ord.tanggal || ord.date || '-'}
+                            {ord.date || '-'}
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ textAlign: 'right', fontWeight: 700 }}>
@@ -188,7 +193,7 @@ export default function Dashboard() {
                   <IconButton
                     size="small"
                     color="primary"
-                    onClick={() => navigate('/dashboard/audit/kualifikasi')}
+                    onClick={() => navigate('/dashboard/audit')}
                     sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                   >
                     <ArrowForwardOutlinedIcon fontSize="small" />
@@ -218,13 +223,13 @@ export default function Dashboard() {
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {item.namaToko || item.name || '-'}
+                        {outletName(item.outletId)}
                       </Typography>
                       <StatusChip kind="prospect" status={item.statusLead || item.status || 'Prospek'} />
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Auditor: {item.auditor || item.salesName || '-'}
+                        Auditor: {salesName(item.salesId)}
                       </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main' }}>
                         Skor: {item.skor || item.score || 0}/100

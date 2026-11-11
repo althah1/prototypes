@@ -52,10 +52,6 @@ const FILTERS = [
 const QTY_ZERO_ERR = 'Jumlah pesanan tidak valid. Kuantitas minimal adalah 1.';
 const DISC_RANGE_ERR = 'Diskon harus bernilai antara 0% hingga 100%.';
 
-/* ===== Konfigurasi Multi-UoM per Produk (BR-ORD-007 & BR-ORD-002) =====
- * Harga dasar tetap ditarik & terkunci dari Master Produk (p.hargaJual).
- * Satuan jual dapat dipilih antara Pcs vs Box / Karton dengan konversi otomatis ke baseQty (pcs).
- */
 function getUomOptions(p) {
   if (!p) return [];
   const masterUnit = (p.unit || 'pcs').toLowerCase();
@@ -83,7 +79,6 @@ function getUomOptions(p) {
     ];
   }
 
-  /* Default: masterUnit === 'pcs' */
   const pcsPrice = Number(p.hargaJual) || 0;
   const boxFactor = Math.max(2, Number(p.pcsPerBox) || (masterFactor > 1 ? masterFactor : 12));
   const kartonFactor = Math.max(boxFactor, Number(p.pcsPerKarton) || boxFactor * 2);
@@ -132,7 +127,6 @@ function resolveItemCalc(item, product) {
   };
 }
 
-/* ===== Header langkah: tombol kembali + judul + indikator progres ===== */
 function StepHeader({ title, onBack, step }) {
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
@@ -140,12 +134,12 @@ function StepHeader({ title, onBack, step }) {
         <ArrowBackRoundedIcon />
       </IconButton>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="h6" fontWeight={800} noWrap>{title}</Typography>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+        <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 14 }}>{title}</Typography>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.2 }}>
           {[0, 1, 2].map((i) => (
-            <Box key={i} sx={{ width: 18, height: 4, borderRadius: 99, bgcolor: i <= step ? 'primary.main' : 'divider' }} />
+            <Box key={i} sx={{ width: 16, height: 3, borderRadius: 99, bgcolor: i <= step ? 'primary.main' : 'divider' }} />
           ))}
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, fontSize: 9.5 }}>
             Langkah {step + 1} dari 3
           </Typography>
         </Stack>
@@ -154,7 +148,6 @@ function StepHeader({ title, onBack, step }) {
   );
 }
 
-/* ===== Bar aksi bawah (sticky) — jumlah item + total + CTA ===== */
 function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }) {
   return (
     <Box onClick={disabled || loading ? undefined : onClick} sx={{
@@ -162,16 +155,16 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
       width: 'calc(100% - 32px)', maxWidth: 398,
       bgcolor: disabled ? 'action.disabledBackground' : 'primary.main',
       color: disabled ? 'text.disabled' : '#fff',
-      borderRadius: 2.5, px: 2, py: 1.25,
+      borderRadius: 1, px: 1.5, py: 1,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       cursor: disabled || loading ? 'default' : 'pointer', zIndex: 1150, boxShadow: 4,
     }}>
       <Box>
-        <Typography fontWeight={800} fontSize={14}>{itemCount} item</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap' }}>{formatRupiah(total)}</Typography>
+        <Typography fontWeight={800} fontSize={12}>{itemCount} item</Typography>
+        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap', fontSize: 10.5 }}>{formatRupiah(total)}</Typography>
       </Box>
       <Stack direction="row" spacing={0.5} alignItems="center">
-        <Typography fontWeight={700} fontSize={14}>{loading ? 'Menyimpan…' : actionLabel}</Typography>
+        <Typography fontWeight={700} fontSize={12}>{loading ? 'Menyimpan…' : actionLabel}</Typography>
         {!loading && <ArrowForwardRoundedIcon fontSize="small" />}
       </Stack>
     </Box>
@@ -186,7 +179,6 @@ export default function OrderMobile() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  /* ===== SEMUA HOOKS DI PALING ATAS (pola anti error hooks) ===== */
   const [filter, setFilter] = useState('all');
   const [draft, setDraft] = useState(() => (
     location.state?.outletId
@@ -204,7 +196,6 @@ export default function OrderMobile() {
   const [successOrder, setSuccessOrder] = useState(null);
   const [detailId, setDetailId] = useState(null);
 
-  /* ===== Derived data ===== */
   const outlet = (db.outlets || []).find((o) => o.id === draft?.outletId);
   const step = draft
     ? (((draft.step === 'items' || draft.step === 'review') && !outlet) ? 'outlet' : draft.step)
@@ -239,7 +230,7 @@ export default function OrderMobile() {
 
     (draft?.items || []).forEach((it) => {
       const p = (db.products || []).find((x) => x.id === it.productId);
-      if (!p) return; /* F-34: produk dihapus dari Master saat draft aktif — lewati aman */
+      if (!p) return;
       const calc = resolveItemCalc(it, p);
       if (calc.qtyError || calc.discError) {
         hasError = true;
@@ -278,7 +269,6 @@ export default function OrderMobile() {
   const orderList = filter === 'all' ? myOrders : myOrders.filter((o) => o.status === filter);
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
 
-  /* ===== Helpers Mutasi Draft Item ===== */
   const upsertDraftItem = (product, patch) => {
     setDraft((d) => {
       if (!d) return d;
@@ -300,7 +290,6 @@ export default function OrderMobile() {
     });
   };
 
-  /* Tabel 21: input qty 0 tetap mempertahankan baris & memunculkan error inline merah */
   const handleQtyInput = (product, rawValue) => {
     const cleaned = String(rawValue);
     const parsed = cleaned.trim() === '' ? 0 : Math.floor(Number(cleaned));
@@ -351,7 +340,7 @@ export default function OrderMobile() {
     const items = (draft?.items || [])
       .map((i) => {
         const p = (db.products || []).find((x) => x.id === i.productId);
-        if (!p) return null; /* F-34: produk dihapus dari Master — lewati aman */
+        if (!p) return null;
         const calc = resolveItemCalc(i, p);
         if (calc.qtyError || calc.discError || calc.validQty < 1) return null;
         return {
@@ -406,7 +395,6 @@ export default function OrderMobile() {
       paid: false,
     };
 
-    /* Mode luring: simpan lokal → kirim ulang otomatis saat online, tanpa input ulang */
     if (!online) {
       enqueue('order', order);
       toast('Anda sedang offline. Order disimpan sementara di perangkat dan akan dikirim otomatis saat koneksi pulih — tanpa input ulang.', 'warning', 5500);
@@ -418,16 +406,11 @@ export default function OrderMobile() {
 
     setTimeout(() => {
       const rec = insert('orders', order);
-
-      /* Auto-complete tugas order terkait (BR-TASK-003) */
       completeTaskAuto(db, mutate, { outletId: draft.outletId, type: 'order', salesId: user.salesId });
-
-      /* Notifikasi ke supervisor */
       const sales = (db.sales || []).find((s) => s.id === user.salesId);
       const spv = (db.supervisors || []).find((s) => s.id === sales?.supervisorId);
       const spvUser = (db.users || []).find((u) => u.email === spv?.email);
       if (spvUser) notify(spvUser.id, 'Order Baru Menunggu Approval', `${order.no} dari ${user.name} — ${formatRupiah(order.total)}.`);
-
       setSubmitting(false);
       setDraft(null);
       setNote('');
@@ -435,41 +418,40 @@ export default function OrderMobile() {
     }, 500);
   };
 
-  /* ===================== VIEW: DAFTAR ORDER ===================== */
   if (!step) {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6" fontWeight={800}>Entry Order</Typography>
+          <Typography variant="body2" fontWeight={800} sx={{ fontSize: 14 }} noWrap>Entry Order</Typography>
           <Button variant="contained" size="small" startIcon={<AddRoundedIcon />}
-            onClick={() => setDraft({ step: 'outlet', items: [] })}>
+            onClick={() => setDraft({ step: 'outlet', items: [] })} sx={{ fontSize: 11 }}>
             Pesanan Baru
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+        <Stack direction="row" spacing={0.5} sx={{ overflowX: 'auto', pb: 0.5 }}>
           {FILTERS.map((f) => (
             <Chip key={f.v} label={f.l} size="small" clickable
               color={filter === f.v ? 'primary' : 'default'}
               variant={filter === f.v ? 'filled' : 'outlined'}
-              onClick={() => setFilter(f.v)} />
+              onClick={() => setFilter(f.v)} sx={{ fontSize: '0.65rem', borderRadius: 1 }} />
           ))}
         </Stack>
 
         {orderList.length ? orderList.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => setDetailId(o.id)}
-            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+            sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>{o.no}</Typography>
+                <Typography fontFamily="monospace" fontWeight={700} fontSize={10.5} noWrap>{o.no}</Typography>
                 <StatusChip kind="order" status={o.status} />
               </Stack>
-              <Typography variant="caption" color="text.secondary" display="block" noWrap>
+              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                 {outletName(o.outletId)} • {o.items.length} produk • {o.date}
               </Typography>
               <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">Total</Typography>
-                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(o.total)}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>Total</Typography>
+                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap', fontSize: 11 }}>{formatRupiah(o.total)}</Typography>
               </Stack>
             </CardContent>
           </Card>
@@ -477,31 +459,30 @@ export default function OrderMobile() {
 
         <OrderDetailDialog open={!!detailId} orderId={detailId} onClose={() => setDetailId(null)} />
 
-        {/* Dialog sukses (#49: teruskan draft ke Quotation) */}
         <Dialog open={!!successOrder} onClose={() => setSuccessOrder(null)} maxWidth="xs" fullWidth
           PaperProps={{ sx: { borderRadius: 1 } }}>
-          <DialogTitle>Pesanan Tersimpan</DialogTitle>
-          <DialogContent dividers sx={{ overflowX: 'hidden' }}>
-            <Stack alignItems="center" spacing={1} sx={{ py: 1 }}>
-              <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
-                <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
+          <DialogTitle sx={{ fontWeight: 800, fontSize: 13 }}>Pesanan Tersimpan</DialogTitle>
+          <DialogContent dividers sx={{ overflowX: 'hidden', px: 1.5, py: 1 }}>
+            <Stack alignItems="center" spacing={0.75} sx={{ py: 0.75 }}>
+              <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48, mb: 0.25 }}>
+                <CheckCircleRoundedIcon sx={{ fontSize: 24, color: 'common.white' }} />
               </Avatar>
-              <Typography fontFamily="monospace" fontWeight={800} fontSize={20}>{successOrder?.no}</Typography>
+              <Typography fontFamily="monospace" fontWeight={800} fontSize={16}>{successOrder?.no}</Typography>
               <StatusChip kind="order" status="submitted" />
-              <Typography variant="body2">Total: <b>{formatRupiah(successOrder?.total || 0)}</b></Typography>
-              <Typography variant="caption" color="text.secondary" align="center">
+              <Typography variant="body2" sx={{ fontSize: 11 }}>Total: <b>{formatRupiah(successOrder?.total || 0)}</b></Typography>
+              <Typography variant="caption" color="text.secondary" align="center" sx={{ fontSize: 10 }}>
                 Status <b>Diajukan</b> — menunggu persetujuan Supervisor. Draft bukti pesanan dapat
                 diteruskan ke Modul Quotation.
               </Typography>
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSuccessOrder(null)}>Selesai</Button>
-            <Button variant="contained" startIcon={<ReceiptLongRoundedIcon />} onClick={() => {
+          <DialogActions sx={{ px: 1.5, py: 1, gap: 0.75 }}>
+            <Button onClick={() => setSuccessOrder(null)} sx={{ fontSize: 11 }}>Selesai</Button>
+            <Button variant="contained" startIcon={<ReceiptLongRoundedIcon fontSize="small" />} onClick={() => {
               const id = successOrder?.id;
               setSuccessOrder(null);
               navigate('/app/quotes', { state: { fromOrder: id } });
-            }}>
+            }} sx={{ fontSize: 11, fontWeight: 700 }}>
               Buat Quotation dari Order Ini
             </Button>
           </DialogActions>
@@ -510,10 +491,9 @@ export default function OrderMobile() {
     );
   }
 
-  /* ===================== VIEW LANGKAH 1: PILIH OUTLET ===================== */
   if (step === 'outlet') {
     return (
-      <Stack spacing={1.5}>
+      <Stack spacing={1.25}>
         <StepHeader title="Pilih Outlet" onBack={() => setDraft(null)} step={0} />
 
         <TextField label="Cari outlet…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)}
@@ -521,15 +501,15 @@ export default function OrderMobile() {
 
         {outlets.length ? outlets.map((o) => (
           <Card key={o.id} elevation={0} onClick={() => ckOutlets.has(o.id) ? setDraft({ step: 'items', outletId: o.id, items: [] }) : toast('Outlet belum check-in hari ini — buka halaman Rute (menu bawah) untuk check-in terlebih dahulu.', 'warning')}
-            sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
+            sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 }, display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 36, height: 36, borderRadius: 1 }}>
                 <StorefrontRoundedIcon fontSize="small" />
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography fontWeight={700} fontSize={14} noWrap>{o.name}</Typography>
-                <Typography variant="caption" color="text.secondary" noWrap display="block">{o.address}</Typography>
-                {!ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" sx={{ flexShrink: 0, mt: 0.5 }} />}
+                <Typography fontWeight={700} fontSize={12} noWrap>{o.name}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>{o.address}</Typography>
+                {!ckOutlets.has(o.id) && <Chip size="small" color="warning" variant="outlined" label="Belum Check-In" sx={{ flexShrink: 0, mt: 0.3, fontSize: '0.65rem', borderRadius: 1 }} />}
               </Box>
             </CardContent>
           </Card>
@@ -538,24 +518,23 @@ export default function OrderMobile() {
     );
   }
 
-  /* ===================== VIEW LANGKAH 2: KATALOG PRODUK ===================== */
   if (step === 'items') {
     return (
-      <Stack spacing={1.5} sx={{ pb: 9 }}>
+      <Stack spacing={1.25} sx={{ pb: 7 }}>
         <StepHeader title="Pilih Produk" onBack={() => setDraft({ step: 'outlet', items: [] })} step={1} />
 
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2, flexShrink: 0 }}>
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 36, height: 36, borderRadius: 1, flexShrink: 0 }}>
                 <StorefrontRoundedIcon fontSize="small" />
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography fontWeight={700} fontSize={15} noWrap>{outlet.name}</Typography>
-                <Typography variant="caption" color="text.secondary" noWrap display="block">{outlet.address}</Typography>
+                <Typography fontWeight={700} fontSize={13} noWrap>{outlet.name}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>{outlet.address}</Typography>
               </Box>
             </Stack>
-            <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={<LockRoundedIcon fontSize="small" />}>
+            <Alert severity="info" sx={{ mt: 0.75, py: 0.4 }} icon={<LockRoundedIcon fontSize="small" />}>
               Harga dasar <b>terkunci</b> dari Master Data. Pilih satuan jual (<b>Pcs / Box / Karton</b>) atau isi diskon manual (<b>0–100%</b>).
             </Alert>
           </CardContent>
@@ -570,29 +549,29 @@ export default function OrderMobile() {
           const qtyErr = item ? calc.qtyError : '';
           const discErr = item ? calc.discError : '';
           const displayQty = item ? calc.rawQty : 0;
-          const short = calc.validQty > 0 && calc.baseQty > p.stock; /* soft warning BR-ORD-004 */
+          const short = calc.validQty > 0 && calc.baseQty > p.stock;
 
           return (
             <Card key={p.id} elevation={0}
               sx={{
-                borderRadius: 2,
+                borderRadius: 1,
                 border: '1px solid',
                 borderColor: (qtyErr || discErr) ? 'error.main' : (calc.validQty > 0 ? 'primary.main' : 'divider'),
               }}>
-              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={0.75}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography fontWeight={700} fontSize={14} noWrap>{p.name}</Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                    <Typography fontWeight={700} fontSize={12} noWrap>{p.name}</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                       {p.sku} • {p.category}
                     </Typography>
-                    <Typography variant="body2" fontWeight={700}>
+                    <Typography variant="body2" fontWeight={700} sx={{ fontSize: 11 }}>
                       {formatRupiah(calc.uom.price)}{' '}
-                      <Typography component="span" variant="caption" color="text.secondary" fontWeight={500}>
+                      <Typography component="span" variant="caption" color="text.secondary" fontWeight={500} sx={{ fontSize: 9.5 }}>
                         / {calc.uom.value}
                       </Typography>
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: 9.5 }}>
                       Stok gudang: {p.stock} pcs
                       {calc.uom.pcsPerUnit > 1 ? ` • 1 ${calc.uom.value} = ${calc.uom.pcsPerUnit} pcs` : ''}
                     </Typography>
@@ -603,7 +582,7 @@ export default function OrderMobile() {
                       size="small"
                       disabled={!item || calc.validQty === 0}
                       onClick={() => handleQtyStep(p, -1)}
-                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                     >
                       <RemoveRoundedIcon fontSize="small" />
                     </IconButton>
@@ -613,13 +592,13 @@ export default function OrderMobile() {
                       value={displayQty}
                       error={Boolean(qtyErr)}
                       onChange={(e) => handleQtyInput(p, e.target.value)}
-                      sx={{ width: 66 }}
-                      inputProps={{ min: 0, style: { textAlign: 'center', fontWeight: 700 } }}
+                      sx={{ width: 60 }}
+                      inputProps={{ min: 0, style: { textAlign: 'center', fontWeight: 700, fontSize: 11 } }}
                     />
                     <IconButton
                       size="small"
                       onClick={() => handleQtyStep(p, 1)}
-                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                      sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                     >
                       <AddRoundedIcon fontSize="small" />
                     </IconButton>
@@ -633,15 +612,13 @@ export default function OrderMobile() {
                   </Stack>
                 </Stack>
 
-                {/* Pesan Inline Merah Kuantitas Nol / Tidak Valid (Tabel 21) */}
                 {qtyErr && (
-                  <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.75 }}>
+                  <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.6, fontSize: 10 }}>
                     {qtyErr}
                   </Typography>
                 )}
 
-                {/* Pemilihan Satuan Jual (UoM) & Diskon Manual per Item (BR-ORD-003 & BR-ORD-007) */}
-                <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
+                <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
                   <TextField
                     select
                     size="small"
@@ -670,7 +647,7 @@ export default function OrderMobile() {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <PercentRoundedIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                          <PercentRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
                         </InputAdornment>
                       ),
                     }}
@@ -678,26 +655,25 @@ export default function OrderMobile() {
                 </Stack>
 
                 {discErr && (
-                  <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.4, fontSize: 10 }}>
                     {discErr}
                   </Typography>
                 )}
 
-                {/* Ringkasan Konversi Kuantitas Dasar (baseQty) & Subtotal Bersih Item */}
                 {item && !qtyErr && calc.validQty >= 1 && (
                   <Stack
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
                     sx={{
-                      mt: 1,
+                      mt: 0.75,
                       px: 1,
-                      py: 0.6,
+                      py: 0.5,
                       borderRadius: 1.25,
                       bgcolor: 'action.hover',
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: 9.5 }}>
                       Kuantitas dasar (baseQty): <b>{calc.baseQty} pcs</b>
                     </Typography>
                     <Box sx={{ textAlign: 'right' }}>
@@ -705,12 +681,12 @@ export default function OrderMobile() {
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ textDecoration: 'line-through', mr: 0.75 }}
+                          sx={{ textDecoration: 'line-through', mr: 0.5, fontSize: 9.5 }}
                         >
                           {formatRupiah(calc.gross)}
                         </Typography>
                       )}
-                      <Typography component="span" variant="caption" fontWeight={800} color="primary.main">
+                      <Typography component="span" variant="caption" fontWeight={800} color="primary.main" sx={{ fontSize: 10.5 }}>
                         {formatRupiah(calc.line)}
                       </Typography>
                     </Box>
@@ -718,7 +694,7 @@ export default function OrderMobile() {
                 )}
 
                 {short && (
-                  <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
+                  <Alert severity="warning" sx={{ mt: 0.75, py: 0.4 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
                     Estimasi stok gudang tidak mencukupi (dibutuhkan <b>{calc.baseQty} pcs</b>, tersedia <b>{p.stock} pcs</b>). Pesanan <b>tetap dapat diajukan</b> — peringatan lunak.
                   </Alert>
                 )}
@@ -740,52 +716,48 @@ export default function OrderMobile() {
     );
   }
 
-  /* ===================== VIEW LANGKAH 3: REVIEW & SUBMIT ===================== */
   return (
-    <Stack spacing={1.5} sx={{ pb: 9 }}>
+    <Stack spacing={1.25} sx={{ pb: 7 }}>
       <StepHeader title="Review Pesanan" onBack={() => setDraft((d) => ({ ...d, step: 'items' }))} step={2} />
 
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Typography fontWeight={700} fontSize={15}>{outlet.name}</Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+          <Typography fontWeight={700} fontSize={13}>{outlet.name}</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75, fontSize: 9.5 }}>
             {outlet.address}
           </Typography>
 
-          {/* Rincian item — menampilkan UoM, baseQty (pcs), dan diskon manual */}
-          <Stack spacing={1}>
+          <Stack spacing={0.75}>
             {(draft?.items || []).map((i) => {
               const p = (db.products || []).find((x) => x.id === i.productId);
               if (!p) return null;
               const calc = resolveItemCalc(i, p);
               if (calc.validQty < 1) return null;
               return (
-                <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 1, '&:last-child': { borderBottom: 0, pb: 0 } }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25, flex: 1 }}>
-                      {p.name}
-                    </Typography>
+                <Box key={i.productId} sx={{ borderBottom: '1px dashed', borderColor: 'divider', pb: 0.75, '&:last-child': { borderBottom: 0, pb: 0 } }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+                    <Typography fontWeight={700} fontSize={11.5} noWrap sx={{ mb: 0.2, flex: 1 }}>{p.name}</Typography>
                     {calc.validDisc > 0 && (
                       <Chip
                         size="small"
                         color="warning"
                         label={`Disc ${calc.validDisc}%`}
-                        sx={{ height: 20, fontSize: '0.675rem', fontWeight: 700 }}
+                        sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700 }}
                       />
                     )}
                   </Stack>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
                       {calc.validQty} {calc.uom.value} × {formatRupiah(calc.uom.price)}
                       {calc.uom.pcsPerUnit > 1 ? ` (baseQty: ${calc.baseQty} pcs)` : ` (${calc.baseQty} pcs)`}
                     </Typography>
                     <Box sx={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {calc.validDisc > 0 && (
-                        <Typography variant="caption" color="text.secondary" sx={{ textDecoration: 'line-through', mr: 0.75 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ textDecoration: 'line-through', mr: 0.5, fontSize: 9.5 }}>
                           {formatRupiah(calc.gross)}
                         </Typography>
                       )}
-                      <Typography component="span" variant="body2" fontWeight={700}>
+                      <Typography component="span" variant="body2" fontWeight={700} sx={{ fontSize: 11 }}>
                         {formatRupiah(calc.line)}
                       </Typography>
                     </Box>
@@ -795,14 +767,14 @@ export default function OrderMobile() {
             })}
           </Stack>
 
-          <Stack spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Stack spacing={0.4} sx={{ mt: 1.25, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
             {draftSummary.discTotal > 0 && (
               <>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ fontSize: 11 }}>
                   <Typography variant="body2" color="text.secondary">Subtotal Kotor</Typography>
                   <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftSummary.grossSubtotal)}</Typography>
                 </Stack>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ fontSize: 11 }}>
                   <Typography variant="body2" color="warning.dark">Total Diskon Item</Typography>
                   <Typography variant="body2" color="warning.dark" fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>
                     -{formatRupiah(draftSummary.discTotal)}
@@ -810,15 +782,15 @@ export default function OrderMobile() {
                 </Stack>
               </>
             )}
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ fontSize: 11 }}>
               <Typography variant="body2" color="text.secondary">Subtotal Bersih</Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftSummary.subtotal)}</Typography>
             </Stack>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ fontSize: 11 }}>
               <Typography variant="body2" color="text.secondary">PPN {Math.round(TAX_RATE * 100)}%</Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>{formatRupiah(draftSummary.tax)}</Typography>
             </Stack>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ fontSize: 11.5 }}>
               <Typography variant="body2" fontWeight={800}>TOTAL</Typography>
               <Typography variant="body2" fontWeight={800} color="primary" sx={{ whiteSpace: 'nowrap' }}>
                 {formatRupiah(draftSummary.total)}
@@ -828,15 +800,15 @@ export default function OrderMobile() {
         </CardContent>
       </Card>
 
-      {/* ===== Card Pilihan Metode Pembayaran (BR-ORD-008 & Changelog v1.3) ===== */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Stack spacing={2}>
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+          <Stack spacing={1}>
             <TextField
               select
               label="Metode Pembayaran *"
               value={metode}
               onChange={(e) => setMetode(e.target.value)}
+              size="small"
             >
               {ORDER_PAYMENT_METHODS.map((m) => (
                 <MenuItem key={m.value} value={m.value}>
@@ -853,15 +825,16 @@ export default function OrderMobile() {
                   value={bankId}
                   onChange={(e) => setBankId(e.target.value)}
                   helperText="Rekening resmi perusahaan untuk transfer pelanggan."
+                  size="small"
                   MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}
                 >
                   {banks.map((b) => (
                     <MenuItem key={b.id} value={String(b.id)}>
                       <Box>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: 11.5 }}>
                           {b.nama}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
                           {b.noRekening} {b.atasNama ? `— a.n. ${b.atasNama}` : ''}
                         </Typography>
                       </Box>
@@ -869,7 +842,7 @@ export default function OrderMobile() {
                   ))}
                 </TextField>
               ) : (
-                <Alert severity="warning">
+                <Alert severity="warning" sx={{ fontSize: 11 }}>
                   Belum ada rekening bank perusahaan aktif di Master Data Bank.
                 </Alert>
               ))}
@@ -880,6 +853,7 @@ export default function OrderMobile() {
                 label="Jatuh Tempo (Termin) *"
                 value={terminHari}
                 onChange={(e) => setTerminHari(e.target.value)}
+                size="small"
               >
                 {ORDER_TERMIN_DAYS.map((d) => (
                   <MenuItem key={d} value={String(d)}>
@@ -890,13 +864,13 @@ export default function OrderMobile() {
             )}
 
             {metode === 'cicilan' && (
-              <Alert severity="info">
+              <Alert severity="info" sx={{ fontSize: 11 }}>
                 Metode Cicilan: rincian kesepakatan cicilan dapat dicantumkan pada catatan pesanan.
               </Alert>
             )}
 
             {metode === 'konsinyasi' && (
-              <Alert severity="info">
+              <Alert severity="info" sx={{ fontSize: 11 }}>
                 Metode Konsinyasi: barang titipan — penagihan dilakukan berkala mengikuti hasil stock-take audit.
               </Alert>
             )}
@@ -904,14 +878,14 @@ export default function OrderMobile() {
         </CardContent>
       </Card>
 
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+      <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
           <TextField label="Catatan (opsional, maks 255)" multiline minRows={2} value={note}
-            onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }} />
+            onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }} size="small" />
         </CardContent>
       </Card>
 
-      <Typography variant="caption" color="text.secondary" align="center">
+      <Typography variant="caption" color="text.secondary" align="center" sx={{ fontSize: 10 }}>
         Nomor order unik digenerate otomatis oleh sistem. Tombol terkunci saat penyimpanan — mencegah order ganda.
       </Typography>
 

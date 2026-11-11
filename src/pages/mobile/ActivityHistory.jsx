@@ -43,7 +43,6 @@ export default function ActivityHistory() {
   const today = todayISO();
   const outletOf = (id) => (db.outlets || []).find((o) => o.id === id) || {};
 
-  /* Agregasi semua stream aktivitas sales */
   const activities = useMemo(() => {
     const list = [];
     const sid = user.salesId;
@@ -126,7 +125,6 @@ export default function ActivityHistory() {
       });
     });
 
-    /* Urutkan kronologis terbalik (paling baru di atas) */
     return list.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
   }, [db, user.salesId]);
 
@@ -139,23 +137,21 @@ export default function ActivityHistory() {
   }, [activities, filterType, filterDate, today]);
 
   return (
-    <Stack spacing={2} sx={{ pb: 6 }}>
-      {/* Header */}
+    <Stack spacing={1.5} sx={{ pb: 5 }}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <IconButton onClick={() => navigate('/app')} sx={{ bgcolor: 'action.hover' }}>
           <ArrowBackRoundedIcon />
         </IconButton>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" fontWeight={800} noWrap>Riwayat Aktivitas</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
+          <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 15 }}>Riwayat Aktivitas</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 10 }}>
             Timeline seluruh kunjungan & transaksi lapangan
           </Typography>
         </Box>
-        <Chip size="small" variant="outlined" label={`${filtered.length} log`} />
+        <Chip size="small" variant="outlined" label={`${filtered.length} log`} sx={{ fontSize: '0.65rem' }} />
       </Stack>
 
-      {/* Filter Toolbar */}
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={0.75}>
         <TextField select size="small" label="Waktu" value={filterDate}
           onChange={(e) => setFilterDate(e.target.value)} sx={{ flex: 1 }}>
           <MenuItem value="all">Semua Waktu</MenuItem>
@@ -172,26 +168,25 @@ export default function ActivityHistory() {
         </TextField>
       </Stack>
 
-      {/* Timeline List */}
       {filtered.length ? filtered.map((act) => {
         const meta = TYPE_CONFIG[act.type] || TYPE_CONFIG.order;
         const Icon = meta.icon;
         return (
-          <Card key={act.id} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-              <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                <Avatar variant="rounded" sx={{ bgcolor: `${meta.color}.main`, width: 38, height: 38, borderRadius: 2 }}>
+          <Card key={act.id} elevation={0} sx={{ borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                <Avatar variant="rounded" sx={{ bgcolor: `${meta.color}.main`, width: 34, height: 34, borderRadius: 1.5 }}>
                   <Icon fontSize="small" sx={{ color: 'common.white' }} />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography fontWeight={700} fontSize={14} noWrap>{act.title}</Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+                    <Typography fontWeight={700} fontSize={12.5} noWrap>{act.title}</Typography>
                     {act.status && <StatusChip kind={act.statusKind} status={act.status} />}
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mt: 0.25 }} noWrap>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11, mt: 0.2 }} noWrap>
                     {act.desc}
                   </Typography>
-                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.4, fontSize: 9.5 }}>
                     {act.ts} WIB
                   </Typography>
                 </Box>

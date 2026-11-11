@@ -63,7 +63,7 @@ const GROUPS = [
     { path: '/dashboard/quotations', label: 'Quotation',             icon: DescriptionRoundedIcon,    roles: ['admin', 'supervisor'] },
     { path: '/dashboard/orders',     label: 'Entry Order',           icon: ReceiptLongRoundedIcon,    roles: ['admin', 'supervisor', 'finance'] },
     { path: '/dashboard/audit',      label: 'Audit & Survey',        icon: FactCheckRoundedIcon,      roles: ['admin', 'supervisor'] },
-    { path: '/dashboard/prospek',    label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['admin', 'supervisor'] },
+    { path: '/dashboard/prospek',    label: 'Prospek & Klasifikasi', icon: TrackChangesRoundedIcon,   roles: ['supervisor'] },
     { path: '/dashboard/gps',        label: 'GPS Monitoring',        icon: LocationOnRoundedIcon,     roles: ['admin', 'supervisor'] },
   ]},
   { label: 'Keuangan', financeOrder: 1, items: [

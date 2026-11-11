@@ -84,8 +84,12 @@ export default function App() {
                     <Route path="tasks" element={<TaskDesktop />} />
                     <Route path="quotations" element={<QuoteDesktop />} />
                     <Route path="audit" element={<AuditDesktop />} />
-                    <Route path="prospek" element={<Prospek />} />
                     <Route path="gps" element={<GpsDesktop />} />
+                  </Route>
+
+                  {/* Khusus Supervisor (klasifikasi & data prospek) */}
+                  <Route element={<RequireRole roles={['supervisor']} />}>
+                    <Route path="prospek" element={<Prospek />} />
                   </Route>
                 </Route>
               </Route>

@@ -45,7 +45,6 @@ import { todayISO, formatRupiah, TAX_RATE, QUOTE_DISCOUNT_LIMIT } from '../../ut
 import { expireQuotes, quoteStatusForDiscount, maxDiscountOf } from '../../utils/quoteUtils';
 import { resolveQuoteTarget } from '../../utils/quotePdf';
 
-/* Tanggal + N hari (perhitungan lokal, aman timezone) */
 const addDays = (iso, n) => {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + n);
@@ -87,10 +86,6 @@ const payShort = (q) => {
 const QTY_ZERO_ERR = 'Jumlah pesanan tidak valid. Kuantitas minimal adalah 1.';
 const DISC_RANGE_ERR = 'Diskon harus bernilai antara 0% hingga 100%.';
 
-/* ===== Konfigurasi Multi-UoM per Produk (mirip OrderMobile) =====
- * Harga dasar tetap ditarik & terkunci dari Master Produk (p.hargaJual).
- * Satuan jual dapat dipilih antara Pcs vs Box / Karton dengan konversi otomatis ke baseQty (pcs).
- */
 function getUomOptions(p) {
   if (!p) return [];
   const masterUnit = (p.unit || 'pcs').toLowerCase();
@@ -118,7 +113,6 @@ function getUomOptions(p) {
     ];
   }
 
-  /* Default: masterUnit === 'pcs' */
   const pcsPrice = Number(p.hargaJual) || 0;
   const boxFactor = Math.max(2, Number(p.pcsPerBox) || (masterFactor > 1 ? masterFactor : 12));
   const kartonFactor = Math.max(boxFactor, Number(p.pcsPerKarton) || boxFactor * 2);
@@ -167,7 +161,6 @@ function resolveItemCalc(item, product) {
   };
 }
 
-/* Header langkah */
 function StepHeader({ title, onBack, step }) {
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
@@ -175,22 +168,14 @@ function StepHeader({ title, onBack, step }) {
         <ArrowBackRoundedIcon />
       </IconButton>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="h6" fontWeight={800} noWrap>
+        <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 14 }}>
           {title}
         </Typography>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.2 }}>
           {[0, 1, 2].map((i) => (
-            <Box
-              key={i}
-              sx={{
-                width: 18,
-                height: 4,
-                borderRadius: 99,
-                bgcolor: i <= step ? 'primary.main' : 'divider',
-              }}
-            />
+            <Box key={i} sx={{ width: 16, height: 3, borderRadius: 99, bgcolor: i <= step ? 'primary.main' : 'divider' }} />
           ))}
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, fontSize: 9.5 }}>
             Langkah {step + 1} dari 3
           </Typography>
         </Stack>
@@ -199,7 +184,6 @@ function StepHeader({ title, onBack, step }) {
   );
 }
 
-/* Bar aksi bawah (sticky) */
 function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }) {
   return (
     <Box
@@ -213,9 +197,9 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
         maxWidth: 398,
         bgcolor: disabled ? 'action.disabledBackground' : 'primary.main',
         color: disabled ? 'text.disabled' : '#fff',
-        borderRadius: 2.5,
-        px: 2,
-        py: 1.25,
+        borderRadius: 1,
+        px: 1.5,
+        py: 1,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -225,15 +209,15 @@ function BottomBar({ itemCount, total, actionLabel, onClick, disabled, loading }
       }}
     >
       <Box>
-        <Typography fontWeight={800} fontSize={14}>
+        <Typography fontWeight={800} fontSize={12}>
           {itemCount} item
         </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap' }}>
+        <Typography variant="caption" sx={{ opacity: 0.9, whiteSpace: 'nowrap', fontSize: 10.5 }}>
           {formatRupiah(total)}
         </Typography>
       </Box>
       <Stack direction="row" spacing={0.5} alignItems="center">
-        <Typography fontWeight={700} fontSize={14}>
+        <Typography fontWeight={700} fontSize={12}>
           {loading ? 'Menyimpan…' : actionLabel}
         </Typography>
         {!loading && <ArrowForwardRoundedIcon fontSize="small" />}
@@ -251,15 +235,13 @@ export default function QuoteMobile() {
   const today = todayISO();
   const maxAllowedDate = addDays(today, 30);
 
-  /* Order asal (draft diteruskan dari Order) — untuk prefill metode pembayaran */
   const fromOrd =
     location.state?.fromOrder != null
       ? (db.orders || []).find((o) => o.id === location.state.fromOrder) || null
       : null;
 
-  /* ===== SEMUA HOOKS DI PALING ATAS ===== */
   const [filter, setFilter] = useState('all');
-  const [targetTab, setTargetTab] = useState('outlet'); /* 'outlet' | 'prospect' */
+  const [targetTab, setTargetTab] = useState('outlet');
   const [draft, setDraft] = useState(() =>
     fromOrd
       ? {
@@ -286,7 +268,7 @@ export default function QuoteMobile() {
   const [outletSearch, setOutletSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [unitPrefs, setUnitPrefs] = useState({});
-  const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14)); /* default 14 hari */
+  const [validUntil, setValidUntil] = useState(() => addDays(todayISO(), 14));
   const [note, setNote] = useState('');
   const [syarat, setSyarat] = useState('');
   const [metode, setMetode] = useState(fromOrd?.metodePembayaran || 'tunai');
@@ -300,17 +282,14 @@ export default function QuoteMobile() {
   const [successQuote, setSuccessQuote] = useState(null);
   const [detailId, setDetailId] = useState(null);
 
-  /* Auto-expire saat halaman dibuka (sekali) */
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireQuotes(db, mutate);
     if (n) toast(`${n} quotation kedaluwarsa otomatis ditandai Kadaluarsa.`, 'info');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ===== Derived: Target Pelanggan (Outlet Terdaftar vs Calon Mitra Prospek) ===== */
   const isProspectDraft = draft?.targetType === 'prospect';
   const selectedOutlet = !isProspectDraft
     ? (db.outlets || []).find((o) => o.id === draft?.outletId)
@@ -339,7 +318,6 @@ export default function QuoteMobile() {
     );
   });
 
-  /* Daftar Prospek relevan untuk Sales lapangan (tidak berstatus Ditolak) */
   const prospects = (db.prospects || []).filter((p) => {
     if (p.status === 'Ditolak') return false;
     const allowedForSales =
@@ -359,7 +337,6 @@ export default function QuoteMobile() {
   const prospectCategoryName = (cid) =>
     (db.prospectCategories || []).find((c) => c.id === cid)?.name || 'Prospek';
 
-  /* F-23: gerbang check-in khusus Outlet Terdaftar */
   const ckOutlets = new Set(
     (db.checkins || [])
       .filter((c) => c.salesId === user.salesId && c.date === todayISO())
@@ -374,7 +351,6 @@ export default function QuoteMobile() {
     );
   });
 
-  /* Hanya tampilkan rekening perusahaan untuk pembayaran dari pelanggan (kompatibel dengan kategori rekening BR-MD-BNK-002) */
   const banks = (db.banks || []).filter(
     (b) =>
       (b.status || 'active') === 'active' &&
@@ -387,7 +363,6 @@ export default function QuoteMobile() {
     .reverse();
   const quoteList = filter === 'all' ? myQuotes : myQuotes.filter((q) => q.status === filter);
 
-  /* Validasi Tanggal Berlaku (Bab 4.5.2, Tabel 23 & Tabel 24): mulai hari ini s.d. 30 hari ke depan */
   const validUntilError = (() => {
     if (!validUntil) return 'Tanggal masa berlaku penawaran wajib diisi.';
     if (validUntil < today) return 'Tanggal masa berlaku tidak boleh kurang dari hari ini.';
@@ -418,7 +393,6 @@ export default function QuoteMobile() {
     });
   };
 
-  /* Input qty 0 tetap mempertahankan baris & memunculkan error inline merah */
   const handleQtyInput = (product, rawValue) => {
     const cleaned = String(rawValue);
     const parsed = cleaned.trim() === '' ? 0 : Math.floor(Number(cleaned));
@@ -475,7 +449,7 @@ export default function QuoteMobile() {
 
     (draft?.items || []).forEach((it) => {
       const p = (db.products || []).find((x) => x.id === it.productId);
-      if (!p) return; /* F-34: produk dihapus dari Master saat draft aktif — lewati aman */
+      if (!p) return;
       const calc = resolveItemCalc(it, p);
       if (calc.qtyError || calc.discError) {
         hasError = true;
@@ -519,7 +493,6 @@ export default function QuoteMobile() {
     setTerminHari('14');
   };
 
-  /* Template dari Entry Order */
   const applyFromOrder = (o) => {
     setDraft({
       step: 'items',
@@ -631,12 +604,10 @@ export default function QuoteMobile() {
         terminHari: metode === 'termin' ? Number(terminHari) : null,
       });
 
-      /* Bila dibuat untuk Prospek yang masih berstatus awal, perbarui progres ke Negosiasi */
       if (isProspectDraft && selectedProspect && selectedProspect.status === 'Prospek') {
         update('prospects', selectedProspect.id, { status: 'Negosiasi' });
       }
 
-      /* Diskon melebihi wewenang → notifikasi Supervisor */
       if (status === 'pending_approval') {
         const sales = (db.sales || []).find((s) => s.id === user.salesId);
         const spv = (db.supervisors || []).find((s) => s.id === sales?.supervisorId);
@@ -656,39 +627,34 @@ export default function QuoteMobile() {
     }, 500);
   };
 
-  /* ===================== VIEW: DAFTAR QUOTATION ===================== */
   if (!step) {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6" fontWeight={800}>
-            Quotation
-          </Typography>
-          <Stack direction="row" spacing={1}>
+          <Typography variant="body2" fontWeight={800} sx={{ fontSize: 14 }} noWrap>Quotation</Typography>
+          <Stack direction="row" spacing={0.5}>
             <Button
               variant="outlined"
               size="small"
-              startIcon={<ReceiptLongRoundedIcon />}
-              onClick={() => setDraft({ step: 'order', items: [] })}
-            >
+              startIcon={<ReceiptLongRoundedIcon fontSize="small" />}
+              onClick={() => setDraft({ step: 'order', items: [] })} sx={{ fontSize: 11 }}>
               Dari Entry Order
             </Button>
             <Button
               variant="contained"
               size="small"
-              startIcon={<AddRoundedIcon />}
+              startIcon={<AddRoundedIcon fontSize="small" />}
               onClick={() => {
                 setTargetTab('outlet');
                 setOutletSearch('');
                 setDraft({ step: 'outlet', targetType: 'outlet', items: [] });
-              }}
-            >
+              }} sx={{ fontSize: 11 }}>
               Buat Baru
             </Button>
           </Stack>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+        <Stack direction="row" spacing={0.5} sx={{ overflowX: 'auto', pb: 0.5 }}>
           {FILTERS.map((f) => (
             <Chip
               key={f.v}
@@ -698,6 +664,7 @@ export default function QuoteMobile() {
               color={filter === f.v ? 'primary' : 'default'}
               variant={filter === f.v ? 'filled' : 'outlined'}
               onClick={() => setFilter(f.v)}
+              sx={{ fontSize: '0.65rem', borderRadius: 1 }}
             />
           ))}
         </Stack>
@@ -711,17 +678,17 @@ export default function QuoteMobile() {
                 key={q.id}
                 elevation={0}
                 onClick={() => setDetailId(q.id)}
-                sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+                sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
               >
-                <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>
+                    <Typography fontFamily="monospace" fontWeight={700} fontSize={10.5} noWrap>
                       {q.no}
                     </Typography>
                     <StatusChip kind="quote" status={q.status} />
                   </Stack>
-                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25 }}>
-                    <Typography variant="caption" color="text.secondary" noWrap>
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.2 }}>
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 9.5 }}>
                       {target.name} • {payShort(q)} • berlaku s.d {q.validUntil}
                       {md > 0 ? ` • disc maks ${md}%` : ''}
                     </Typography>
@@ -731,15 +698,15 @@ export default function QuoteMobile() {
                         color="info"
                         variant="outlined"
                         label="Prospek"
-                        sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}
+                        sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700, flexShrink: 0, borderRadius: 1 }}
                       />
                     )}
                   </Stack>
                   <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
                       Total
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap', fontSize: 11 }}>
                       {formatRupiah(q.total)}
                     </Typography>
                   </Stack>
@@ -758,7 +725,6 @@ export default function QuoteMobile() {
           salesActions
         />
 
-        {/* Dialog sukses */}
         <Dialog
           open={!!successQuote}
           onClose={() => setSuccessQuote(null)}
@@ -766,20 +732,20 @@ export default function QuoteMobile() {
           fullWidth
           PaperProps={{ sx: { borderRadius: 1 } }}
         >
-          <DialogTitle>Quotation Tersimpan</DialogTitle>
-          <DialogContent dividers sx={{ overflowX: 'hidden' }}>
-            <Stack alignItems="center" spacing={1} sx={{ py: 1 }}>
-              <Avatar sx={{ bgcolor: 'success.main', width: 56, height: 56, mb: 0.5 }}>
-                <CheckCircleRoundedIcon sx={{ fontSize: 30, color: 'common.white' }} />
+          <DialogTitle sx={{ fontWeight: 800, fontSize: 13 }}>Quotation Tersimpan</DialogTitle>
+          <DialogContent dividers sx={{ overflowX: 'hidden', px: 1.5, py: 1 }}>
+            <Stack alignItems="center" spacing={0.75} sx={{ py: 0.75 }}>
+              <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48, mb: 0.25 }}>
+                <CheckCircleRoundedIcon sx={{ fontSize: 24, color: 'common.white' }} />
               </Avatar>
-              <Typography fontFamily="monospace" fontWeight={800} fontSize={20}>
+              <Typography fontFamily="monospace" fontWeight={800} fontSize={16}>
                 {successQuote?.no}
               </Typography>
               <StatusChip kind="quote" status={successQuote?.status} />
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: 11 }}>
                 Total: <b>{formatRupiah(successQuote?.total || 0)}</b>
               </Typography>
-              <Typography variant="caption" color="text.secondary" align="center">
+              <Typography variant="caption" color="text.secondary" align="center" sx={{ fontSize: 10 }}>
                 {successQuote?.status === 'pending_approval' ? (
                   <>
                     Diskon melebihi wewenang — menunggu <b>persetujuan Supervisor</b> sebelum dapat
@@ -794,8 +760,8 @@ export default function QuoteMobile() {
               </Typography>
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSuccessQuote(null)}>Tutup</Button>
+          <DialogActions sx={{ px: 1.5, py: 1, gap: 0.75 }}>
+            <Button onClick={() => setSuccessQuote(null)} sx={{ fontSize: 11 }}>Tutup</Button>
             <Button
               variant="contained"
               startIcon={<DescriptionRoundedIcon fontSize="small" />}
@@ -803,8 +769,7 @@ export default function QuoteMobile() {
                 const id = successQuote?.id;
                 setSuccessQuote(null);
                 setDetailId(id);
-              }}
-            >
+              }} sx={{ fontSize: 11, fontWeight: 700 }}>
               Lihat Detail
             </Button>
           </DialogActions>
@@ -813,21 +778,19 @@ export default function QuoteMobile() {
     );
   }
 
-  /* ===================== LANGKAH 1: PILIH TUJUAN PENAWARAN (OUTLET / PROSPEK) ===================== */
   if (step === 'outlet') {
     return (
-      <Stack spacing={1.5}>
+      <Stack spacing={1.25}>
         <StepHeader title="Pilih Tujuan Penawaran" onBack={resetDraft} step={0} />
 
-        {/* Tab Pemilih Kategori Pelanggan: Outlet Terdaftar vs Calon Mitra (Prospek) (Bab 4.5 & Tabel 23) */}
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: 1,
+            gap: 0.75,
             p: 0.5,
             bgcolor: 'action.hover',
-            borderRadius: 2,
+            borderRadius: 1,
           }}
         >
           <Button
@@ -838,7 +801,7 @@ export default function QuoteMobile() {
               setTargetTab('outlet');
               setOutletSearch('');
             }}
-            sx={{ borderRadius: 1.5, fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+            sx={{ borderRadius: 1, fontWeight: 700, textTransform: 'none', boxShadow: 'none', fontSize: 11 }}
           >
             Outlet Terdaftar
           </Button>
@@ -850,7 +813,7 @@ export default function QuoteMobile() {
               setTargetTab('prospect');
               setOutletSearch('');
             }}
-            sx={{ borderRadius: 1.5, fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+            sx={{ borderRadius: 1, fontWeight: 700, textTransform: 'none', boxShadow: 'none', fontSize: 11 }}
           >
             Calon Mitra (Prospek)
           </Button>
@@ -871,6 +834,7 @@ export default function QuoteMobile() {
               </InputAdornment>
             ),
           }}
+          size="small"
         />
 
         {targetTab === 'outlet' ? (
@@ -895,17 +859,17 @@ export default function QuoteMobile() {
                 }
                 sx={{
                   cursor: 'pointer',
-                  borderRadius: 2,
+                  borderRadius: 1,
                   border: '1px solid',
                   borderColor: 'divider',
                 }}
               >
                 <CardContent
                   sx={{
-                    p: 1.75,
-                    '&:last-child': { pb: 1.75 },
+                    p: 1.25,
+                    '&:last-child': { pb: 1.25 },
                     display: 'flex',
-                    gap: 1.25,
+                    gap: 1,
                     alignItems: 'center',
                   }}
                 >
@@ -914,19 +878,19 @@ export default function QuoteMobile() {
                     sx={{
                       bgcolor: 'primary.light',
                       color: 'primary.dark',
-                      width: 40,
-                      height: 40,
-                      borderRadius: 2,
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1,
                       flexShrink: 0,
                     }}
                   >
                     <StorefrontRoundedIcon fontSize="small" />
                   </Avatar>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography fontWeight={700} fontSize={14} noWrap>
+                    <Typography fontWeight={700} fontSize={12} noWrap>
                       {o.name}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>
                       {o.address}
                     </Typography>
                     {!ckOutlets.has(o.id) && (
@@ -935,7 +899,7 @@ export default function QuoteMobile() {
                         color="warning"
                         variant="outlined"
                         label="Belum Check-In"
-                        sx={{ mt: 0.5, height: 20, fontSize: '0.675rem' }}
+                        sx={{ mt: 0.3, height: 18, fontSize: '0.625rem', fontWeight: 700 }}
                       />
                     )}
                   </Box>
@@ -961,17 +925,17 @@ export default function QuoteMobile() {
               }
               sx={{
                 cursor: 'pointer',
-                borderRadius: 2,
+                borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'divider',
               }}
             >
               <CardContent
                 sx={{
-                  p: 1.75,
-                  '&:last-child': { pb: 1.75 },
+                  p: 1.25,
+                  '&:last-child': { pb: 1.25 },
                   display: 'flex',
-                  gap: 1.25,
+                  gap: 1,
                   alignItems: 'center',
                 }}
               >
@@ -980,17 +944,17 @@ export default function QuoteMobile() {
                   sx={{
                     bgcolor: 'info.light',
                     color: 'info.dark',
-                    width: 40,
-                    height: 40,
-                    borderRadius: 2,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 1,
                     flexShrink: 0,
                   }}
                 >
                   <PersonSearchRoundedIcon fontSize="small" />
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Typography fontWeight={700} fontSize={14} noWrap sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography fontWeight={700} fontSize={12} noWrap sx={{ flex: 1 }}>
                       {p.name}
                     </Typography>
                     <Chip
@@ -998,14 +962,14 @@ export default function QuoteMobile() {
                       color="info"
                       variant="outlined"
                       label={prospectCategoryName(p.categoryId)}
-                      sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}
+                      sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700, flexShrink: 0 }}
                     />
                   </Stack>
-                  <Typography variant="caption" color="text.secondary" noWrap display="block">
+                  <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>
                     {p.owner ? `${p.owner} • ` : ''}
                     {p.address || '-'}
                   </Typography>
-                  <Typography variant="caption" color="primary.main" fontWeight={600}>
+                  <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: 10 }}>
                     Status: {p.status || 'Prospek'}
                     {p.phone ? ` • ${p.phone}` : ''}
                   </Typography>
@@ -1020,7 +984,6 @@ export default function QuoteMobile() {
     );
   }
 
-  /* ===================== LANGKAH 1B: PILIH ENTRY ORDER (template) ===================== */
   if (step === 'order') {
     const tplOrders = (db.orders || [])
       .filter((o) => o.salesId === user.salesId && !['rejected', 'cancelled'].includes(o.status))
@@ -1028,9 +991,9 @@ export default function QuoteMobile() {
       .reverse();
     const outletNameOf = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
     return (
-      <Stack spacing={1.5}>
+      <Stack spacing={1.25}>
         <StepHeader title="Pilih Entry Order" onBack={() => setDraft(null)} step={0} />
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11 }}>
           Quotation terisi otomatis mengikuti order terpilih — outlet, produk, dan metode pembayaran
           yang sudah dipilih saat order dibuat.
         </Typography>
@@ -1040,20 +1003,20 @@ export default function QuoteMobile() {
               key={o.id}
               elevation={0}
               onClick={() => applyFromOrder(o)}
-              sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+              sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
             >
-              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography fontFamily="monospace" fontWeight={700} fontSize={12} noWrap>
+                  <Typography fontFamily="monospace" fontWeight={700} fontSize={10.5} noWrap>
                     {o.no}
                   </Typography>
                   <StatusChip kind="order" status={o.status} />
                 </Stack>
-                <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                   {outletNameOf(o.outletId)} • {o.items.length} produk • {payShort(o)} • {o.date}
                 </Typography>
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 0.5 }}>
-                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap' }}>
+                  <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: 'nowrap', fontSize: 11 }}>
                     {formatRupiah(o.total)}
                   </Typography>
                 </Stack>
@@ -1067,10 +1030,9 @@ export default function QuoteMobile() {
     );
   }
 
-  /* ===================== LANGKAH 2: PRODUK & DISKON ===================== */
   if (step === 'items') {
     return (
-      <Stack spacing={1.5} sx={{ pb: 7 }}>
+      <Stack spacing={1.25} sx={{ pb: 6 }}>
         <StepHeader
           title="Pilih Produk & Diskon"
           onBack={() =>
@@ -1090,17 +1052,17 @@ export default function QuoteMobile() {
           </Alert>
         )}
 
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+            <Stack direction="row" spacing={1} alignItems="center">
               <Avatar
                 variant="rounded"
                 sx={{
                   bgcolor: isProspectDraft ? 'info.light' : 'primary.light',
                   color: isProspectDraft ? 'info.dark' : 'primary.dark',
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1,
                   flexShrink: 0,
                 }}
               >
@@ -1111,8 +1073,8 @@ export default function QuoteMobile() {
                 )}
               </Avatar>
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Typography fontWeight={700} fontSize={15} noWrap>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography fontWeight={700} fontSize={13} noWrap>
                     {selectedTarget.name}
                   </Typography>
                   {isProspectDraft && (
@@ -1120,16 +1082,16 @@ export default function QuoteMobile() {
                       size="small"
                       color="info"
                       label="Prospek"
-                      sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
+                      sx={{ height: 18, fontSize: '0.625rem', fontWeight: 700 }}
                     />
                   )}
                 </Stack>
-                <Typography variant="caption" color="text.secondary" noWrap display="block">
+                <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>
                   {selectedTarget.address || '-'}
                 </Typography>
               </Box>
             </Stack>
-            <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={<LockRoundedIcon fontSize="small" />}>
+            <Alert severity="info" sx={{ mt: 0.75, py: 0.4 }} icon={<LockRoundedIcon fontSize="small" />}>
               Harga <b>terkunci dari Master Data</b> — tersimpan otomatis saat dokumen dibuat; hanya
               diskon yang bisa diatur.
             </Alert>
@@ -1147,6 +1109,7 @@ export default function QuoteMobile() {
               </InputAdornment>
             ),
           }}
+          size="small"
         />
 
         {products.length ? (
@@ -1165,27 +1128,27 @@ export default function QuoteMobile() {
                 key={p.id}
                 elevation={0}
                 sx={{
-                  borderRadius: 2,
+                  borderRadius: 1,
                   border: '1px solid',
                   borderColor: (qtyErr || discErr) ? 'error.main' : (calc.validQty > 0 ? 'primary.main' : 'divider'),
                 }}
               >
-                <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={0.75}>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography fontWeight={700} fontSize={14} noWrap>
+                      <Typography fontWeight={700} fontSize={12} noWrap>
                         {p.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                      <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                         {p.sku} • {p.category} • {p.unit}
                       </Typography>
-                      <Typography variant="body2" fontWeight={700}>
+                      <Typography variant="body2" fontWeight={700} sx={{ fontSize: 11 }}>
                         {formatRupiah(calc.uom.price)}{' '}
-                        <Typography component="span" variant="caption" color="text.secondary" fontWeight={500}>
+                        <Typography component="span" variant="caption" color="text.secondary" fontWeight={500} sx={{ fontSize: 9.5 }}>
                           / {calc.uom.value}
                         </Typography>
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: 9.5 }}>
                         Stok gudang: {p.stock} pcs
                         {calc.uom.pcsPerUnit > 1 ? ` • 1 ${calc.uom.value} = ${calc.uom.pcsPerUnit} pcs` : ''}
                       </Typography>
@@ -1196,7 +1159,7 @@ export default function QuoteMobile() {
                         size="small"
                         disabled={!item || calc.validQty === 0}
                         onClick={() => handleQtyStep(p, -1)}
-                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                       >
                         <RemoveRoundedIcon fontSize="small" />
                       </IconButton>
@@ -1206,13 +1169,13 @@ export default function QuoteMobile() {
                         value={displayQty}
                         error={Boolean(qtyErr)}
                         onChange={(e) => handleQtyInput(p, e.target.value)}
-                        sx={{ width: 66 }}
-                        inputProps={{ min: 0, style: { textAlign: 'center', fontWeight: 700 } }}
+                        sx={{ width: 60 }}
+                        inputProps={{ min: 0, style: { textAlign: 'center', fontWeight: 700, fontSize: 11 } }}
                       />
                       <IconButton
                         size="small"
                         onClick={() => handleQtyStep(p, 1)}
-                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                       >
                         <AddRoundedIcon fontSize="small" />
                       </IconButton>
@@ -1227,13 +1190,12 @@ export default function QuoteMobile() {
                   </Stack>
 
                   {qtyErr && (
-                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.75 }}>
+                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.6, fontSize: 10 }}>
                       {qtyErr}
                     </Typography>
                   )}
 
-                  {/* Pemilihan Satuan Jual (UoM) & Diskon Manual per Item */}
-                  <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
+                  <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
                     <TextField
                       select
                       size="small"
@@ -1262,7 +1224,7 @@ export default function QuoteMobile() {
                       InputProps={{
                         endAdornment: (
                           <InputAdornment position="end">
-                            <PercentRoundedIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                            <PercentRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
                           </InputAdornment>
                         ),
                       }}
@@ -1270,26 +1232,25 @@ export default function QuoteMobile() {
                   </Stack>
 
                   {discErr && (
-                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.5 }}>
+                    <Typography variant="caption" color="error" fontWeight={600} display="block" sx={{ mt: 0.4, fontSize: 10 }}>
                       {discErr}
                     </Typography>
                   )}
 
-                  {/* Ringkasan Konversi Kuantitas Dasar (baseQty) & Subtotal Bersih Item */}
                   {item && !qtyErr && calc.validQty >= 1 && (
                     <Stack
                       direction="row"
                       justifyContent="space-between"
                       alignItems="center"
                       sx={{
-                        mt: 1,
+                        mt: 0.75,
                         px: 1,
-                        py: 0.6,
-                        borderRadius: 1.25,
+                        py: 0.5,
+                        borderRadius: 1,
                         bgcolor: 'action.hover',
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ fontSize: 9.5 }}>
                         Kuantitas dasar (baseQty): <b>{calc.baseQty} pcs</b>
                       </Typography>
                       <Box sx={{ textAlign: 'right' }}>
@@ -1297,12 +1258,12 @@ export default function QuoteMobile() {
                           <Typography
                             variant="caption"
                             color="text.secondary"
-                            sx={{ textDecoration: 'line-through', mr: 0.75 }}
+                            sx={{ textDecoration: 'line-through', mr: 0.5, fontSize: 9.5 }}
                           >
                             {formatRupiah(calc.gross)}
                           </Typography>
                         )}
-                        <Typography component="span" variant="caption" fontWeight={800} color="primary.main">
+                        <Typography component="span" variant="caption" fontWeight={800} color="primary.main" sx={{ fontSize: 10.5 }}>
                           {formatRupiah(calc.line)}
                         </Typography>
                       </Box>
@@ -1310,15 +1271,15 @@ export default function QuoteMobile() {
                   )}
 
                   {overDisc && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
+                    <Alert severity="warning" sx={{ mt: 0.75, py: 0.4 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
                       Diskon melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — dokumen akan menunggu{' '}
                       <b>persetujuan Supervisor</b>.
                     </Alert>
                   )}
 
                   {short && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
-                      Estimasi stok gudang saat ini {p.stock} pcs (kebutuhan {calc.baseQty} pcs). Penawaran tetap dapat dibuat — stok gudang baru dipotong saat Quotation dikonversi menjadi Entry Order.
+                    <Alert severity="warning" sx={{ mt: 0.75, py: 0.4 }} icon={<WarningAmberRoundedIcon fontSize="small" />}>
+                      Estimasi stok gudang tidak mencukupi (dibutuhkan <b>{calc.baseQty} pcs</b>, tersedia <b>{p.stock} pcs</b>). Pesanan <b>tetap dapat diajukan</b> — peringatan lunak.
                     </Alert>
                   )}
                 </CardContent>
@@ -1329,7 +1290,7 @@ export default function QuoteMobile() {
           <EmptyState message="Produk tidak ditemukan." />
         )}
 
-        {draftSummary.validItemCount > 0 && (
+        {(draft?.items?.length || 0) > 0 && (
           <BottomBar
             itemCount={draftSummary.totalUnits}
             total={draftSummary.total}
@@ -1342,276 +1303,5 @@ export default function QuoteMobile() {
     );
   }
 
-  /* ===================== LANGKAH 3: REVIEW & SIMPAN ===================== */
-  return (
-    <Stack spacing={1.5} sx={{ pb: 7 }}>
-      <StepHeader
-        title="Review Quotation"
-        onBack={() => setDraft((d) => ({ ...d, step: 'items' }))}
-        step={2}
-      />
-
-      {!online && (
-        <Alert severity="info">
-          Anda sedang offline — dokumen quotation tetap dapat dibuat: seluruh data tersimpan lokal di
-          perangkat.
-        </Alert>
-      )}
-
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Stack direction="row" spacing={0.75} alignItems="center">
-            <Typography fontWeight={700} fontSize={15}>
-              {selectedTarget.name}
-            </Typography>
-            {isProspectDraft && (
-              <Chip
-                size="small"
-                color="info"
-                label="Calon Mitra (Prospek)"
-                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
-              />
-            )}
-          </Stack>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            {selectedTarget.owner ? `${selectedTarget.owner} • ` : ''}
-            {selectedTarget.address || '-'}
-          </Typography>
-
-          {/* Rincian item — menampilkan UoM, baseQty (pcs), dan diskon manual */}
-          <Stack spacing={1}>
-            {draft.items.map((i) => {
-              const p = (db.products || []).find((x) => x.id === i.productId);
-              if (!p) return null;
-              const calc = resolveItemCalc(i, p);
-              if (calc.validQty < 1) return null;
-              return (
-                <Box
-                  key={i.productId}
-                  sx={{
-                    borderBottom: '1px dashed',
-                    borderColor: 'divider',
-                    pb: 1,
-                    '&:last-child': { borderBottom: 0, pb: 0 },
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography fontWeight={700} fontSize={13} noWrap sx={{ mb: 0.25, flex: 1 }}>
-                      {p.name}
-                    </Typography>
-                    {calc.validDisc > 0 && (
-                      <Chip
-                        size="small"
-                        color="warning"
-                        label={`Disc ${calc.validDisc}%`}
-                        sx={{ height: 20, fontSize: '0.675rem', fontWeight: 700 }}
-                      />
-                    )}
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                      {calc.validQty} {calc.uom.value} × {formatRupiah(calc.uom.price)}
-                      {calc.uom.pcsPerUnit > 1 ? ` (baseQty: ${calc.baseQty} pcs)` : ` (${calc.baseQty} pcs)`}
-                    </Typography>
-                    <Box sx={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {calc.validDisc > 0 && (
-                        <Typography variant="caption" color="text.secondary" sx={{ textDecoration: 'line-through', mr: 0.75 }}>
-                          {formatRupiah(calc.gross)}
-                        </Typography>
-                      )}
-                      <Typography component="span" variant="body2" fontWeight={700}>
-                        {formatRupiah(calc.line)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-              );
-            })}
-          </Stack>
-
-          <Stack spacing={0.5} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-            {draftSummary.discTotal > 0 && (
-              <>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Subtotal Kotor
-                  </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                    {formatRupiah(draftSummary.grossSubtotal)}
-                  </Typography>
-                </Stack>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="warning.dark">
-                    Total Diskon Item
-                  </Typography>
-                  <Typography variant="body2" color="warning.dark" fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>
-                    −{formatRupiah(draftSummary.discTotal)}
-                  </Typography>
-                </Stack>
-              </>
-            )}
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Subtotal Bersih
-              </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(draftSummary.subtotal)}
-              </Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                PPN {Math.round(TAX_RATE * 100)}%
-              </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(draftSummary.tax)}
-              </Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" fontWeight={800}>
-                TOTAL
-              </Typography>
-              <Typography variant="body2" fontWeight={800} color="primary" sx={{ whiteSpace: 'nowrap' }}>
-                {formatRupiah(draftSummary.total)}
-              </Typography>
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
-
-      {/* ===== Syarat Pembayaran ===== */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Stack spacing={2}>
-            <TextField
-              select
-              label="Metode Pembayaran *"
-              value={metode}
-              onChange={(e) => setMetode(e.target.value)}
-            >
-              {METODE_BAYAR.map((m) => (
-                <MenuItem key={m.v} value={m.v}>
-                  {m.l}
-                </MenuItem>
-              ))}
-            </TextField>
-            {metode === 'transfer' &&
-              (banks.length ? (
-                <TextField
-                  select
-                  label="Rekening Tujuan *"
-                  value={bankId}
-                  onChange={(e) => setBankId(e.target.value)}
-                  helperText="Rekening perusahaan — pihak pembeli transfer ke sini."
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 250 } } }}
-                >
-                  {banks.map((b) => (
-                    <MenuItem key={b.id} value={String(b.id)}>
-                      <Box>
-                        <Typography variant="body2" fontWeight={600}>
-                          {b.nama}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {b.noRekening}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </TextField>
-              ) : (
-                <Alert severity="warning">
-                  Belum ada rekening bank perusahaan aktif — minta Admin menambahkannya di Master Data
-                  → Bank, atau pilih metode pembayaran lain.
-                </Alert>
-              ))}
-            {metode === 'termin' && (
-              <TextField
-                select
-                label="Jatuh Tempo (Termin) *"
-                value={terminHari}
-                onChange={(e) => setTerminHari(e.target.value)}
-              >
-                {TERMIN_OPTS.map((d) => (
-                  <MenuItem key={d} value={String(d)}>
-                    Termin {d} hari
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-            {metode === 'cicilan' && (
-              <Alert severity="info">
-                Tulis rincian cicilan (DP, jumlah angsuran) di kolom <b>Syarat &amp; Ketentuan khusus</b>{' '}
-                di bawah.
-              </Alert>
-            )}
-            {metode === 'konsinyasi' && (
-              <Alert severity="info">
-                Konsinyasi: barang titipan — penagihan mengikuti hasil stock-take (jumlah barang yang
-                terjual).
-              </Alert>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
-
-      {/* ===== Masa Berlaku & Catatan (Bab 4.5.2, Tabel 23 & Tabel 24) ===== */}
-      <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-          <Stack spacing={2}>
-            <TextField
-              type="date"
-              label="Berlaku Hingga *"
-              value={validUntil}
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) => setValidUntil(e.target.value)}
-              inputProps={{ min: today, max: maxAllowedDate }}
-              error={Boolean(validUntilError)}
-              helperText={
-                validUntilError ||
-                'Mulai hari ini hingga maksimal 30 hari ke depan (default 14 hari).'
-              }
-            />
-            <TextField
-              label="Syarat & Ketentuan khusus (tercetak di PDF, maks 500)"
-              multiline
-              minRows={2}
-              value={syarat}
-              onChange={(e) => setSyarat(e.target.value)}
-              inputProps={{ maxLength: 500 }}
-              helperText="Opsional — mis. rincian cicilan/DP atau syarat pengiriman."
-            />
-            <TextField
-              label="Catatan (opsional, maks 255)"
-              multiline
-              minRows={2}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              inputProps={{ maxLength: 255 }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
-
-      {draftSummary.maxDisc > QUOTE_DISCOUNT_LIMIT ? (
-        <Alert severity="warning" icon={<WarningAmberRoundedIcon fontSize="small" />}>
-          Diskon maks <b>{draftSummary.maxDisc}%</b> melebihi wewenang {QUOTE_DISCOUNT_LIMIT}% — quotation akan
-          berstatus <b>Menunggu Persetujuan Supervisor</b> dan tidak dapat dikirim/diunduh sebelum
-          disetujui.
-        </Alert>
-      ) : (
-        <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />}>
-          Harga merupakan <b>snapshot</b> saat dokumen disimpan — perubahan Master Data tidak mengubah
-          dokumen.
-        </Alert>
-      )}
-
-      <BottomBar
-        itemCount={draftSummary.totalUnits}
-        total={draftSummary.total}
-        actionLabel="Simpan Quotation"
-        onClick={submitQuote}
-        disabled={!draftSummary.validItemCount || draftSummary.hasError || Boolean(validUntilError)}
-        loading={submitting}
-      />
-    </Stack>
-  );
+  return null;
 }

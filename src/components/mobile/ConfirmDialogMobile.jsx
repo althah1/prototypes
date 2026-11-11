@@ -12,7 +12,7 @@ export default function ConfirmDialog({
 }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
-      PaperProps={{ sx: { borderRadius: 1.25, border: '1px solid', borderColor: 'divider' } }}>
+      PaperProps={{ sx: { borderRadius: 1, border: '1px solid', borderColor: 'divider' } }}>
       <DialogTitle sx={{ overflowWrap: 'anywhere' }}>{title}</DialogTitle>
       <DialogContent sx={{ overflowX: 'hidden' }}>
         <DialogContentText sx={{ overflowWrap: 'anywhere' }}>{message}</DialogContentText>

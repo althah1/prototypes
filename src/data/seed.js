@@ -20,6 +20,7 @@ export function seed() {
       { id: 1, name: 'Raka Pratama (Admin)',   email: 'admin@sfa.co.id',      password: 'Admin123',   role: 'admin',      phone: '081200000001', status: 'active' },
       { id: 2, name: 'Budi Santoso (SPV 1)',  email: 'supervisor@sfa.co.id', password: 'Super123',   role: 'supervisor', phone: '081200000002', status: 'active' },
       { id: 3, name: 'Andi Wijaya',            email: 'sales1@sfa.co.id',     password: 'Sales123',   role: 'sales',      phone: '081200000003', status: 'active', salesId: 1 },
+      { id: 14, name: 'Sales Umum',            email: 'sales@sfa.co.id',      password: 'Sales123',   role: 'sales',      phone: '081200000014', status: 'active', salesId: 1 },
       { id: 4, name: 'Cindy Claudia (Finance)',email: 'finance@sfa.co.id',    password: 'Finance123', role: 'finance',    phone: '081200000004', status: 'active' },
       { id: 5, name: 'Sari Wulandari (SPV 2)', email: 'sari.spv@sfa.co.id',   password: 'Super123',   role: 'supervisor', phone: '081200000005', status: 'active' },
       { id: 6, name: 'Rina Kusuma',            email: 'sales2@sfa.co.id',     password: 'Sales123',   role: 'sales',      phone: '081200000006', status: 'active', salesId: 2 },

@@ -130,7 +130,7 @@ export default function LeafletMap({
   if (offline) {
     return (
       <Box sx={{
-        height, borderRadius: 2.5, border: '1px solid', borderColor: 'divider',
+        height, borderRadius: 1, border: '1px solid', borderColor: 'divider',
         bgcolor: 'grey.100', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 1, p: 2,
       }}>
@@ -143,6 +143,6 @@ export default function LeafletMap({
   }
 
   return (
-    <Box ref={containerRef} sx={{ height, borderRadius: 2.5, border: '1px solid', borderColor: 'divider', zIndex: 1 }} />
+    <Box ref={containerRef} sx={{ height, borderRadius: 1, border: '1px solid', borderColor: 'divider', zIndex: 1 }} />
   );
 }

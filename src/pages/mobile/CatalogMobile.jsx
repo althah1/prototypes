@@ -48,7 +48,6 @@ export default function CatalogMobile() {
     if (initRef.current) return;
     initRef.current = true;
     ensureGudangDetails(db, mutate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const categories = db.categories || [];
@@ -80,7 +79,6 @@ export default function CatalogMobile() {
       if (term && !`${p.sku} ${p.name} ${p.category || ''}`.toLowerCase().includes(term)) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProducts, catFilter, stockFilter, q, db.gudangDetails, activeWarehouseIds]);
 
   const detailPlacements = detailProduct
@@ -90,27 +88,25 @@ export default function CatalogMobile() {
     : [];
 
   return (
-    <Stack spacing={2} sx={{ pb: 4 }}>
-      {/* Header */}
+    <Stack spacing={1.5} sx={{ pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <IconButton onClick={() => navigate('/app')} aria-label="Kembali" sx={{ bgcolor: 'action.hover' }}>
           <ArrowBackRoundedIcon />
         </IconButton>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" fontWeight={800} noWrap>Katalog Produk</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
+          <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 15 }}>Katalog Produk</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 10 }}>
             Referensi harga jual & stok gudang (Lihat Saja)
           </Typography>
         </Box>
-        <Chip size="small" color="primary" variant="outlined" label={`${filtered.length} item`} />
+        <Chip size="small" color="primary" variant="outlined" label={`${filtered.length} item`} sx={{ fontSize: '0.65rem' }} />
       </Stack>
 
-      <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />} sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: 12.5 } }}>
+      <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />} sx={{ py: 0.4, '& .MuiAlert-message': { fontSize: 11 } }}>
         Mode <b>Read-Only</b> — harga acuan & stok dikelola terpusat oleh Master Data.
       </Alert>
 
-      {/* Pencarian & Filter */}
-      <Stack spacing={1.25}>
+      <Stack spacing={1}>
         <TextField
           size="small"
           fullWidth
@@ -125,7 +121,7 @@ export default function CatalogMobile() {
             ),
           }}
         />
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={0.75}>
           <TextField
             select
             size="small"
@@ -154,7 +150,6 @@ export default function CatalogMobile() {
         </Stack>
       </Stack>
 
-      {/* Daftar Produk */}
       {filtered.length ? filtered.map((p) => {
         const totalStok = stockOfProduct(p);
         const unitInfo = p.unit === 'box' && Number(p.pcsPerUnit) > 1
@@ -167,21 +162,21 @@ export default function CatalogMobile() {
             onClick={() => setDetailProduct(p)}
             sx={{
               cursor: 'pointer',
-              borderRadius: 2,
+              borderRadius: 1,
               border: '1px solid',
               borderColor: 'divider',
               transition: 'border-color 0.15s',
               '&:hover': { borderColor: 'primary.main' },
             }}
           >
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-              <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 40, height: 40, borderRadius: 2 }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                <Avatar variant="rounded" sx={{ bgcolor: 'primary.light', color: 'primary.dark', width: 36, height: 36, borderRadius: 1 }}>
                   <Inventory2RoundedIcon fontSize="small" />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'text.secondary' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'text.secondary', fontSize: 9.5 }}>
                       {p.sku} • {p.category || '-'}
                     </Typography>
                     <Chip
@@ -189,17 +184,17 @@ export default function CatalogMobile() {
                       color={totalStok > 20 ? 'success' : totalStok > 0 ? 'warning' : 'error'}
                       variant={totalStok > 0 ? 'outlined' : 'filled'}
                       label={totalStok > 0 ? `Stok ${totalStok} pcs` : 'Stok Habis'}
-                      sx={{ height: 22, fontSize: 11, fontWeight: 700 }}
+                      sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
                     />
                   </Stack>
-                  <Typography fontWeight={750} fontSize={14.5} sx={{ mt: 0.25 }} noWrap>
+                  <Typography fontWeight={750} fontSize={12.5} sx={{ mt: 0.2 }} noWrap>
                     {p.name}
                   </Typography>
-                  <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mt: 0.75 }}>
-                    <Typography variant="caption" color="text.secondary">
+                  <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mt: 0.6 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
                       Satuan: <b>{unitInfo}</b>
                     </Typography>
-                    <Typography fontWeight={800} fontSize={14.5} color="primary.main">
+                    <Typography fontWeight={800} fontSize={13} color="primary.main">
                       {formatRupiah(p.hargaJual)}
                     </Typography>
                   </Stack>
@@ -212,21 +207,20 @@ export default function CatalogMobile() {
         <EmptyState message="Produk tidak ditemukan pada filter pencarian ini." />
       )}
 
-      {/* Modal Detail Produk Read-Only */}
       <Dialog
         open={Boolean(detailProduct)}
         onClose={() => setDetailProduct(null)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2, m: 1.5 } }}
+        PaperProps={{ sx: { borderRadius: 1, m: 1.5 } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: 16 }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 14 }}>
           Detail Katalog — {detailProduct?.name}
         </DialogTitle>
-        <DialogContent dividers sx={{ px: 2, py: 2 }}>
+        <DialogContent dividers sx={{ px: 1.5, py: 1.5 }}>
           {detailProduct && (
-            <Stack spacing={1.5}>
-              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+            <Stack spacing={1.25}>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                 {[
                   { l: 'Kode SKU', v: detailProduct.sku },
                   { l: 'Kategori', v: detailProduct.category || '-' },
@@ -243,38 +237,38 @@ export default function CatalogMobile() {
                   <Box
                     key={row.l}
                     sx={{
-                      px: 1.5,
-                      py: 1,
+                      px: 1.25,
+                      py: 0.8,
                       borderBottom: idx === arr.length - 1 ? 'none' : '1px solid',
                       borderColor: 'divider',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      gap: 1.5,
+                      gap: 1,
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: 10 }}>
                       {row.l}
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} fontSize={13} textAlign="right">
+                    <Typography variant="body2" fontWeight={700} fontSize={11.5} textAlign="right">
                       {row.v}
                     </Typography>
                   </Box>
                 ))}
               </Box>
 
-              <Stack direction="row" spacing={0.75} alignItems="center">
+              <Stack direction="row" spacing={0.5} alignItems="center">
                 <WarehouseRoundedIcon fontSize="small" color="action" />
-                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase' }}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: 10 }}>
                   Sebaran Stok Gudang Aktif
                 </Typography>
               </Stack>
 
               {detailPlacements.length ? (
-                <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+                <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontSize: 11.5, fontWeight: 700 }}>Gudang</TableCell>
-                      <TableCell align="right" sx={{ fontSize: 11.5, fontWeight: 700 }}>Stok</TableCell>
+                      <TableCell sx={{ fontSize: 10.5, fontWeight: 700 }}>Gudang</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 10.5, fontWeight: 700 }}>Stok</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -282,23 +276,23 @@ export default function CatalogMobile() {
                       const wh = warehouses.find((w) => w.id === pl.gudangId);
                       return (
                         <TableRow key={`${pl.productId}-${pl.gudangId}`}>
-                          <TableCell sx={{ fontSize: 12.5 }}>{wh ? `${wh.code} — ${wh.name}` : '-'}</TableCell>
-                          <TableCell align="right" sx={{ fontSize: 12.5, fontWeight: 700 }}>{pl.stokTercatat} pcs</TableCell>
+                          <TableCell sx={{ fontSize: 11.5 }}>{wh ? `${wh.code} — ${wh.name}` : '-'}</TableCell>
+                          <TableCell align="right" sx={{ fontSize: 11.5, fontWeight: 700 }}>{pl.stokTercatat} pcs</TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               ) : (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10.5 }}>
                   Rincian alokasi per gudang belum tersedia (Total stok tercatat: {stockOfProduct(detailProduct)} pcs).
                 </Typography>
               )}
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 2, py: 1.5 }}>
-          <Button variant="outlined" fullWidth onClick={() => setDetailProduct(null)}>
+        <DialogActions sx={{ px: 1.5, py: 1 }}>
+          <Button variant="outlined" fullWidth onClick={() => setDetailProduct(null)} sx={{ fontSize: 11 }}>
             Tutup
           </Button>
         </DialogActions>

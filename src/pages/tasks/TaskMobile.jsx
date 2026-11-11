@@ -25,7 +25,6 @@ import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, dateID, TASK_TYPE_LABEL } from '../../utils/helpers';
 import { expireTasks } from '../../utils/taskUtils';
 
-/* Ikon + warna per jenis tugas — memudahkan scan visual */
 const TYPE_META = {
   order:   { icon: ShoppingCartRoundedIcon, color: 'primary' },
   audit:   { icon: FactCheckRoundedIcon,    color: 'success' },
@@ -33,7 +32,6 @@ const TYPE_META = {
   billing: { icon: PaymentsRoundedIcon,     color: 'info' },
 };
 
-/* Kartu tugas — didefinisikan DI LUAR komponen agar tidak dibuat ulang tiap render */
 function TaskCard({ t, outlet, isQueuedOffline, onOpen }) {
   const meta = TYPE_META[t.type] || TYPE_META.order;
   const Icon = meta.icon;
@@ -41,48 +39,48 @@ function TaskCard({ t, outlet, isQueuedOffline, onOpen }) {
     <Card
       elevation={0}
       onClick={onOpen}
-      sx={{ cursor: 'pointer', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+      sx={{ cursor: 'pointer', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}
     >
-      <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'center', p: 1.75, '&:last-child': { pb: 1.75 } }}>
+      <CardContent sx={{ display: 'flex', gap: 1, alignItems: 'center', p: 1.25, '&:last-child': { pb: 1.25 } }}>
         <Avatar
           variant="rounded"
           sx={{
             bgcolor: `${meta.color}.main`,
             color: 'common.white',
-            width: 42,
-            height: 42,
-            borderRadius: 2,
+            width: 38,
+            height: 38,
+            borderRadius: 1,
             flexShrink: 0,
           }}
         >
           <Icon fontSize="small" />
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-            <Typography fontWeight={700} fontSize={13} noWrap>{outlet.name || '-'}</Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+            <Typography fontWeight={700} fontSize={11.5} noWrap>{outlet.name || '-'}</Typography>
             {isQueuedOffline ? (
               <Chip
                 size="small"
                 color="warning"
                 icon={<CloudSyncRoundedIcon />}
                 label="Antrean Offline"
-                sx={{ height: 22, fontSize: 11, fontWeight: 700 }}
+                sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
               />
             ) : (
               <StatusChip kind="task" status={t.status} />
             )}
           </Stack>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
+          <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 9.5 }}>
             {TASK_TYPE_LABEL[t.type]} • {outlet.address || ''}
           </Typography>
           {t.note && (
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
-              <NoteRoundedIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-              <Typography variant="caption" color="text.secondary" noWrap>{t.note}</Typography>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.2 }}>
+              <NoteRoundedIcon sx={{ fontSize: 11, color: 'text.disabled' }} />
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 10 }}>{t.note}</Typography>
             </Stack>
           )}
         </Box>
-        <ChevronRightRoundedIcon color="action" />
+        <ChevronRightRoundedIcon color="action" sx={{ fontSize: 14 }} />
       </CardContent>
     </Card>
   );
@@ -92,11 +90,11 @@ function Section({ title, count, color, list, outletOf, queuedTaskIds, onOpen })
   if (!list.length) return null;
   return (
     <Box>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
-        <Chip size="small" label={count} color={color} variant="outlined" />
+      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ fontSize: 12 }}>{title}</Typography>
+        <Chip size="small" label={count} color={color} variant="outlined" sx={{ fontSize: '0.65rem' }} />
       </Stack>
-      <Stack spacing={1.25}>
+      <Stack spacing={0.75}>
         {list.map((t) => (
           <TaskCard
             key={t.id}
@@ -118,14 +116,12 @@ export default function TaskMobile() {
   const navigate = useNavigate();
   const today = todayISO();
 
-  /* BR-TASK-004: Kedaluwarsa harian otomatis (TANPA men-generate jadwal dari sisi Sales sesuai BR-TASK-001) */
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
     const n = expireTasks(db, mutate);
     if (n) toast(`${n} tugas kemarin yang belum selesai ditandai Gagal (hangus di akhir hari).`, 'info');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mine = useMemo(
@@ -152,21 +148,19 @@ export default function TaskMobile() {
   const openTask = (id) => navigate(`/app/tasks/${id}`);
 
   return (
-    <Stack spacing={2}>
-      {/* Header */}
+    <Stack spacing={1.5}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6" fontWeight={800}>Tugas Hari Ini</Typography>
-        <Typography variant="caption" color="text.secondary">{dateID(today)}</Typography>
+        <Typography variant="body2" fontWeight={800} sx={{ fontSize: 15 }}>Tugas Hari Ini</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{dateID(today)}</Typography>
       </Stack>
 
-      {/* Progres hari ini */}
       {mine.length > 0 && (
         <Box>
           <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-            <Typography variant="body2" color="text.secondary">{doneCount} dari {mine.length} tugas selesai</Typography>
-            <Typography variant="body2" fontWeight={700} color="primary.main">{pct}%</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 11 }}>{doneCount} dari {mine.length} tugas selesai</Typography>
+            <Typography variant="body2" fontWeight={700} color="primary.main" sx={{ fontSize: 12 }}>{pct}%</Typography>
           </Stack>
-          <LinearProgress variant="determinate" value={pct} sx={{ height: 8, borderRadius: 99 }} />
+          <LinearProgress variant="determinate" value={pct} sx={{ height: 6, borderRadius: 99 }} />
         </Box>
       )}
 

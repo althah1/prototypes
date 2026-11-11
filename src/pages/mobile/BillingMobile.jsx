@@ -76,7 +76,6 @@ export default function BillingMobile() {
     [db.outlets, salesProfile]
   );
 
-  /* Tagihan khusus outlet di Area Kerja Sales atau transaksi milik Sales sendiri */
   const areaInvoices = useMemo(
     () => [...(db.invoices || [])]
       .filter((i) => areaOutletIds.has(i.outletId) || i.salesId === user.salesId)
@@ -117,7 +116,6 @@ export default function BillingMobile() {
       }
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaInvoices, statusFilter, q, db.outlets, today]);
 
   const totalPiutang = areaInvoices
@@ -127,7 +125,6 @@ export default function BillingMobile() {
 
   const detailInvoice = areaInvoices.find((i) => i.id === detailId) || null;
 
-  /* Catatan Integrasi Tabel 1 FSD: Sales hanya diizinkan memperbarui status pengiriman faktur di lapangan */
   const markInvoiceDelivered = (inv) => {
     update('invoices', inv.id, {
       fakturDelivered: true,
@@ -138,51 +135,48 @@ export default function BillingMobile() {
   };
 
   return (
-    <Stack spacing={2} sx={{ pb: 4 }}>
-      {/* Header */}
+    <Stack spacing={1.5} sx={{ pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <IconButton onClick={() => navigate('/app')} aria-label="Kembali" sx={{ bgcolor: 'action.hover' }}>
           <ArrowBackRoundedIcon />
         </IconButton>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" fontWeight={800} noWrap>Billing Pelanggan</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap display="block">
+          <Typography variant="body2" fontWeight={800} noWrap sx={{ fontSize: 15 }}>Billing Pelanggan</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap display="block" sx={{ fontSize: 10 }}>
             Daftar tagihan & piutang outlet area Anda (Read-Only)
           </Typography>
         </Box>
-        <Chip size="small" color="primary" variant="outlined" label={`${filtered.length} faktur`} />
+        <Chip size="small" color="primary" variant="outlined" label={`${filtered.length} faktur`} sx={{ fontSize: '0.65rem' }} />
       </Stack>
 
-      {/* Ringkasan Piutang Area */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 1.25 }}>
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ fontSize: 9.5 }}>
               Sisa Piutang Area
             </Typography>
-            <Typography fontWeight={800} fontSize={15.5} color="warning.main" sx={{ mt: 0.25 }}>
+            <Typography fontWeight={800} fontSize={13.5} color="warning.main" sx={{ mt: 0.2 }}>
               {formatRupiah(totalPiutang)}
             </Typography>
           </CardContent>
         </Card>
-        <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+        <Card elevation={0} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ fontSize: 9.5 }}>
               Jatuh Tempo
             </Typography>
-            <Typography fontWeight={800} fontSize={15.5} color={overdueCount > 0 ? 'error.main' : 'success.main'} sx={{ mt: 0.25 }}>
+            <Typography fontWeight={800} fontSize={13.5} color={overdueCount > 0 ? 'error.main' : 'success.main'} sx={{ mt: 0.2 }}>
               {overdueCount} faktur
             </Typography>
           </CardContent>
         </Card>
       </Box>
 
-      <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />} sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: 12.5 } }}>
+      <Alert severity="info" icon={<LockRoundedIcon fontSize="small" />} sx={{ py: 0.4, '& .MuiAlert-message': { fontSize: 11 } }}>
         Verifikasi pelunasan dikelola oleh <b>Finance</b>. Sales dapat memantau piutang, mengunduh PDF faktur, dan menandai penyerahan faktur di outlet.
       </Alert>
 
-      {/* Filter & Pencarian */}
-      <Stack spacing={1.25}>
+      <Stack spacing={1}>
         <TextField
           size="small"
           fullWidth
@@ -213,7 +207,6 @@ export default function BillingMobile() {
         </TextField>
       </Stack>
 
-      {/* Daftar Invoice */}
       {filtered.length ? filtered.map((inv) => {
         const outlet = outletOf(inv.outletId);
         const sisa = Math.max(0, inv.total - paidOf(inv));
@@ -235,34 +228,34 @@ export default function BillingMobile() {
             onClick={() => setDetailId(inv.id)}
             sx={{
               cursor: 'pointer',
-              borderRadius: 2,
+              borderRadius: 1,
               border: '1px solid',
               borderColor: over ? 'error.light' : 'divider',
             }}
           >
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-              <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                <Avatar variant="rounded" sx={{ bgcolor: inv.status === 'lunas' ? 'success.main' : 'info.main', width: 38, height: 38, borderRadius: 2 }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Avatar variant="rounded" sx={{ bgcolor: inv.status === 'lunas' ? 'success.main' : 'info.main', width: 34, height: 34, borderRadius: 1 }}>
                   <PaymentsRoundedIcon fontSize="small" sx={{ color: 'common.white' }} />
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                    <Typography fontFamily="monospace" fontWeight={800} fontSize={12.5} noWrap>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+                    <Typography fontFamily="monospace" fontWeight={800} fontSize={11} noWrap>
                       {inv.no}
                     </Typography>
                     <StatusChip kind="paid" status={chipStatus} />
                   </Stack>
-                  <Typography fontWeight={700} fontSize={14} noWrap sx={{ mt: 0.25 }}>
+                  <Typography fontWeight={700} fontSize={12} noWrap sx={{ mt: 0.2 }}>
                     {outlet.name || '-'}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                  <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 9.5 }}>
                     {syaratLabel(inv)} • Jatuh tempo: {inv.jatuhTempo || 'Sesuai angsuran'}
                   </Typography>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.75 }}>
-                    <Typography variant="caption" color={inv.fakturDelivered ? 'success.main' : 'text.secondary'} fontWeight={600}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.6 }}>
+                    <Typography variant="caption" color={inv.fakturDelivered ? 'success.main' : 'text.secondary'} fontWeight={600} sx={{ fontSize: 10 }}>
                       {inv.fakturDelivered ? '✓ Faktur diserahkan' : 'Faktur belum diserahkan'}
                     </Typography>
-                    <Typography fontWeight={800} fontSize={13.5} color={inv.status === 'lunas' ? 'success.main' : 'text.primary'}>
+                    <Typography fontWeight={800} fontSize={11.5} color={inv.status === 'lunas' ? 'success.main' : 'text.primary'}>
                       {inv.status === 'lunas' ? formatRupiah(inv.total) : `Sisa ${formatRupiah(sisa)}`}
                     </Typography>
                   </Stack>
@@ -275,21 +268,20 @@ export default function BillingMobile() {
         <EmptyState message="Tidak ada tagihan pelanggan pada filter yang dipilih." />
       )}
 
-      {/* Dialog Detail Invoice Read-Only */}
       <Dialog
         open={Boolean(detailInvoice)}
         onClose={() => setDetailId(null)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2, m: 1.25 } }}
+        PaperProps={{ sx: { borderRadius: 1, m: 1 } }}
       >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: 16 }}>
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 14 }}>
           Detail Tagihan — {detailInvoice?.no}
         </DialogTitle>
-        <DialogContent dividers sx={{ px: 2, py: 2 }}>
+        <DialogContent dividers sx={{ px: 1.5, py: 1.5 }}>
           {detailInvoice && (
-            <Stack spacing={1.75}>
-              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+            <Stack spacing={1.25}>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                 {[
                   { l: 'Outlet', v: outletOf(detailInvoice.outletId).name || '-' },
                   { l: 'No. Order', v: detailInvoice.orderNo || '-' },
@@ -314,70 +306,68 @@ export default function BillingMobile() {
                   <Box
                     key={row.l}
                     sx={{
-                      px: 1.5,
-                      py: 0.9,
+                      px: 1.25,
+                      py: 0.8,
                       borderBottom: idx === arr.length - 1 ? 'none' : '1px solid',
                       borderColor: 'divider',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      gap: 1.5,
+                      gap: 1,
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: 10 }}>
                       {row.l}
                     </Typography>
-                    <Typography variant="body2" fontWeight={700} fontSize={12.5} textAlign="right">
+                    <Typography variant="body2" fontWeight={700} fontSize={11} textAlign="right">
                       {row.v}
                     </Typography>
                   </Box>
                 ))}
               </Box>
 
-              {/* Rincian Item */}
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', display: 'block', mb: 0.5, fontSize: 10 }}>
                   Rincian Produk
                 </Typography>
-                <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}>
+                <Table size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontSize: 11.5, fontWeight: 700 }}>Item</TableCell>
-                      <TableCell align="right" sx={{ fontSize: 11.5, fontWeight: 700 }}>Qty</TableCell>
-                      <TableCell align="right" sx={{ fontSize: 11.5, fontWeight: 700 }}>Subtotal</TableCell>
+                      <TableCell sx={{ fontSize: 10.5, fontWeight: 700 }}>Item</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 10.5, fontWeight: 700 }}>Qty</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 10.5, fontWeight: 700 }}>Subtotal</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(detailInvoice.items || []).map((it, idx) => (
                       <TableRow key={idx}>
-                        <TableCell sx={{ fontSize: 12 }}>{it.name}</TableCell>
-                        <TableCell align="right" sx={{ fontSize: 12 }}>{it.qty} {it.unit}</TableCell>
-                        <TableCell align="right" sx={{ fontSize: 12, fontWeight: 700 }}>{formatRupiah(it.line)}</TableCell>
+                        <TableCell sx={{ fontSize: 11 }}>{it.name}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 11 }}>{it.qty} {it.unit}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>{formatRupiah(it.line)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </Box>
 
-              {/* Konfirmasi Penyerahan Faktur di Lapangan (Catatan Integrasi Tabel 1 FSD) */}
               {!detailInvoice.fakturDelivered ? (
                 <Button
                   variant="contained"
                   color="primary"
                   startIcon={<LocalShippingRoundedIcon />}
                   onClick={() => markInvoiceDelivered(detailInvoice)}
-                  sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700 }}
+                  sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, fontSize: 12 }}
                 >
                   Tandai Faktur Telah Diserahkan ke Pelanggan
                 </Button>
               ) : (
-                <Alert severity="success" icon={<CheckCircleRoundedIcon fontSize="small" />} sx={{ py: 0.5 }}>
+                <Alert severity="success" icon={<CheckCircleRoundedIcon fontSize="small" />} sx={{ py: 0.4 }}>
                   Faktur telah diserahkan oleh <b>{detailInvoice.fakturDeliveredBy || 'Sales'}</b> pada {detailInvoice.fakturDeliveredAt}.
                 </Alert>
               )}
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 2, py: 1.5, flexWrap: 'wrap', gap: 1 }}>
+        <DialogActions sx={{ px: 1.5, py: 1, flexWrap: 'wrap', gap: 0.75 }}>
           {detailInvoice && (
             <Button
               size="small"
@@ -387,16 +377,17 @@ export default function BillingMobile() {
                 const ok = openInvoicePdf(detailInvoice, db);
                 if (!ok) toast('Izinkan popup browser untuk mencetak PDF.', 'warning');
               }}
+              sx={{ fontSize: 11 }}
             >
               PDF
             </Button>
           )}
           {detailInvoice && (
-            <Button size="small" variant="outlined" onClick={() => shareInvoiceWhatsApp(detailInvoice, db)}>
+            <Button size="small" variant="outlined" onClick={() => shareInvoiceWhatsApp(detailInvoice, db)} sx={{ fontSize: 11 }}>
               WhatsApp
             </Button>
           )}
-          <Button size="small" variant="contained" onClick={() => setDetailId(null)} sx={{ ml: 'auto' }}>
+          <Button size="small" variant="contained" onClick={() => setDetailId(null)} sx={{ ml: 'auto', fontSize: 11 }}>
             Tutup
           </Button>
         </DialogActions>

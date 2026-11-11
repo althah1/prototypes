@@ -4,13 +4,13 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
@@ -22,42 +22,58 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+
 import { useDb } from '../../store/DbContext';
 import { useToast } from '../ui/ToastProvider';
 import { DEFAULT_AUDIT_TEMPLATE, formatChecklistAnswer, getOutletStockHealth, formatStockMovement, PROSPECT_STATUSES, normalizeProspectStatus } from '../../utils/auditUtils';
 import StatusChip from './StatusChipMobile';
 
 const KV = ({ label, value }) => (
-  <Stack sx={{ py: 0.5 }}>
-    <Typography variant="caption" color="text.secondary"
-      sx={{ fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: 10.5, mb: 0.4, display: 'block' }}>
+  <Box sx={{ py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
+    <Typography
+      variant="caption"
+      sx={{
+        fontWeight: 700,
+        color: 'text.secondary',
+        fontSize: '0.675rem',
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+        display: 'block',
+        mb: 0.25,
+      }}
+    >
       {label}
     </Typography>
-    <Typography variant="body2" fontWeight={600}
-      sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1.25, py: 0.75, overflowWrap: 'anywhere', display: 'block' }}>
+    <Typography
+      variant="body2"
+      component="div"
+      sx={{
+        fontWeight: 600,
+        fontSize: '0.825rem',
+        color: 'text.primary',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
       {value}
     </Typography>
-  </Stack>
+  </Box>
 );
 
 const scoreColor = (s) => (s >= 75 ? 'success' : s >= 50 ? 'warning' : 'error');
 
-/*
- * canClassify = true → panel klasifikasi prospek untuk Supervisor.
- * Sisi Sales memakai dialog ini read-only (form terkunci #66).
- */
 export default function AuditDetailDialog({ open, auditId, onClose, canClassify = false }) {
   const { db, update, insert } = useDb();
   const { toast } = useToast();
 
-  /* Semua hooks di atas — sebelum early return */
   const [photoIdx, setPhotoIdx] = useState(null);
   const [catId, setCatId] = useState('');
   const [status, setStatus] = useState('Prospek');
 
   const audit = (db.audits || []).find((a) => a.id === auditId);
 
-  /* Proses terkait secara aman: hindari cocokkan undefined === undefined. */
   const linkedProspect = audit
     ? (db.prospects || []).find(
         (p) =>
@@ -80,20 +96,18 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditId, open, linkedProspect?.categoryId, linkedProspect?.status]);
 
-  if (!audit) return null; /* early return SETELAH semua hooks — aman */
+  if (!audit) return null;
 
   const outlet = (db.outlets || []).find((o) => o.id === audit.outletId) || {};
   const salesName = (db.sales || []).find((s) => s.id === audit.salesId)?.name || '-';
   const areaName = (db.areas || []).find((a) => a.id === outlet.areaId)?.name || '-';
 
-  /* #69: simpan klasifikasi + upsert data prospek (terhubung GPS Route Planning #70) */
   const saveClassification = () => {
     const cid = catId ? Number(catId) : null;
     const normalizedStatus = normalizeProspectStatus(status);
 
     update('audits', audit.id, { categoryId: cid, prospectStatus: normalizedStatus });
 
-    /* Sinkronkan seluruh riwayat audit outlet/prospek yang sama agar konsisten */
     (db.audits || []).forEach((a) => {
       if (a.id === audit.id) return;
       const sameProspect = audit.prospectId != null && a.prospectId != null && a.prospectId === audit.prospectId;
@@ -120,14 +134,14 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
       <Dialog
         open={open}
         onClose={onClose}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
             m: { xs: 0, sm: 2 },
             width: { xs: '100%', sm: 'auto' },
-            maxWidth: { xs: '100%', sm: 'sm' },
-            borderRadius: { xs: 0, sm: 2 },
+            maxWidth: { xs: '100%', sm: 'md' },
+            borderRadius: { xs: 0, sm: 1 },
             borderTop: '1px solid',
             borderBottom: '1px solid',
             borderLeft: { xs: 'none', sm: '1px solid' },
@@ -137,78 +151,66 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, px: { xs: 2, sm: 3 } }}>
-          Laporan Audit {audit.no}
+        <DialogTitle
+          sx={{
+            fontWeight: 800,
+            pr: 6,
+            position: 'relative',
+            pb: 1,
+            px: { xs: 2, sm: 3 },
+          }}
+        >
+          Laporan Audit
+          <IconButton
+            onClick={onClose}
+            size="small"
+            aria-label="Tutup"
+            sx={{ position: 'absolute', right: 12, top: 12, bgcolor: 'action.hover' }}
+          >
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ overflowX: 'hidden', px: { xs: 1.5, sm: 3 }, py: 2 }}>
-          {/* Ringkasan Metadata 2 Kolom Bersih */}
+
+        <DialogContent
+          dividers
+          sx={{ overflowX: 'hidden', px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}
+        >
+          {/* GRID 2 KOLOM METADATA */}
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-              gap: 1.25,
-              mb: 2.5,
-              p: 1.5,
-              bgcolor: 'action.hover',
-              borderRadius: 1.5,
-              border: '1px solid',
-              borderColor: 'divider',
+              columnGap: 3,
+              rowGap: 0.5,
+              mb: 3,
             }}
           >
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">Outlet</Typography>
-              <Typography variant="body2" fontWeight={700}>{outlet.name || '-'}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">Area Kerja</Typography>
-              <Typography variant="body2" fontWeight={600}>{areaName}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">Sales Penanggung Jawab</Typography>
-              <Typography variant="body2" fontWeight={600}>{salesName}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">Tanggal Audit</Typography>
-              <Typography variant="body2" fontWeight={600}>{audit.date}</Typography>
-            </Box>
-            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
-              <Typography variant="caption" color="text.secondary" display="block">Template Kuesioner</Typography>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.25, flexWrap: 'wrap' }}>
-                <Typography variant="body2" fontWeight={600}>
-                  {audit.templateName || DEFAULT_AUDIT_TEMPLATE.name}
-                </Typography>
-                <Chip size="small" color="primary" variant="outlined" label={`v${audit.templateVersion || 1}`} sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-              </Stack>
-            </Box>
-            <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">Skor Kondisi Toko</Typography>
-                <StatusChip
-                  kind="active"
-                  status={audit.score >= 80 ? 'active' : 'inactive'}
-                  label={`${audit.score}/100`}
-                />
-              </Stack>
-              <LinearProgress
-                variant="determinate"
-                value={audit.score}
-                color={audit.score >= 80 ? 'success' : audit.score >= 60 ? 'warning' : 'error'}
-                sx={{ height: 6, borderRadius: 1 }}
-              />
-            </Box>
+            <KV label="Outlet" value={outlet.name || '-'} />
+            <KV label="Area Kerja" value={areaName} />
+            <KV label="Sales Penanggung Jawab" value={salesName} />
+            <KV label="Tanggal Audit" value={audit.date} />
             {effCat && (
-              <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
-                <Typography variant="caption" color="text.secondary" display="block">Klasifikasi Prospek</Typography>
-                <Typography variant="body2" fontWeight={600}>{effCat.name} • {normStatus}</Typography>
-              </Box>
+              <KV label="Klasifikasi Prospek" value={effCat.name} />
             )}
+            <KV label="Skor Kondisi Toko" value={
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                <Typography variant="body2" fontWeight={600}>{audit.score}/100</Typography>
+                <StatusChip kind="active" status={audit.score >= 80 ? 'active' : 'inactive'} label={audit.score >= 80 ? 'Aktif' : 'Tidak Aktif'} />
+              </Stack>
+            } />
+            <LinearProgress
+              variant="determinate"
+              value={audit.score}
+              color={audit.score >= 80 ? 'success' : audit.score >= 60 ? 'warning' : 'error'}
+              sx={{ height: 6, borderRadius: 1, mb: 0 }}
+            />
           </Box>
 
           {/* Checklist Kondisi Toko (Dinamis per Versi Form) */}
-          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
-            Jawaban Kuesioner Audit (v{audit.templateVersion || 1})
+          <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25, fontSize: '0.85rem' }}>
+            Jawaban Kuesioner Audit
           </Typography>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden', mb: 2.5 }}>
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', mb: 2.5 }}>
             {(audit.checklist || []).map((c, idx) => {
               const type = c.type || 'scale_3';
               const maxS = Number(c.maxScore) || 3;
@@ -251,10 +253,10 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           </Box>
 
           {/* Hasil Stock-Take */}
-          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+          <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25, fontSize: '0.85rem' }}>
             Hasil Stock-Take Produk di Outlet
           </Typography>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden', mb: 2.5 }}>
+          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', mb: 2.5 }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
@@ -278,7 +280,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
                       <TableCell align="right" sx={{ fontSize: 13 }}>{actual} pcs</TableCell>
                       <TableCell align="center" sx={{ fontSize: 12 }}>
                         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                          <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} />
+                          <Chip size="small" color={health.color} variant={health.key === 'ok' ? 'outlined' : 'filled'} label={health.label} sx={{ borderRadius: 1 }} />
                           <Typography variant="caption" color="text.secondary" fontSize={10.5} sx={{ whiteSpace: 'nowrap' }}>
                             {movement}
                           </Typography>
@@ -292,7 +294,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           </Box>
 
           {/* Foto Bukti */}
-          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+          <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25, fontSize: '0.85rem' }}>
             Foto Bukti Dokumentasi
           </Typography>
           {audit.photos?.length ? (
@@ -304,7 +306,7 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
                   sx={{
                     cursor: 'zoom-in',
                     aspectRatio: '1',
-                    borderRadius: 1.5,
+                    borderRadius: 1,
                     overflow: 'hidden',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -321,13 +323,13 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
           )}
 
           {audit.note && (
-            <Alert severity="info" sx={{ mt: 2, borderRadius: 1.5 }}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }}>
               {audit.note}
             </Alert>
           )}
 
           {canClassify && (
-            <Card elevation={0} sx={{ mt: 2.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+            <Card elevation={0} sx={{ mt: 2.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
               <CardContent sx={{ p: 2 }}>
                 <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
                   Klasifikasi Prospek Outlet
@@ -371,15 +373,26 @@ export default function AuditDetailDialog({ open, auditId, onClose, canClassify 
             </Card>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: { xs: 1.5, sm: 3 }, py: 1.5 }}>
-          <Button
-            onClick={onClose}
-            variant="outlined"
-            color="inherit"
-            sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none' }}
-          >
-            Tutup
-          </Button>
+
+        <DialogActions
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            p: 2,
+            px: { xs: 1.5, sm: 3 },
+          }}
+        >
+          {canClassify && (
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={saveClassification}
+              sx={{ justifyContent: 'flex-start', borderRadius: 1, textTransform: 'none', py: 0.75, width: '100%' }}
+            >
+              Simpan Klasifikasi
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
