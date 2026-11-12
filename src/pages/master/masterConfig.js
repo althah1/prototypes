@@ -383,10 +383,10 @@ export const MASTER_CONFIG = {
     ],
     fields: [
       { k: 'name', l: 'Nama Kategori', type: 'text', required: true, max: 50, hint: 'Mis. Hot Lead / Warm Lead / Cold Lead.' },
-      { k: 'desc', l: 'Deskripsi / Syarat Kelayakan', type: 'textarea', max: 200 },
       { k: 'priority', l: 'Prioritas', type: 'select', required: true, options: [
         { v: 'Tinggi', l: 'Tinggi' }, { v: 'Sedang', l: 'Sedang' }, { v: 'Rendah', l: 'Rendah' },
       ] },
+      { k: 'desc', l: 'Deskripsi / Syarat Kelayakan', type: 'textarea', max: 200 },
     ],
     search: ['name'],
   },

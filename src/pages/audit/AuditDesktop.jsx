@@ -309,8 +309,8 @@ export default function AuditDesktop() {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
   const [search, setSearch] = useState('');
-  const [filterKategori, setFilterKategori] = useState('');
-  const [filterLead, setFilterLead] = useState('');
+  const [filterKategori, setFilterKategori] = useState('all');
+  const [filterLead, setFilterLead] = useState('all');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [detailId, setDetailId] = useState(null);
@@ -356,8 +356,8 @@ export default function AuditDesktop() {
         (outletName(a.outletId) && outletName(a.outletId).toLowerCase().includes(search.toLowerCase())) ||
         (salesName(a.salesId) && salesName(a.salesId).toLowerCase().includes(search.toLowerCase()));
 
-      const matchKategori = !filterKategori || catOf(a.categoryId)?.name === filterKategori;
-      const matchLead = !filterLead || a.prospectStatus === filterLead;
+      const matchKategori = filterKategori === 'all' || !filterKategori || catOf(a.categoryId)?.name === filterKategori;
+      const matchLead = filterLead === 'all' || !filterLead || a.prospectStatus === filterLead;
 
       return matchSearch && matchKategori && matchLead;
     });
@@ -376,8 +376,8 @@ export default function AuditDesktop() {
 
   const handleResetFilter = () => {
     setSearch('');
-    setFilterKategori('');
-    setFilterLead('');
+    setFilterKategori('all');
+    setFilterLead('all');
     setPage(0);
   };
 
@@ -446,7 +446,7 @@ export default function AuditDesktop() {
         shownCount={filteredList.length}
         totalCount={audits.length}
         unitLabel="audit"
-        hasActiveFilter={search !== '' || filterKategori !== '' || filterLead !== ''}
+        hasActiveFilter={search !== '' || filterKategori !== 'all' || filterLead !== 'all'}
         onReset={handleResetFilter}
       >
         <TextField
@@ -457,7 +457,7 @@ export default function AuditDesktop() {
           onChange={(e) => { setFilterKategori(e.target.value); setPage(0); }}
           sx={{ width: 165 }}
         >
-          <MenuItem value="">Semua Kategori</MenuItem>
+          <MenuItem value="all">Semua Kategori</MenuItem>
           {categories.map((k) => (
             <MenuItem key={k} value={k}>
               {k}
@@ -473,7 +473,7 @@ export default function AuditDesktop() {
           onChange={(e) => { setFilterLead(e.target.value); setPage(0); }}
           sx={{ width: 175 }}
         >
-          <MenuItem value="">Semua Status</MenuItem>
+          <MenuItem value="all">Semua Status</MenuItem>
           <MenuItem value="Prospek">Prospek</MenuItem>
           <MenuItem value="Follow Up">Follow Up</MenuItem>
           <MenuItem value="Negosiasi">Negosiasi</MenuItem>

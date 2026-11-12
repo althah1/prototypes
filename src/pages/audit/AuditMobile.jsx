@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';import { useLocation, useSearchParams } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -40,6 +39,20 @@ import { useDb } from '../../store/DbContext';
 import { useSync } from '../../store/SyncContext';
 import { useToast } from '../../components/ui/ToastProvider';
 import { todayISO, nowStamp } from '../../utils/helpers';
+
+const FILTERS_AUDIT = [
+  { v: 'all', l: 'Semua' },
+  { v: 'pending', l: 'Belum Terselesaikan' },
+  { v: 'done', l: 'Selesai' },
+];
+
+const FILTERS_PROSPECT = [
+  { v: 'all', l: 'Semua' },
+  { v: 'Prospek', l: 'Prospek' },
+  { v: 'Cold Lead', l: 'Cold Lead' },
+  { v: 'Warm Lead', l: 'Warm Lead' },
+  { v: 'Hot Lead', l: 'Hot Lead' },
+];
 import {
   CHECK_OPTIONS,
   auditScore,
@@ -142,6 +155,8 @@ export default function AuditMobile() {
   const [detailId, setDetailId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [cameraErr, setCameraErr] = useState('');
+  const [auditFilter, setAuditFilter] = useState('all');
+  const [prospectFilter, setProspectFilter] = useState('all');
 
   useEffect(() => {
     const tParam = searchParams.get('tab');
@@ -174,14 +189,18 @@ export default function AuditMobile() {
     return p.status === 'active' && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
   });
 
-  const myAudits = (db.audits || []).filter((a) => a.salesId === user.salesId).slice().reverse();
+  const myAudits = (db.audits || [])
+    .filter((a) => a.salesId === user.salesId)
+    .filter((a) => auditFilter === 'all' || a.status === auditFilter)
+    .slice()
+    .reverse();
   const queuedLeads = (db.syncQueue || [])
     .filter((q) => q.kind === 'prospect' && q.payload?.salesId === user.salesId)
     .map((q) => ({ ...q.payload, id: `q_${q.id}`, _queued: true }));
   const myProspects = [
     ...queuedLeads,
     ...(db.prospects || []).filter((p) => p.salesId === user.salesId).slice().reverse(),
-  ];
+  ].filter((p) => prospectFilter === 'all' || p.status === prospectFilter);
 
   const outletName = (id) => (db.outlets || []).find((o) => o.id === id)?.name || '-';
   const areaName = (id) => (db.areas || []).find((a) => a.id === Number(id))?.name || '-';
@@ -693,6 +712,20 @@ export default function AuditMobile() {
 
         {homeTab === 'audit' ? (
           <>
+            <Stack direction="row" spacing={0.5} sx={{ overflowX: 'auto', pb: 0.5 }}>
+              {FILTERS_AUDIT.map((f) => (
+                <Chip
+                  key={f.v}
+                  label={f.l}
+                  size="small"
+                  clickable
+                  color={auditFilter === f.v ? 'primary' : 'default'}
+                  variant={auditFilter === f.v ? 'filled' : 'outlined'}
+                  onClick={() => setAuditFilter(f.v)}
+                  sx={{ fontSize: '0.65rem', borderRadius: 1 }}
+                />
+              ))}
+            </Stack>
             {myAudits.length ? myAudits.map((a) => (
               <Card
                 key={a.id}
@@ -723,6 +756,21 @@ export default function AuditMobile() {
                 </Typography>
               </CardContent>
             </Card>
+
+            <Stack direction="row" spacing={0.5} sx={{ overflowX: 'auto', pb: 0.5 }}>
+              {FILTERS_PROSPECT.map((f) => (
+                <Chip
+                  key={f.v}
+                  label={f.l}
+                  size="small"
+                  clickable
+                  color={prospectFilter === f.v ? 'primary' : 'default'}
+                  variant={prospectFilter === f.v ? 'filled' : 'outlined'}
+                  onClick={() => setProspectFilter(f.v)}
+                  sx={{ fontSize: '0.65rem', borderRadius: 1 }}
+                />
+              ))}
+            </Stack>
 
             {myProspects.length ? myProspects.map((p) => {
               const cat = catOf(p.categoryId);
