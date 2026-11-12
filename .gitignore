@@ -28,4 +28,5 @@ dist-ssr
 .claude/
 .cursor/
 .momentic-mcp/
+momentic.config.yaml
 skills-lock.json
